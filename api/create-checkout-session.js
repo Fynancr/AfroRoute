@@ -1,90 +1,61 @@
-// AfroRoute — Stripe Webhook Handler
-// Vercel Serverless Function: /api/stripe-webhook
-//
-// Environment variables needed in Vercel:
-//   STRIPE_SECRET_KEY        → your Stripe secret key
-//   STRIPE_WEBHOOK_SECRET    → from Stripe Dashboard → Webhooks → signing secret
-//   SUPABASE_URL             → https://fzokrhosmthdiymdewuw.supabase.co
-//   SUPABASE_SERVICE_KEY     → your Supabase service_role key (NOT anon key)
-
+// AfroRoute — Stripe Checkout Session
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 module.exports = async (req, res) => {
-  if (req.method !== 'POST') {
-    return res.status(405).end();
-  }
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  const sig = req.headers['stripe-signature'];
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-  } catch (err) {
-    console.error('Webhook signature failed:', err.message);
-    return res.status(400).json({ error: `Webhook Error: ${err.message}` });
-  }
-
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-  const updateUser = async (userId, isSubscribed) => {
-    await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ is_subscribed: isSubscribed })
-    });
-  };
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    switch (event.type) {
+    const { email, userId } = req.body;
 
-      // ── Payment succeeded / trial started → activate subscription
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        const userId = session.metadata?.supabase_user_id || session.client_reference_id;
-        if (userId) await updateUser(userId, true);
-        break;
-      }
-
-      // ── Subscription renewed → keep active
-      case 'invoice.payment_succeeded': {
-        const invoice = event.data.object;
-        const sub = await stripe.subscriptions.retrieve(invoice.subscription);
-        const userId = sub.metadata?.supabase_user_id;
-        if (userId) await updateUser(userId, true);
-        break;
-      }
-
-      // ── Payment failed / subscription cancelled → deactivate
-      case 'invoice.payment_failed':
-      case 'customer.subscription.deleted': {
-        const obj = event.data.object;
-        const subId = obj.subscription || obj.id;
-        if (subId) {
-          const sub = await stripe.subscriptions.retrieve(subId);
-          const userId = sub.metadata?.supabase_user_id;
-          if (userId) await updateUser(userId, false);
-        }
-        break;
-      }
-
-      // ── Trial ending soon (3 days notice) — future: send email reminder
-      case 'customer.subscription.trial_will_end': {
-        console.log('Trial ending soon for subscription:', event.data.object.id);
-        break;
-      }
+    if (!email || !userId) {
+      return res.status(400).json({ error: 'Missing email or userId' });
     }
 
-    return res.status(200).json({ received: true });
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://afroroute.com';
+    const priceId = process.env.STRIPE_PRICE_ID;
+
+    if (!priceId) {
+      return res.status(500).json({ error: 'STRIPE_PRICE_ID not configured in Vercel environment variables' });
+    }
+
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({ error: 'STRIPE_SECRET_KEY not configured in Vercel environment variables' });
+    }
+
+    // Find or create customer
+    let customer;
+    const existing = await stripe.customers.list({ email, limit: 1 });
+    customer = existing.data.length > 0
+      ? existing.data[0]
+      : await stripe.customers.create({ email, metadata: { supabase_user_id: userId } });
+
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create({
+      customer: customer.id,
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      subscription_data: {
+        trial_period_days: 3,
+        metadata: { supabase_user_id: userId }
+      },
+      payment_method_collection: 'always',
+      billing_address_collection: 'auto',
+      allow_promotion_codes: true,
+      success_url: `${siteUrl}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${siteUrl}?payment=cancelled`,
+      client_reference_id: userId,
+      metadata: { supabase_user_id: userId },
+    });
+
+    return res.status(200).json({ url: session.url });
 
   } catch (error) {
-    console.error('Webhook handler error:', error);
+    console.error('Stripe checkout error:', error.message);
     return res.status(500).json({ error: error.message });
   }
 };
