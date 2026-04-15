@@ -941,6 +941,55 @@ button{cursor:pointer}
 .sub-card.active{
   background:#f0fdf4;border-color:#86efac;
 }
+
+/* ══ CENTER ALL PAGE CONTENT ══════════════════════════════ */
+.page{max-width:640px;margin:0 auto;width:100%}
+.content{display:flex;flex-direction:column;align-items:center}
+.content > .page{width:100%;max-width:640px}
+
+/* Hero centered */
+.hero-in{max-width:640px;margin:0 auto;text-align:center}
+.hero h1{text-align:center}
+.hero-sub{text-align:center}
+.hero-ctas{justify-content:center}
+.hero-pill{display:flex;justify-content:center}
+.hero-trust{justify-content:center}
+
+/* Stats centered */
+.stats-row{margin-left:auto;margin-right:auto;max-width:600px}
+
+/* Sections centered */
+.sec{max-width:640px;margin-left:auto;margin-right:auto;width:100%}
+.sec-hd{max-width:640px;margin-left:auto;margin-right:auto}
+
+/* Footer centered */
+.footer-brand{text-align:center}
+.footer-tl{margin-left:auto;margin-right:auto}
+.footer-grid{max-width:640px;margin-left:auto;margin-right:auto}
+.footer-bot{max-width:640px;margin-left:auto;margin-right:auto}
+
+/* Page headers centered */
+.phd{text-align:center;justify-content:center}
+
+/* Sub-ban centered */
+.sub-ban{max-width:600px;margin-left:auto;margin-right:auto}
+
+/* Forms centered */
+.auth-wrap{margin-left:auto;margin-right:auto}
+.form-card{max-width:600px;margin-left:auto;margin-right:auto}
+
+/* Browse pages centered */
+.filter-bar{max-width:640px;margin-left:auto;margin-right:auto}
+
+/* Trust grid centered */
+.trust-grid{max-width:600px;margin-left:auto;margin-right:auto}
+
+/* Cards centered on desktop */
+@media(min-width:768px){
+  .lcard{max-width:600px;margin-left:auto;margin-right:auto;display:block}
+  .hiw-grid{max-width:600px;margin-left:auto;margin-right:auto}
+  .adm-sg{max-width:600px}
+}
 </style>
 </head>
 <body>
@@ -1961,17 +2010,18 @@ const sb = {
 // STRIPE HELPER
 // ══════════════════════════════════════════════════════════
 const STRIPE_PUB_KEY="YOUR_STRIPE_PUBLISHABLE_KEY_HERE";
-const STRIPE_PRICE_ID="YOUR_STRIPE_PRICE_ID_HERE";
+const STRIPE_PRICE_ID="price_1TMXnlDqJlJqJcVU45Qn8BOk";
 
 async function startStripeCheckout(userEmail,userId){
-  if(!window.Stripe){
-    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://js.stripe.com/v3/';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
-  }
-  try{
-    const r=await fetch('/api/create-checkout-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:userEmail,userId,priceId:STRIPE_PRICE_ID})});
-    const {url}=await r.json();
-    if(url){window.location.href=url;return;}
-  }catch(e){throw new Error('Stripe backend not configured yet');}
+  const r=await fetch('/api/create-checkout-session',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email:userEmail,userId})
+  });
+  const data=await r.json();
+  if(!r.ok) throw new Error(data.error||'Checkout failed ('+r.status+')');
+  if(!data.url) throw new Error('No checkout URL returned from server');
+  window.location.href=data.url;
 }
 
 function App(){
@@ -2229,10 +2279,8 @@ const handleSubscribe=async()=>{
   try{
     await startStripeCheckout(user.email,user.id);
   }catch(e){
-    // Demo fallback
-    setSub(true);
-    if(user?.id)sb.update('profiles',{is_subscribed:true},`id=eq.${user.id}`).catch(()=>{});
-    showToast(t.toast_subscribed);go('home');
+    console.error('Stripe error:',e.message);
+    showToast('Payment error: '+(e.message||'Unknown error'),'error');
   }
 };
 
