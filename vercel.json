@@ -1,0 +1,15 @@
+{
+  "functions": {
+    "api/stripe-webhook.js": {
+      "memory": 128,
+      "maxDuration": 10
+    },
+    "api/create-checkout-session.js": {
+      "memory": 128,
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

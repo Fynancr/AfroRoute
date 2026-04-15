@@ -1,0 +1,8 @@
+{
+  "name": "afroroute",
+  "version": "1.0.0",
+  "description": "AfroRoute Global Shipping Marketplace",
+  "dependencies": {
+    "stripe": "^14.0.0"
+  }
+}
