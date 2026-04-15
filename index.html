@@ -1846,8 +1846,7 @@ const handleLogin=async(formData)=>{
         id_type:formData.idType||null,
         verification_status:'pending', // set to 'pending' until admin reviews
       });
-      // TODO: Upload formData.idFile and formData.selfieFile to Supabase Storage
-      // sb.upload('verifications', userId + '/id', idFile)
+            // sb.upload('verifications', userId + '/id', idFile)
       // sb.upload('verifications', userId + '/selfie', selfieFile)
         setUser({id:data.user.id,email:formData.email,name:formData.name,country:formData.country,wa:formData.wa,isSubscribed:false});
         setLI(true);setSub(false);showToast(t.toast_signed_up);go('home');
@@ -1984,7 +1983,7 @@ case 'pricing':return <div className="page"><div className="phd"><div className=
 case 'auth':return <div className="page" style={{display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:20}}><AuthPage t={t} onLogin={handleLogin}/></div>;
 case 'profile':return !loggedIn?<div className="page" style={{padding:'16px'}}><PW t={t} type="post" onSub={()=>go('auth')}/></div>:<div className="page"><ProfilePage t={t} user={user} subscribed={subscribed} savedIds={savedIds} onLogout={handleLogout} onSubscribe={()=>go('pricing')} go={go} onSaveProfile={handleSaveProfile}/></div>;
 case 'saved':return <div className="page"><div className="phd"><div className="phd-icon">⭐</div><div><div className="phd-title">{t.saved_listings}</div></div></div><div style={{padding:'0 16px 32px'}}>{savedIds.size===0?<Empty icon="⭐" title={t.saved_listings} sub="Items you save will appear here." cta="Browse Trips" onCta={()=>go('browse-trips')}/>:<>{trips.filter(tr=>savedIds.has(`trip-${tr.id}`)).map(trip=><TCard key={trip.id} trip={trip} t={t} onContact={handleContact} onSave={handleSave} saved={true} onDetail={item=>setDetail({item,type:'trip'})}/>)}{ships.filter(sh=>savedIds.has(`ship-${sh.id}`)).map(ship=><SCard key={ship.id} ship={ship} t={t} onContact={handleContact} onSave={handleSave} saved={true} onDetail={item=>setDetail({item,type:'ship'})}/>)}</>}</div></div>;
-case 'admin':return <div className="page"><div className="phd"><div className="phd-icon">🛡️</div><div><div className="phd-title">{t.admin_title}</div><div className="phd-sub">{t.mod_note}</div></div></div><div style={{padding:'0 16px 32px'}}><div className="adm-sg">{[[t.flagged_listings,'3'],[t.reported_users,'1'],[t.hidden_listings,'0'],[t.pending_review,'4']].map(([l,n])=><div key={l} className="adm-stat"><div className="adm-sn">{n}</div><div className="adm-sl">{l}</div></div>)}</div><div className="sec-hd"><span className="sec-title">{t.flagged_listings}</span></div>{[1,2,3].map(i=><div key={i} className="flag-item"><div style={{fontWeight:700,color:'#0A2540',fontSize:14,marginBottom:4}}>Listing #{i+100}</div><div style={{fontSize:12,color:'#64748b'}}>Reported for: Prohibited items • 2 reports</div><div style={{display:'flex',gap:8,marginTop:8}}><button style={{background:'#fff',border:'1.5px solid #e2e8f0',padding:'5px 12px',borderRadius:7,fontSize:12,fontWeight:600,color:'#64748b'}}>Review</button><button style={{background:'#fef2f2',border:'1.5px solid rgba(239,68,68,.2)',padding:'5px 12px',borderRadius:7,fontSize:12,fontWeight:600,color:'#ef4444'}}>Hide</button></div></div>)}<div style={{background:'#fffbeb',border:'1px solid rgba(245,158,11,.2)',borderRadius:12,padding:'14px 16px',marginTop:20}}><div style={{fontWeight:700,color:'#92400e',fontSize:14,marginBottom:4}}>Production Note</div><div style={{fontSize:13,color:'#78350f',lineHeight:1.6}}>In the live app, this panel connects to your Supabase database. Moderators can view flagged listings, reported users, hide content, and ban accounts. Access is restricted to verified admin accounts.</div></div></div></div>;
+case 'admin':return <AdminPage t={t} user={user} sb={sb} showToast={showToast}/>;
 case 'terms':return <TermsPage go={go}/>;
 case 'privacy':return <PrivacyPage go={go}/>;
 case 'contact':return <ContactPage t={T['en']} go={go} showToast={showToast}/>;
@@ -2468,6 +2467,144 @@ function ContactPage({go, showToast}) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN / MODERATION PAGE — connects to real Supabase data
+// ═══════════════════════════════════════════════════════════════
+function AdminPage({t, user, sb, showToast}) {
+  const[reports,setReports]=React.useState([]);
+  const[stats,setStats]=React.useState({flagged:0,users:0,hidden:0,pending:0});
+  const[loading,setLoading]=React.useState(true);
+  const[hiddenIds,setHiddenIds]=React.useState(new Set());
+
+  React.useEffect(()=>{
+    loadReports();
+  },[]);
+
+  const loadReports=async()=>{
+    setLoading(true);
+    try{
+      // Load reports from Supabase
+      const data = await sb.select(
+        'reports',
+        'id,listing_id,listing_type,reason,details,created_at,profiles(name)',
+        'order=created_at.desc'
+      );
+      setReports(data||[]);
+      // Group by listing to get counts
+      const grouped={};
+      (data||[]).forEach(r=>{
+        const key=`${r.listing_type}-${r.listing_id}`;
+        if(!grouped[key]) grouped[key]={...r,count:0};
+        grouped[key].count++;
+      });
+      const unique=Object.values(grouped);
+      setStats({
+        flagged:unique.length,
+        users:[...new Set((data||[]).map(r=>r.profiles?.name).filter(Boolean))].length,
+        hidden:hiddenIds.size,
+        pending:unique.filter(r=>!hiddenIds.has(r.listing_id)).length
+      });
+    }catch(e){
+      console.log('Reports load failed:',e.message);
+    }
+    setLoading(false);
+  };
+
+  const hideListng=async(listingId, listingType)=>{
+    try{
+      await sb.update(
+        listingType==='trip'?'trips':'shipments',
+        {status:'flagged'},
+        `id=eq.${listingId}`
+      );
+      setHiddenIds(prev=>new Set([...prev,listingId]));
+      showToast('Listing hidden from public view');
+      loadReports();
+    }catch(e){
+      showToast('Failed to hide listing','error');
+    }
+  };
+
+  // Group reports by listing
+  const grouped={};
+  reports.forEach(r=>{
+    const key=`${r.listing_type}-${r.listing_id}`;
+    if(!grouped[key]) grouped[key]={listing_id:r.listing_id,listing_type:r.listing_type,reason:r.reason,count:0,reporters:[],created_at:r.created_at};
+    grouped[key].count++;
+    if(r.profiles?.name) grouped[key].reporters.push(r.profiles.name);
+  });
+  const flaggedItems=Object.values(grouped).sort((a,b)=>b.count-a.count);
+
+  return(
+  <div className="page">
+    <div className="phd">
+      <div className="phd-icon">🛡️</div>
+      <div><div className="phd-title">{t.admin_title}</div><div className="phd-sub">Moderation Dashboard</div></div>
+    </div>
+    <div style={{padding:'0 16px 32px'}}>
+
+      {/* Stats */}
+      <div className="adm-sg">
+        {[[t.flagged_listings, flaggedItems.length],[t.reported_users, stats.users],[t.hidden_listings, hiddenIds.size],[t.pending_review, flaggedItems.filter(i=>!hiddenIds.has(i.listing_id)).length]].map(([l,n])=>(
+          <div key={l} className="adm-stat"><div className="adm-sn">{n}</div><div className="adm-sl">{l}</div></div>
+        ))}
+      </div>
+
+      {/* Flagged listings */}
+      <div className="sec-hd"><span className="sec-title">{t.flagged_listings}</span>
+        <button onClick={loadReports} style={{background:'none',border:'1.5px solid var(--bord)',color:'var(--text3)',padding:'5px 12px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer'}}>↻ Refresh</button>
+      </div>
+
+      {loading ? (
+        <div className="ldr"><div className="ldr-dots"><div className="ldr-dot"/><div className="ldr-dot"/><div className="ldr-dot"/></div></div>
+      ) : flaggedItems.length===0 ? (
+        <div className="empty-st">
+          <div className="empty-icon">✅</div>
+          <div className="empty-title">No flagged listings</div>
+          <div className="empty-sub">When users report listings, they will appear here for review.</div>
+        </div>
+      ) : (
+        flaggedItems.map((item,i)=>(
+          <div key={i} className="flag-item" style={{opacity:hiddenIds.has(item.listing_id)?0.5:1}}>
+            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
+              <div>
+                <div style={{fontWeight:700,color:'#0A2540',fontSize:14,marginBottom:3,display:'flex',alignItems:'center',gap:8}}>
+                  {item.listing_type==='trip'?'✈️':'📦'} {item.listing_type==='trip'?'Trip':'Shipment'} #{item.listing_id}
+                  {hiddenIds.has(item.listing_id)&&<span style={{background:'var(--bg2)',color:'var(--text3)',fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:12}}>HIDDEN</span>}
+                </div>
+                <div style={{fontSize:12,color:'#64748b',marginBottom:4}}>
+                  Reason: <strong>{item.reason||'Not specified'}</strong> · {item.count} report{item.count!==1?'s':''}
+                </div>
+                {item.reporters.length>0&&<div style={{fontSize:11,color:'#94a3b8'}}>Reported by: {item.reporters.slice(0,3).join(', ')}{item.reporters.length>3?` +${item.reporters.length-3} more`:''}</div>}
+                <div style={{fontSize:11,color:'#94a3b8',marginTop:2}}>{new Date(item.created_at).toLocaleDateString()}</div>
+              </div>
+              <div style={{display:'flex',gap:8,flexShrink:0}}>
+                {!hiddenIds.has(item.listing_id)&&(
+                  <button onClick={()=>hideListng(item.listing_id,item.listing_type)} style={{background:'#fef2f2',border:'1.5px solid rgba(239,68,68,.2)',padding:'7px 14px',borderRadius:8,fontSize:12,fontWeight:700,color:'#ef4444',cursor:'pointer'}}>
+                    Hide Listing
+                  </button>
+                )}
+                {hiddenIds.has(item.listing_id)&&(
+                  <span style={{fontSize:12,color:'var(--succ,#10b981)',fontWeight:600,padding:'7px 0'}}>✓ Hidden</span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+
+      {/* Access note */}
+      {!user&&(
+        <div style={{background:'var(--dpale)',border:'1px solid rgba(239,68,68,.15)',borderRadius:12,padding:'14px 16px',marginTop:16}}>
+          <div style={{fontWeight:700,color:'var(--danger)',fontSize:13,marginBottom:4}}>⚠️ Admin Access Required</div>
+          <div style={{fontSize:13,color:'#7f1d1d',lineHeight:1.6}}>You must be logged in with an admin account to moderate content.</div>
+        </div>
+      )}
+    </div>
+  </div>
   );
 }
 
