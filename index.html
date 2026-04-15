@@ -1337,9 +1337,20 @@ const nextStep=()=>{
   if(step===1&&validateStep1())setStep(2);
   else if(step===2&&validateStep2())setStep(3);
 };
-const submit=()=>{
-  if(mode==='login'){ if(!validateLogin())return; setL(true); onLogin({...f,isNew:false}); }
-  else { if(!validateStep3())return; setL(true); onLogin({...f,isNew:true}); }
+const submit=async()=>{
+  if(mode==='login'){
+    if(!validateLogin())return;
+    setL(true);
+    try{ await onLogin({...f,isNew:false}); }
+    catch(e){ console.error('Login error:',e); }
+    finally{ setL(false); }
+  } else {
+    if(!validateStep3())return;
+    setL(true);
+    try{ await onLogin({...f,isNew:true}); }
+    catch(e){ console.error('Signup error:',e); }
+    finally{ setL(false); }
+  }
 };
 const switchMode=(m)=>{ setMode(m);setStep(1);setE({});setIdScan('idle');setSelfieMode('idle');setOtpSent(false);setOtpError(''); };
 
@@ -1483,11 +1494,11 @@ return(
     {idScanMode==='scanning'&&(
     <div>
       <div style={{position:'relative',borderRadius:14,overflow:'hidden',background:'#000',marginBottom:12}}>
-        <video ref={idVideoRef} style={{width:'100%',display:'block',maxHeight:280}} autoPlay playsInline muted/>
+        <video ref={idVideoRef} style={{width:'100%',display:'block',height:'56vw',maxHeight:360,objectFit:'cover'}} autoPlay playsInline muted/>
         <canvas ref={idCanvasRef} style={{display:'none'}}/>
         {/* Scanning overlay guide */}
         <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
-          <div style={{width:'85%',height:'58%',border:'2px solid rgba(26,188,156,.8)',borderRadius:12,boxShadow:'0 0 0 2000px rgba(0,0,0,.45)',position:'relative'}}>
+          <div style={{width:'92%',height:'72%',border:'3px solid rgba(26,188,156,.9)',borderRadius:12,boxShadow:'0 0 0 2000px rgba(0,0,0,.45)',position:'relative'}}>
             {/* Corner markers */}
             {[['0%','0%','top:0;left:0;border-top:3px solid #1ABC9C;border-left:3px solid #1ABC9C'],
               ['0%','100%','top:0;right:0;border-top:3px solid #1ABC9C;border-right:3px solid #1ABC9C'],
@@ -1616,7 +1627,7 @@ return(
     {selfieMode==='camera'&&(
     <div>
       <div style={{position:'relative',borderRadius:14,overflow:'hidden',background:'#000',marginBottom:12}}>
-        <video ref={selfieVideoRef} style={{width:'100%',display:'block',maxHeight:300,transform:'scaleX(-1)'}} autoPlay playsInline muted/>
+        <video ref={selfieVideoRef} style={{width:'100%',display:'block',height:'70vw',maxHeight:420,objectFit:'cover',transform:'scaleX(-1)'}} autoPlay playsInline muted/>
         <canvas ref={selfieCanvasRef} style={{display:'none'}}/>
         {/* Face guide overlay */}
         <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
@@ -1786,7 +1797,20 @@ const sb = {
       return user;
     }catch(e){ return null; }
   },
-    async upsertProfile(profile){
+    async uploadFile(bucket, path, blob, contentType){
+    const r = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+      method: 'POST',
+      headers: {
+        ...sb._headers(),
+        'Content-Type': contentType,
+        'x-upsert': 'true',
+      },
+      body: blob
+    });
+    if(!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async upsertProfile(profile){
     const r=await fetch(`${SUPABASE_URL}/rest/v1/profiles`,{method:'POST',headers:{...sb._headers(),'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify(profile)});
     if(!r.ok)throw new Error(await r.text());return r.json();},
 };
@@ -1929,21 +1953,51 @@ const handleLogin=async(formData)=>{
   try{
     if(formData.isNew){
       const data=await sb.signUp(formData.email,formData.password,formData.name,formData.country,formData.wa);
-      if(data.user){
-        await sb.upsertProfile({
-        id:data.user.id,
-        name:formData.name,
-        country:formData.country,
-        whatsapp:formData.wa,
-        id_type:formData.idType||null,
-        verification_status:'pending', // set to 'pending' until admin reviews
-      });
-            // sb.upload('verifications', userId + '/id', idFile)
-      // sb.upload('verifications', userId + '/selfie', selfieFile)
-        setUser({id:data.user.id,email:formData.email,name:formData.name,country:formData.country,wa:formData.wa,isSubscribed:false});
-        setLI(true);setSub(false);loadListings(true); // logged in — hide demos
+      // Handle both confirmed (data.user) and unconfirmed (data.user null, session null)
+      const userId = data?.user?.id || data?.session?.user?.id;
+      if(userId){
+        try{
+          await sb.upsertProfile({
+            id:userId,
+            name:formData.name,
+            country:formData.country,
+            whatsapp:formData.wa,
+            id_type:formData.idType||null,
+            verification_status:'pending',
+          });
+        }catch(profileErr){
+          console.log('Profile upsert error (non-fatal):', profileErr.message);
+        }
+        // Upload ID document to Supabase Storage
+        if(formData.idImageData){
+          try{
+            const idBlob = await (await fetch(formData.idImageData)).blob();
+            const idPath = `${userId}/id_document.jpg`;
+            await sb.uploadFile('verifications', idPath, idBlob, 'image/jpeg');
+            console.log('ID uploaded to Supabase Storage');
+          }catch(uploadErr){
+            console.log('ID upload error (non-fatal):', uploadErr.message);
+          }
+        }
+        // Upload selfie to Supabase Storage
+        if(formData.selfieData){
+          try{
+            const selfieBlob = await (await fetch(formData.selfieData)).blob();
+            const selfiePath = `${userId}/selfie.jpg`;
+            await sb.uploadFile('verifications', selfiePath, selfieBlob, 'image/jpeg');
+            console.log('Selfie uploaded to Supabase Storage');
+          }catch(uploadErr){
+            console.log('Selfie upload error (non-fatal):', uploadErr.message);
+          }
+        }
+        setUser({id:userId,email:formData.email,name:formData.name,country:formData.country,wa:formData.wa,isSubscribed:false});
+        setLI(true);setSub(false);loadListings(true);
         showToast(t.toast_signed_up);go('home');
-      }else{showToast('Check your email to confirm your account!');}
+      }else{
+        // Email confirmation required — still navigate home and show message
+        showToast('Account created! Check your email to confirm then log in.');
+        go('home');
+      }
     }else{
       const data=await sb.signIn(formData.email,formData.password);
       const profile=await sb.getProfile(data.user.id);
