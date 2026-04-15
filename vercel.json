@@ -1,15 +1,12 @@
 {
   "functions": {
-    "api/stripe-webhook.js": {
-      "memory": 128,
-      "maxDuration": 10
-    },
-    "api/create-checkout-session.js": {
-      "memory": 128,
-      "maxDuration": 10
-    }
+    "api/stripe-webhook.js": { "memory": 128, "maxDuration": 10 },
+    "api/create-checkout-session.js": { "memory": 128, "maxDuration": 10 }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/((?!api/|favicon\\.png|afroroute-logo\\.png|apple-touch-icon\\.png|og-image\\.jpg).*)",
+      "destination": "/index.html"
+    }
   ]
 }
