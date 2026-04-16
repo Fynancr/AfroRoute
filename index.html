@@ -2149,7 +2149,7 @@ function MyListingsPage({t,items,type,go,sb,user,showToast,loadListings}){
   </div>;
 }
 
-function ProfilePage({t,user,subscribed,savedIds,onLogout,onSubscribe,go,onSaveProfile,setUser,showToast,sb}){
+function ProfilePage({t,user,subscribed,savedIds,trips=[],ships=[],onLogout,onSubscribe,go,onSaveProfile,setUser,showToast,sb}){
 const[editing,setEditing]=useState(false);const[ef,setEF]=useState({name:user?.name||'',country:user?.country||'',bio:'',wa:user?.wa||''});
 const handleAvatarChange=(e)=>{
   const file=e.target.files[0];
@@ -2199,7 +2199,7 @@ return <div className="page"><div style={{padding:'16px 16px 80px'}}>
   <div className="pstat"><div className="pstat-n">—</div><div className="pstat-l">{t.rating_placeholder}</div></div>
 </div>
 
-<div className={`sub-card ${subscribed?'active':''}`}>
+<div className={'sub-card'+(subscribed?' active':'')}>
   <div style={{fontSize:26}}>{subscribed?'✅':'🔒'}</div>
   <div style={{flex:1}}>
     <div style={{fontWeight:700,color:'var(--navy)',fontSize:14,marginBottom:3}}>
@@ -2208,14 +2208,14 @@ return <div className="page"><div style={{padding:'16px 16px 80px'}}>
         :<span style={{color:'#94a3b8'}}> Inactive</span>}
     </div>
     <div style={{fontSize:12,color:'var(--text3)'}}>
-      {subscribed?`AfroRoute Pro — €9.99${t.sub_period}`:t.paywall_post_sub}
+      {subscribed?('AfroRoute Pro — €9.99'+t.sub_period):t.paywall_post_sub}
     </div>
   </div>
   {!subscribed&&<button className="btn-pw" style={{animation:'none',padding:'9px 14px',fontSize:13,whiteSpace:'nowrap'}} onClick={onSubscribe}>{t.unlock_access}</button>}
   {subscribed&&<button style={{background:'none',border:'1.5px solid var(--bord)',color:'var(--text3)',padding:'8px 12px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer'}}>{t.manage_billing}</button>}
 </div>
 <div style={{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:13,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:10,marginTop:4}}>Account</div>
-{[{i:'✏️',bg:'rgba(26,188,156,.1)',l:t.edit_profile,s:'Update your information',a:()=>setEditing(true)},{i:'✈️',bg:'rgba(10,37,64,.08)',l:t.my_trips,s:trips.filter(tr=>!tr.isDemo&&tr.user_id===user?.id).length+' posted',a:()=>go('my-trips')},{i:'📦',bg:'rgba(26,188,156,.1)',l:t.my_requests,s:ships.filter(sh=>!sh.isDemo&&sh.user_id===user?.id).length+' posted',a:()=>go('my-requests')},{i:'⭐',bg:'rgba(245,158,11,.1)',l:t.saved_listings,s:`${savedIds.size} saved`,a:()=>go('saved')},{i:'💬',bg:'rgba(10,37,64,.08)',l:t.nav_msgs,s:'Your conversations',a:()=>go('messages')},{i:'💎',bg:'rgba(26,188,156,.1)',l:t.subscription_status,s:subscribed?'Active — €9.99/mo':'Not subscribed',a:()=>go('pricing')},{i:'⚙️',bg:'rgba(100,116,139,.1)',l:'Settings',s:'Account and preferences',a:()=>go('settings')},...(user?.email==='alcino.manuel86@gmail.com'?[{i:'🛡️',bg:'rgba(245,158,11,.1)',l:'Moderation Panel',s:'Admin access',a:()=>go('admin')}]:[])].map(item=><button key={item.l} className="mrow" onClick={item.a}><div className="mrow-icon" style={{background:item.bg}}>{item.i}</div><div style={{flex:1,textAlign:'left'}}><div className="mrow-t">{item.l}</div><div className="mrow-s">{item.s}</div></div><span className="mrow-arr">›</span></button>)}
+{[{i:'✏️',bg:'rgba(26,188,156,.1)',l:t.edit_profile,s:'Update your information',a:()=>setEditing(true)},{i:'✈️',bg:'rgba(10,37,64,.08)',l:t.my_trips,s:trips.filter(tr=>!tr.isDemo&&tr.user_id===user?.id).length+' posted',a:()=>go('my-trips')},{i:'📦',bg:'rgba(26,188,156,.1)',l:t.my_requests,s:ships.filter(sh=>!sh.isDemo&&sh.user_id===user?.id).length+' posted',a:()=>go('my-requests')},{i:'⭐',bg:'rgba(245,158,11,.1)',l:t.saved_listings,s:savedIds.size+' saved',a:()=>go('saved')},{i:'💬',bg:'rgba(10,37,64,.08)',l:t.nav_msgs,s:'Your conversations',a:()=>go('messages')},{i:'💎',bg:'rgba(26,188,156,.1)',l:t.subscription_status,s:subscribed?'Active — €9.99/mo':'Not subscribed',a:()=>go('pricing')},{i:'⚙️',bg:'rgba(100,116,139,.1)',l:'Settings',s:'Account and preferences',a:()=>go('settings')},...(user?.email==='alcino.manuel86@gmail.com'?[{i:'🛡️',bg:'rgba(245,158,11,.1)',l:'Moderation Panel',s:'Admin access',a:()=>go('admin')}]:[])].map(item=><button key={item.l} className="mrow" onClick={item.a}><div className="mrow-icon" style={{background:item.bg}}>{item.i}</div><div style={{flex:1,textAlign:'left'}}><div className="mrow-t">{item.l}</div><div className="mrow-s">{item.s}</div></div><span className="mrow-arr">›</span></button>)}
 <button className="mrow" style={{borderTop:'1.5px solid rgba(239,68,68,.15)'}} onClick={onLogout}><div className="mrow-icon" style={{background:'rgba(239,68,68,.08)'}}>🚪</div><div style={{flex:1,textAlign:'left'}}><div className="mrow-t" style={{color:'#ef4444'}}>{t.logout}</div></div></button>
 </div></div>;}
 // ══════════════════════════════════════════════════════════
@@ -2680,7 +2680,7 @@ case 'pricing':return <div className="page"><div className="phd"><div className=
 </div>
 </>}<div style={{marginTop:28}}><div className="sec-hd"><span className="sec-title">{t.faq_title}</span></div><FaqSec t={t} pricingOnly/></div></div></div>;
 case 'auth':return <div className="page" style={{display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:20}}><AuthPage t={t} onLogin={handleLogin}/></div>;
-case 'profile':return !loggedIn?<div className="page" style={{padding:'16px'}}><PW t={t} type="post" onSub={()=>go('auth')}/></div>:<div className="page"><ProfilePage t={t} user={user} subscribed={subscribed} savedIds={savedIds} onLogout={handleLogout} onSubscribe={()=>go('pricing')} go={go} onSaveProfile={handleSaveProfile} setUser={setUser} showToast={showToast} sb={sb}/></div>;
+case 'profile':return !loggedIn?<div className="page" style={{padding:'16px'}}><PW t={t} type="post" onSub={()=>go('auth')}/></div>:<div className="page"><ProfilePage t={t} user={user} subscribed={subscribed} savedIds={savedIds} trips={trips} ships={ships} onLogout={handleLogout} onSubscribe={()=>go('pricing')} go={go} onSaveProfile={handleSaveProfile} setUser={setUser} showToast={showToast} sb={sb}/></div>;
 case 'my-trips':return <div className="page"><div className="phd"><div className="phd-icon">✈️</div><div><div className="phd-title">My Trips</div><div className="phd-sub">{trips.filter(tr=>!tr.isDemo&&tr.user_id===user?.id).length} trips posted</div></div></div><MyListingsPage t={t} items={trips.filter(tr=>!tr.isDemo&&tr.user_id===user?.id)} type="trip" go={go} sb={sb} user={user} showToast={showToast} loadListings={loadListings}/></div>;
 case 'my-requests':return <div className="page"><div className="phd"><div className="phd-icon">📦</div><div><div className="phd-title">My Requests</div><div className="phd-sub">{ships.filter(sh=>!sh.isDemo&&sh.user_id===user?.id).length} requests posted</div></div></div><MyListingsPage t={t} items={ships.filter(sh=>!sh.isDemo&&sh.user_id===user?.id)} type="ship" go={go} sb={sb} user={user} showToast={showToast} loadListings={loadListings}/></div>;
 case 'settings':return <div className="page"><SettingsPage t={t} user={user} subscribed={subscribed} go={go} showToast={showToast} sb={sb} setSub={setSub}/></div>;
