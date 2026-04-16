@@ -25,7 +25,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: `Webhook Error: ${err.message}` });
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseUrl = process.env.SUPABASE_URL || 'https://fzokrhosmthdiymdewuw.supabase.co';
   const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
   const updateUser = async (userId, isSubscribed) => {
