@@ -17,14 +17,25 @@ module.exports = async (req, res) => {
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://afroroute.com';
-    const priceId = process.env.STRIPE_PRICE_ID;
+    const priceId = (process.env.STRIPE_PRICE_ID || '').trim();
+    const secretKey = (process.env.STRIPE_SECRET_KEY || '').trim();
+
+    // Debug: log what we have (first/last 4 chars only for security)
+    console.log('Price ID:', priceId ? priceId.substring(0,10)+'...' : 'MISSING');
+    console.log('Secret key mode:', secretKey.startsWith('sk_live') ? 'LIVE' : secretKey.startsWith('sk_test') ? 'TEST' : 'MISSING');
+    console.log('Site URL:', siteUrl);
 
     if (!priceId) {
-      return res.status(500).json({ error: 'STRIPE_PRICE_ID not configured in Vercel environment variables' });
+      return res.status(500).json({ error: 'STRIPE_PRICE_ID not set in Vercel environment variables' });
     }
 
-    if (!process.env.STRIPE_SECRET_KEY) {
-      return res.status(500).json({ error: 'STRIPE_SECRET_KEY not configured in Vercel environment variables' });
+    if (!secretKey) {
+      return res.status(500).json({ error: 'STRIPE_SECRET_KEY not set in Vercel environment variables' });
+    }
+
+    // Validate price ID format
+    if (!priceId.startsWith('price_')) {
+      return res.status(500).json({ error: 'STRIPE_PRICE_ID format invalid - must start with price_. Got: ' + priceId.substring(0,20) });
     }
 
     // Find or create customer
@@ -46,8 +57,8 @@ module.exports = async (req, res) => {
       payment_method_collection: 'always',
       billing_address_collection: 'auto',
       allow_promotion_codes: true,
-      success_url: `${siteUrl}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${siteUrl}?payment=cancelled`,
+      success_url: siteUrl + '?payment=success&session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: siteUrl + '?payment=cancelled',
       client_reference_id: userId,
       metadata: { supabase_user_id: userId },
     });
@@ -55,7 +66,13 @@ module.exports = async (req, res) => {
     return res.status(200).json({ url: session.url });
 
   } catch (error) {
-    console.error('Stripe checkout error:', error.message);
-    return res.status(500).json({ error: error.message });
+    console.error('Stripe error:', error.message);
+    console.error('Stripe error type:', error.type);
+    console.error('Stripe error code:', error.code);
+    return res.status(500).json({ 
+      error: error.message,
+      type: error.type,
+      code: error.code
+    });
   }
 };
