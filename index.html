@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0A2540">
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22AfroRoute%22%2C%22short_name%22%3A%22AfroRoute%22%2C%22start_url%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230A2540%22%2C%22theme_color%22%3A%22%231ABC9C%22%7D">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AfroRoute">
@@ -1047,6 +1048,20 @@ button{cursor:pointer}
 .toast.warning{background:linear-gradient(135deg,#431407 0%,#d97706 100%)}
 .toast.warning .toast-icon::after{content:'!'}
 </style>
+<script>
+// Capture Android install prompt early
+window.__pwaInstallEvent = null;
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  window.__pwaInstallEvent = e;
+  // Show install button if visible
+  var btn = document.getElementById('android-install-btn');
+  if(btn) btn.style.background = 'linear-gradient(135deg,#14532d,#16a34a)';
+});
+window.addEventListener('appinstalled', function() {
+  window.__pwaInstallEvent = null;
+});
+</script>
 </head>
 <body>
 <div id="app"></div>
@@ -1179,6 +1194,7 @@ function Footer({t,go}){return(
       <div className="footer-ct">Platform</div>
       
       <button className="footer-link" onClick={()=>go('pricing')}>AfroRoute Pro</button>
+      <button className="footer-link" onClick={()=>go('install')}>📲 Install App</button>
     </div>
   </div>
   <div className="footer-bot">
@@ -2215,7 +2231,14 @@ return <div className="page"><div style={{padding:'16px 16px 80px'}}>
     </div>
   </div>
   {!subscribed&&<button className="btn-pw" style={{animation:'none',padding:'9px 14px',fontSize:13,whiteSpace:'nowrap'}} onClick={onSubscribe}>{t.unlock_access}</button>}
-  {subscribed&&<button style={{background:'none',border:'1.5px solid var(--bord)',color:'var(--text3)',padding:'8px 12px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer'}}>{t.manage_billing}</button>}
+  {subscribed&&<button onClick={async()=>{
+  try{
+    const r=await fetch('/api/create-portal-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:user.email})});
+    const d=await r.json();
+    if(d.url){window.location.href=d.url;}
+    else{alert('Could not open billing portal: '+(d.error||'Unknown error'));}
+  }catch(e){alert('Error: '+e.message);}
+}} style={{background:'linear-gradient(135deg,#0A2540,#1ABC9C)',border:'none',color:'#fff',padding:'9px 16px',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:"'Sora',sans-serif"}}>{t.manage_billing} →</button>}
 </div>
 <div style={{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:13,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:10,marginTop:4}}>Account</div>
 {[{i:'✏️',bg:'rgba(26,188,156,.1)',l:t.edit_profile,s:'Update your information',a:()=>setEditing(true)},{i:'✈️',bg:'rgba(10,37,64,.08)',l:t.my_trips,s:trips.filter(tr=>!tr.isDemo&&tr.user_id===user?.id).length+' posted',a:()=>go('my-trips')},{i:'📦',bg:'rgba(26,188,156,.1)',l:t.my_requests,s:ships.filter(sh=>!sh.isDemo&&sh.user_id===user?.id).length+' posted',a:()=>go('my-requests')},{i:'⭐',bg:'rgba(245,158,11,.1)',l:t.saved_listings,s:savedIds.size+' saved',a:()=>go('saved')},{i:'💬',bg:'rgba(10,37,64,.08)',l:t.nav_msgs,s:'Your conversations',a:()=>go('messages')},{i:'💎',bg:'rgba(26,188,156,.1)',l:t.subscription_status,s:subscribed?'Active — €9.99/mo':'Not subscribed',a:()=>go('pricing')},{i:'⚙️',bg:'rgba(100,116,139,.1)',l:'Settings',s:'Account and preferences',a:()=>go('settings')},...(user?.email==='alcino.manuel86@gmail.com'?[{i:'🛡️',bg:'rgba(245,158,11,.1)',l:'Moderation Panel',s:'Admin access',a:()=>go('admin')}]:[])].map(item=><button key={item.l} className="mrow" onClick={item.a}><div className="mrow-icon" style={{background:item.bg}}>{item.i}</div><div style={{flex:1,textAlign:'left'}}><div className="mrow-t">{item.l}</div><div className="mrow-s">{item.s}</div></div><span className="mrow-arr">›</span></button>)}
@@ -2632,7 +2655,12 @@ const NavBar=()=><nav className="nav"><div className="nav-logo" onClick={()=>go(
   }
 </div></>:<div className="nav-auth-btns"><button className="btn-ng" onClick={()=>setPage('auth')}>{t.nav_login}</button><button className="btn-ns" onClick={()=>setPage('auth')}>{t.nav_signup}</button></div>}</div></nav>;
 const BotNav=()=><nav className="bottom-nav">{[{icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,lbl:t.nav_home,p:'home'},{icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,lbl:t.nav_trips,p:'browse-trips'},{icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,lbl:t.nav_ships,p:'browse-ships'},{icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,lbl:t.nav_msgs,p:'messages',badge:totalUnread},{icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,lbl:t.nav_profile,p:loggedIn?'profile':'auth'}].map(item=><button key={item.p} className={`bnav-btn ${page===item.p?'active':''}`} onClick={()=>go(item.p)}>{item.icon}<span className="bnav-lbl">{item.lbl}</span>{item.badge>0&&<span className="bnav-badge">{item.badge}</span>}</button>)}</nav>;
-const renderHome=()=><div className="page"><div className="hero"><div className="hero-in"><div className="hero-pill">🌍 Global Marketplace</div><h1 dangerouslySetInnerHTML={{__html:t.hero_title}}/><p className="hero-sub">{t.hero_sub}</p><div className="hero-ctas"><button className="btn-h1" onClick={()=>go('browse-trips')}>{t.browse_trips}</button><button className="btn-h2" onClick={()=>loggedIn?go('post-trip'):setPage('auth')}>{t.post_trip}</button></div><div className="hero-trust">{[t.trust_1,t.trust_2,t.trust_3,t.trust_4].map(i=><div key={i} className="hero-ti"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>{i}</div>)}</div></div></div>
+const renderHome=()=><div className="page"><div className="hero"><div className="hero-in"><div className="hero-pill">🌍 Global Marketplace</div><h1 dangerouslySetInnerHTML={{__html:t.hero_title}}/><p className="hero-sub">{t.hero_sub}</p><div className="hero-ctas"><button className="btn-h1" onClick={()=>go('browse-trips')}>{t.browse_trips}</button><button className="btn-h2" onClick={()=>loggedIn?go('post-trip'):setPage('auth')}>{t.post_trip}</button></div><div className="hero-trust">{[t.trust_1,t.trust_2,t.trust_3,t.trust_4].map(i=><div key={i} className="hero-ti"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>{i}</div>)}</div>
+<div style={{marginTop:14,display:'flex',justifyContent:'center'}}>
+  <button onClick={()=>go('install')} style={{display:'inline-flex',alignItems:'center',gap:7,background:'rgba(255,255,255,.12)',border:'1px solid rgba(255,255,255,.2)',color:'rgba(255,255,255,.85)',padding:'8px 16px',borderRadius:20,fontSize:12,fontWeight:600,cursor:'pointer',backdropFilter:'blur(8px)'}}>
+    <span style={{fontSize:14}}>📲</span> Add to Home Screen
+  </button>
+</div></div></div>
 <div className="stats-row">{[['180+',t.stat_routes],['3,200+',t.stat_users],['99%',t.stat_secure]].map(([n,l])=><div key={l} className="stat-c"><div className="stat-n">{n}</div><div className="stat-l">{l}</div></div>)}</div>
 <div className="sec" style={{paddingTop:36}}>
 <div className="sec-hd"><span className="sec-title">{t.sec_trips}</span><button className="sec-link" onClick={()=>go('browse-trips')}>{t.see_all}</button></div>
@@ -2676,7 +2704,13 @@ case 'browse-ships':return <div className="page"><div className="phd"><div class
 case 'post-trip':return <div className="page"><div className="phd"><div className="phd-icon">✈️</div><div><div className="phd-title">{t.post_trip_title}</div><div className="phd-sub">{t.post_trip_sub}</div></div></div><div style={{padding:'0 16px 32px'}}>{!loggedIn?<PW t={t} type="post" onSub={()=>go('auth')}/>:!subscribed?<PW t={t} type="post" onSub={()=>go('pricing')}/>:<PostTripForm t={t} onSubmit={handlePostTrip}/>}</div></div>;
 case 'post-shipment':return <div className="page"><div className="phd"><div className="phd-icon">📦</div><div><div className="phd-title">{t.post_ship_title}</div><div className="phd-sub">{t.post_ship_sub}</div></div></div><div style={{padding:'0 16px 32px'}}>{!loggedIn?<PW t={t} type="post" onSub={()=>go('auth')}/>:!subscribed?<PW t={t} type="post" onSub={()=>go('pricing')}/>:<PostShipForm t={t} onSubmit={handlePostShip}/>}</div></div>;
 case 'messages':return <div className="page" style={{padding:0}}>{!loggedIn?<div style={{padding:'0 16px'}}><PW t={t} type="msg" onSub={()=>go('auth')}/></div>:!subscribed?<div style={{padding:'0 16px'}}><PW t={t} type="msg" onSub={()=>go('pricing')}/></div>:<div className="msg-layout"><div className="conv-sb">{convos.map(c=><div key={c.id} className={`conv-item ${activeConvo?.id===c.id?'active':''}`} onClick={()=>setConvo(c)}><div style={{position:'relative'}}><Av name={c.user} size={38}/>{c.unread>0&&<span className="cunread">{c.unread}</span>}</div><div className="conv-name">{c.user.split(' ')[0]}</div></div>)}</div><div className="chat-area">{activeConvo?<><div className="chat-hd"><Av name={activeConvo.user} size={36}/><div style={{flex:1,minWidth:0}}><div className="chat-hn">{activeConvo.user}</div><div style={{display:'flex',gap:6,marginTop:2,flexWrap:'wrap'}}><div className="chat-hs">● {t.online}</div>{activeConvo.listing&&<div className="chat-hl">{activeConvo.listing}</div>}</div></div></div><div className="chat-msgs">{activeConvo.msgs.map((m,i)=><div key={i} className={`msg-row ${m.from}`}><div className={`msg-b ${m.from}`}>{m.text}<div className={`msg-time ${m.from}`}>{m.t}</div></div></div>)}<div ref={chatEnd}/></div><div className="chat-ib"><textarea className="chat-inp" placeholder={t.type_msg} value={chatIn} onChange={e=>setChatIn(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}} rows={1}/><button className="btn-send" onClick={sendMsg}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>{t.send_btn}</button></div></>:<Empty icon="💬" title={t.inbox_empty} sub={t.inbox_empty_sub}/>}</div></div>}</div>;
-case 'pricing':return <div className="page"><div className="phd"><div className="phd-icon">💎</div><div><div className="phd-title">{t.sub_title}</div><div className="phd-sub">{t.sub_price}{t.sub_period}</div></div></div><div style={{padding:'0 16px 32px',maxWidth:640,margin:'0 auto'}}><div className="sub-hero"><div style={{position:'relative',zIndex:1}}><div style={{fontSize:36,marginBottom:12}}>🚀</div><div style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:'#fff',marginBottom:6}}>{t.sub_title}</div><div style={{marginBottom:8}}><span className="sub-price">{t.sub_price}</span><span className="sub-pp">{t.sub_period}</span></div><p className="sub-desc">{t.sub_headline}</p></div></div><div style={{background:'#fff',borderRadius:16,padding:'4px 16px 16px',boxShadow:'0 2px 12px rgba(0,0,0,.06)',border:'1px solid #e2e8f0',marginBottom:20,textAlign:'left'}}>{t.sub_features.map(f=><div key={f} className="feat-row"><div className="feat-ck">✓</div><span className="feat-t">{f}</span></div>)}</div>{subscribed?<div style={{textAlign:'center',padding:'20px 0'}}><div className="bpro" style={{fontSize:14,padding:'8px 20px',display:'inline-block',marginBottom:12}}>✓ Pro Active</div><div style={{color:'#64748b',fontSize:14,marginBottom:16}}>Your subscription is active.</div><button style={{background:'none',border:'1.5px solid #e2e8f0',color:'#64748b',padding:'11px 22px',borderRadius:10,fontWeight:600,fontSize:13}}>{t.manage_billing}</button></div>:<>
+case 'pricing':return <div className="page"><div className="phd"><div className="phd-icon">💎</div><div><div className="phd-title">{t.sub_title}</div><div className="phd-sub">{t.sub_price}{t.sub_period}</div></div></div><div style={{padding:'0 16px 32px',maxWidth:640,margin:'0 auto'}}><div className="sub-hero"><div style={{position:'relative',zIndex:1}}><div style={{fontSize:36,marginBottom:12}}>🚀</div><div style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:'#fff',marginBottom:6}}>{t.sub_title}</div><div style={{marginBottom:8}}><span className="sub-price">{t.sub_price}</span><span className="sub-pp">{t.sub_period}</span></div><p className="sub-desc">{t.sub_headline}</p></div></div><div style={{background:'#fff',borderRadius:16,padding:'4px 16px 16px',boxShadow:'0 2px 12px rgba(0,0,0,.06)',border:'1px solid #e2e8f0',marginBottom:20,textAlign:'left'}}>{t.sub_features.map(f=><div key={f} className="feat-row"><div className="feat-ck">✓</div><span className="feat-t">{f}</span></div>)}</div>{subscribed?<div style={{textAlign:'center',padding:'20px 0'}}><div className="bpro" style={{fontSize:14,padding:'8px 20px',display:'inline-block',marginBottom:12}}>✓ Pro Active</div><div style={{color:'#64748b',fontSize:14,marginBottom:16}}>Your subscription is active.</div><button onClick={async()=>{
+  try{
+    const r=await fetch('/api/create-portal-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:user?.email||''})});
+    const d=await r.json();
+    if(d.url){window.location.href=d.url;}
+  }catch(e){}
+}} style={{background:'linear-gradient(135deg,#0A2540,#1ABC9C)',border:'none',color:'#fff',padding:'11px 22px',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:"'Sora',sans-serif"}}>{t.manage_billing} →</button></div>:<>
 <button className="btn-sub" onClick={handleSubscribe}>{t.sub_cta}</button>
 <p className="sub-note">{t.sub_note}</p>
 <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:20,marginTop:10,flexWrap:'wrap'}}>
@@ -2697,6 +2731,7 @@ case 'admin':return user?.email==='alcino.manuel86@gmail.com'?<AdminPage t={t} u
 case 'terms':return <TermsPage go={go}/>;
 case 'privacy':return <PrivacyPage go={go}/>;
 case 'contact':return <ContactPage t={T['en']} go={go} showToast={showToast}/>;
+case 'install':return <InstallPage go={go}/>;
 default:return renderHome();
 }};
 return <div>{toast&&<div key={toast.key} className={`toast ${toast.type}`}><div className="toast-icon"/><div className="toast-msg">{toast.msg}</div></div>}{modal&&(modal.type==='paywall_msg'||modal.type==='paywall_post')?<div className="modal-ov" onClick={()=>setModal(null)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-hd"/><PW t={t} type={modal.type==='paywall_post'?'post':'msg'} onSub={()=>{setModal(null);go('pricing');}}/></div></div>:modal&&modal.type==='report'?<ReportModal t={t} onClose={()=>setModal(null)} onSubmit={(reason,details)=>{
@@ -3016,6 +3051,228 @@ function PrivacyPage({go}) {
 // ═══════════════════════════════════════════════════════════════
 // CONTACT PAGE
 // ═══════════════════════════════════════════════════════════════
+
+function InstallPage({go}){
+  const[tab,setTab]=React.useState('ios');
+
+  const IOSSteps=[
+    {
+      num:1,
+      title:'Open Safari',
+      desc:'Open afroroute.com in Safari on your iPhone. Make sure you are using Safari — other browsers do not support this.',
+      icon:'🧭',
+      detail:'Chrome and Firefox on iPhone do not have the Add to Home Screen option. You must use Safari.'
+    },
+    {
+      num:2,
+      title:'Tap the Share button',
+      desc:'At the bottom of the screen tap the Share icon — it looks like a box with an arrow pointing up.',
+      icon:'⬆️',
+      detail:'If you do not see the toolbar, tap once anywhere on the page to show it.'
+    },
+    {
+      num:3,
+      title:'Tap "Add to Home Screen"',
+      desc:'Scroll down in the share menu and tap "Add to Home Screen".',
+      icon:'➕',
+      detail:'You may need to scroll down in the share sheet to find this option.'
+    },
+    {
+      num:4,
+      title:'Tap "Add"',
+      desc:'The name will show as "AfroRoute". Tap Add in the top right corner.',
+      icon:'✅',
+      detail:'The app icon will appear on your home screen just like a native app.'
+    },
+    {
+      num:5,
+      title:'Open from Home Screen',
+      desc:'Tap the AfroRoute icon on your home screen. It opens full screen without the browser bar — just like a real app!',
+      icon:'🚀',
+      detail:'You will get a proper app experience with no browser address bar.'
+    }
+  ];
+
+  const AndroidSteps=[
+    {
+      num:1,
+      title:'Open Chrome',
+      desc:'Open afroroute.com in Google Chrome on your Android phone.',
+      icon:'🌐',
+      detail:'Chrome is the recommended browser for installing web apps on Android.'
+    },
+    {
+      num:2,
+      title:'Tap the menu (3 dots)',
+      desc:'Tap the three dots menu in the top right corner of Chrome.',
+      icon:'⋮',
+      detail:'The menu is in the top right corner of the browser.'
+    },
+    {
+      num:3,
+      title:'Tap "Add to Home screen"',
+      desc:'Find and tap "Add to Home screen" or "Install app" in the menu.',
+      icon:'➕',
+      detail:'Some Android versions show a banner at the bottom automatically — you can tap that too.'
+    },
+    {
+      num:4,
+      title:'Tap "Add" or "Install"',
+      desc:'Confirm by tapping Add or Install in the popup that appears.',
+      icon:'✅',
+      detail:'The app will be installed and the icon will appear on your home screen.'
+    },
+    {
+      num:5,
+      title:'Open AfroRoute',
+      desc:'Find the AfroRoute icon on your home screen or app drawer and tap it to open.',
+      icon:'🚀',
+      detail:'The app opens in full screen mode — no browser address bar!'
+    }
+  ];
+
+  const steps = tab==='ios' ? IOSSteps : AndroidSteps;
+
+  return(
+    <div className="page">
+      {/* Hero header */}
+      <div style={{background:'linear-gradient(145deg,#0A2540,#0c3060)',padding:'36px 24px 48px',position:'relative',overflow:'hidden',textAlign:'center'}}>
+        <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,background:'rgba(26,188,156,.1)',borderRadius:'50%',pointerEvents:'none'}}/>
+        <div style={{position:'absolute',bottom:-40,left:-40,width:150,height:150,background:'rgba(26,188,156,.07)',borderRadius:'50%',pointerEvents:'none'}}/>
+        <button onClick={()=>go('home')} style={{background:'rgba(255,255,255,.1)',border:'none',color:'rgba(255,255,255,.7)',padding:'7px 14px',borderRadius:8,fontSize:13,fontWeight:600,cursor:'pointer',marginBottom:20,display:'inline-flex',alignItems:'center',gap:6}}>← Back</button>
+        <div style={{fontSize:52,marginBottom:12}}>📲</div>
+        <h1 style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:'clamp(24px,6vw,36px)',color:'#fff',marginBottom:10,letterSpacing:'-.3px'}}>Install AfroRoute</h1>
+        <p style={{color:'rgba(255,255,255,.65)',fontSize:15,lineHeight:1.6,maxWidth:400,margin:'0 auto 20px'}}>Add AfroRoute to your home screen for a full app experience — no app store needed.</p>
+        <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap'}}>
+          {[['⚡','Works offline'],['🔔','Fast access'],['📱','Full screen'],['🆓','Free forever']].map(([i,l])=>(
+            <div key={l} style={{display:'flex',alignItems:'center',gap:5,background:'rgba(255,255,255,.1)',borderRadius:20,padding:'5px 12px',fontSize:12,color:'rgba(255,255,255,.8)',fontWeight:600}}>
+              <span>{i}</span><span>{l}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{maxWidth:640,margin:'0 auto',padding:'0 16px 60px'}}>
+
+        {/* One-click install buttons */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,margin:'24px 0 28px'}}>
+          {/* iPhone - triggers iOS share sheet via custom URL */}
+          <button onClick={()=>{
+            // iOS: show native share sheet pointing to Add to Home Screen
+            if(navigator.share){
+              navigator.share({title:'AfroRoute',url:'https://afroroute.com'})
+                .catch(()=>{});
+            } else {
+              // Fallback: scroll to steps
+              setTab('ios');
+              document.getElementById('install-steps')?.scrollIntoView({behavior:'smooth'});
+            }
+          }} style={{padding:'16px 12px',borderRadius:16,border:'none',background:'linear-gradient(135deg,#0A2540,#1ABC9C)',color:'#fff',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:8,boxShadow:'0 4px 20px rgba(26,188,156,.3)'}}>
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+            </svg>
+            <div style={{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:14}}>Install on iPhone</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,.7)',textAlign:'center',lineHeight:1.4}}>Tap Share then<br/>Add to Home Screen</div>
+          </button>
+
+          {/* Android - uses beforeinstallprompt event */}
+          <button id="android-install-btn" onClick={()=>{
+            const evt = window.__pwaInstallEvent;
+            if(evt){
+              evt.prompt();
+              evt.userChoice.then(()=>{ window.__pwaInstallEvent=null; });
+            } else {
+              // Fallback: open Chrome intent or show steps
+              setTab('android');
+              document.getElementById('install-steps')?.scrollIntoView({behavior:'smooth'});
+            }
+          }} style={{padding:'16px 12px',borderRadius:16,border:'none',background:'linear-gradient(135deg,#1a7a4e,#22c55e)',color:'#fff',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:8,boxShadow:'0 4px 20px rgba(34,197,94,.3)'}}>
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 18c0 .55.45 1 1 1h1v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h2v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h1c.55 0 1-.45 1-1V8H6v10zm-2.5-10C2.67 8 2 8.67 2 9.5v7c0 .83.67 1.5 1.5 1.5S5 17.33 5 16.5v-7C5 8.67 4.33 8 3.5 8zm17 0c-.83 0-1.5.67-1.5 1.5v7c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-7c0-.83-.67-1.5-1.5-1.5zm-4.97-5.84l1.3-1.3c.2-.2.2-.51 0-.71-.2-.2-.51-.2-.71 0l-1.48 1.48A5.84 5.84 0 0 0 12 2c-.96 0-1.86.23-2.66.63L7.88.15c-.2-.2-.51-.2-.71 0-.2.2-.2.51 0 .71l1.31 1.31A5.983 5.983 0 0 0 6 7h12c0-1.99-.97-3.75-2.47-4.84zM10 5H9V4h1v1zm5 0h-1V4h1v1z"/>
+            </svg>
+            <div style={{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:14}}>Install on Android</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,.7)',textAlign:'center',lineHeight:1.4}}>One tap install<br/>to home screen</div>
+          </button>
+        </div>
+
+        <div style={{textAlign:'center',marginBottom:24}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div style={{flex:1,height:1,background:'var(--bord)'}}/>
+            <span style={{fontSize:12,color:'var(--text3)',fontWeight:600}}>or follow the steps below</span>
+            <div style={{flex:1,height:1,background:'var(--bord)'}}/>
+          </div>
+        </div>
+
+        {/* Platform tabs */}
+        <div id="install-steps" style={{display:'flex',gap:10,marginBottom:28,background:'#f1f5f9',borderRadius:14,padding:4}}>
+          <button onClick={()=>setTab('ios')} style={{flex:1,padding:'11px',borderRadius:11,border:'none',background:tab==='ios'?'#fff':'transparent',fontWeight:700,fontSize:14,color:tab==='ios'?'#0A2540':'#64748b',cursor:'pointer',transition:'all .2s',boxShadow:tab==='ios'?'0 2px 8px rgba(0,0,0,.1)':'none',fontFamily:"'Sora',sans-serif",display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+            <span style={{fontSize:18}}></span> iPhone (iOS)
+          </button>
+          <button onClick={()=>setTab('android')} style={{flex:1,padding:'11px',borderRadius:11,border:'none',background:tab==='android'?'#fff':'transparent',fontWeight:700,fontSize:14,color:tab==='android'?'#0A2540':'#64748b',cursor:'pointer',transition:'all .2s',boxShadow:tab==='android'?'0 2px 8px rgba(0,0,0,.1)':'none',fontFamily:"'Sora',sans-serif",display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+            <span style={{fontSize:18}}>🤖</span> Android
+          </button>
+        </div>
+
+        {/* Steps */}
+        {steps.map((step,i)=>(
+          <div key={step.num} style={{display:'flex',gap:14,marginBottom:20}}>
+            {/* Left: number + line */}
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
+              <div style={{width:44,height:44,borderRadius:12,background:i===0?'linear-gradient(135deg,#0A2540,#1ABC9C)':'#fff',border:i===0?'none':'2px solid var(--bord)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:i===0?'0 4px 16px rgba(26,188,156,.3)':'0 2px 8px rgba(0,0,0,.05)',flexShrink:0}}>
+                <span style={{fontSize:i===0?20:16,fontWeight:i===0?700:600,color:i===0?'#fff':'#0A2540'}}>{step.icon}</span>
+              </div>
+              {i<steps.length-1&&<div style={{width:2,flex:1,minHeight:20,background:'linear-gradient(to bottom,#1ABC9C,#e2e8f0)',marginTop:4,borderRadius:2}}/>}
+            </div>
+            {/* Right: content */}
+            <div style={{flex:1,background:'#fff',borderRadius:14,border:'1.5px solid var(--bord)',padding:'14px 16px',marginBottom:4,boxShadow:'0 2px 8px rgba(0,0,0,.04)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                <span style={{background:'var(--gpale)',color:'var(--green)',fontWeight:800,fontSize:11,padding:'2px 8px',borderRadius:20}}>Step {step.num}</span>
+              </div>
+              <div style={{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:15,color:'#0A2540',marginBottom:5}}>{step.title}</div>
+              <div style={{fontSize:14,color:'#475569',lineHeight:1.6,marginBottom:8}}>{step.desc}</div>
+              <div style={{fontSize:12,color:'#94a3b8',lineHeight:1.5,background:'#f8fafc',borderRadius:8,padding:'8px 10px',borderLeft:'3px solid var(--green)'}}>{step.detail}</div>
+            </div>
+          </div>
+        ))}
+
+        {/* Why install banner */}
+        <div style={{background:'linear-gradient(135deg,#0A2540,#0d6e5b)',borderRadius:18,padding:'24px',marginTop:8,textAlign:'center'}}>
+          <div style={{fontSize:32,marginBottom:10}}>🎉</div>
+          <div style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:18,color:'#fff',marginBottom:8}}>Why install AfroRoute?</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:16}}>
+            {[
+              ['⚡','Instant access','Open with one tap from home screen'],
+              ['📵','Works offline','Browse listings without internet'],
+              ['🔕','No notifications','No spam, open when you want'],
+              ['💾','Saves data','Loads faster after first visit'],
+            ].map(([icon,title,desc])=>(
+              <div key={title} style={{background:'rgba(255,255,255,.08)',borderRadius:12,padding:'12px 10px',textAlign:'left'}}>
+                <div style={{fontSize:20,marginBottom:4}}>{icon}</div>
+                <div style={{fontWeight:700,fontSize:13,color:'#fff',marginBottom:2}}>{title}</div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,.55)',lineHeight:1.4}}>{desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Share button */}
+        <div style={{marginTop:20,textAlign:'center'}}>
+          <button onClick={()=>{
+            if(navigator.share){
+              navigator.share({title:'AfroRoute',text:'Ship packages globally with AfroRoute',url:'https://afroroute.com'});
+            } else {
+              navigator.clipboard.writeText('https://afroroute.com').then(()=>alert('Link copied!'));
+            }
+          }} style={{background:'var(--green)',color:'#fff',border:'none',padding:'13px 28px',borderRadius:12,fontWeight:700,fontSize:15,cursor:'pointer',fontFamily:"'Sora',sans-serif",display:'inline-flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:18}}>🔗</span> Share AfroRoute
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 function ContactPage({go, showToast}) {
   const[form,setForm]=React.useState({name:'',email:'',subject:'',message:'',type:'general'});
   const[loading,setLoading]=React.useState(false);
