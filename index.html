@@ -1070,9 +1070,9 @@ button{cursor:pointer}
 .agr-photo-add{aspect-ratio:1;border-radius:10px;border:2px dashed var(--bord2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer;background:var(--surf2);transition:all .18s;font-size:11px;color:var(--text3);font-weight:600}
 .agr-photo-add:hover{border-color:var(--green);background:var(--gpale);color:var(--green)}
 .agr-legal{background:rgba(10,37,64,.03);border:1px solid rgba(10,37,64,.1);border-radius:12px;padding:14px 16px;font-size:12.5px;color:var(--text2);line-height:1.8;margin-bottom:14px;max-height:200px;overflow-y:auto}
-.agr-sig-box{border:2px solid var(--bord);border-radius:12px;overflow:hidden;background:#fafafa;transition:border-color .2s}
+.agr-sig-box{border:2px solid var(--bord);border-radius:12px;overflow:hidden;background:#fafafa;transition:border-color .2s;touch-action:none;-webkit-user-select:none;user-select:none}
 .agr-sig-box.has-sig{border-color:var(--green);background:#f0fdf8}
-.agr-sig-canvas{display:block;width:100%;height:140px;touch-action:none;cursor:crosshair}
+.agr-sig-canvas{display:block;width:100%;height:140px;touch-action:none;cursor:crosshair;-webkit-user-select:none;user-select:none}
 .agr-check-row{display:flex;align-items:flex-start;gap:10px;background:var(--surf2);border-radius:10px;padding:12px;margin-bottom:14px;cursor:pointer}
 .agr-check-row input[type=checkbox]{width:18px;height:18px;flex-shrink:0;margin-top:1px;accent-color:var(--green);cursor:pointer}
 .agr-check-row label{font-size:13px;color:var(--text2);line-height:1.55;cursor:pointer}
@@ -2411,81 +2411,108 @@ function generateAgreementId(){
 // ── Signature Canvas hook ─────────────────────────────────────────────────────
 function useSignatureCanvas(canvasRef){
   const[hasSig,setHasSig]=React.useState(false);
-  const drawingRef=React.useRef(false);
-  const ctxRef=React.useRef(null);
+  const drawing=React.useRef(false);
+  const ctx=React.useRef(null);
+  const lastPos=React.useRef({x:0,y:0});
 
-  const init=React.useCallback(()=>{
-    const canvas=canvasRef.current;
-    if(!canvas)return;
+  const setup=React.useCallback(()=>{
+    const c=canvasRef.current;
+    if(!c)return;
+    // Force layout recalc
+    const w=c.offsetWidth||c.parentElement?.offsetWidth||300;
+    const h=140;
     const dpr=window.devicePixelRatio||1;
-    const rect=canvas.getBoundingClientRect();
-    canvas.width=rect.width*dpr;
-    canvas.height=140*dpr;
-    const ctx=canvas.getContext('2d');
-    ctx.scale(dpr,dpr);
-    ctx.strokeStyle='#0A2540';
-    ctx.lineWidth=2.5;
-    ctx.lineCap='round';
-    ctx.lineJoin='round';
-    ctxRef.current=ctx;
+    c.width=w*dpr;
+    c.height=h*dpr;
+    c.style.width=w+'px';
+    c.style.height=h+'px';
+    const context=c.getContext('2d');
+    context.scale(dpr,dpr);
+    context.strokeStyle='#0A2540';
+    context.lineWidth=2.5;
+    context.lineCap='round';
+    context.lineJoin='round';
+    ctx.current=context;
   },[canvasRef]);
 
-  const getXY=(canvas,e)=>{
-    const r=canvas.getBoundingClientRect();
-    const src=e.touches?e.touches[0]:e;
-    return{x:src.clientX-r.left,y:src.clientY-r.top};
-  };
-
   React.useEffect(()=>{
-    const canvas=canvasRef.current;
-    if(!canvas)return;
-    init();
-    const onStart=(e)=>{
-      e.preventDefault();
-      drawingRef.current=true;
-      const ctx=ctxRef.current;
-      const{x,y}=getXY(canvas,e);
-      ctx.beginPath();ctx.moveTo(x,y);
+    const c=canvasRef.current;
+    if(!c)return;
+
+    // Init after a short delay to ensure layout
+    const t=setTimeout(setup,80);
+
+    const getPos=(e)=>{
+      const rect=c.getBoundingClientRect();
+      const src=e.touches?e.touches[0]:e;
+      return{x:src.clientX-rect.left,y:src.clientY-rect.top};
     };
-    const onMove=(e)=>{
+    const start=(e)=>{
       e.preventDefault();
-      if(!drawingRef.current)return;
-      const{x,y}=getXY(canvas,e);
-      ctxRef.current.lineTo(x,y);
-      ctxRef.current.stroke();
+      e.stopPropagation();
+      if(!ctx.current)setup();
+      drawing.current=true;
+      const p=getPos(e);
+      lastPos.current=p;
+      ctx.current.beginPath();
+      ctx.current.moveTo(p.x,p.y);
+    };
+    const move=(e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      if(!drawing.current||!ctx.current)return;
+      const p=getPos(e);
+      ctx.current.lineTo(p.x,p.y);
+      ctx.current.stroke();
+      ctx.current.beginPath();
+      ctx.current.moveTo(p.x,p.y);
+      lastPos.current=p;
       setHasSig(true);
     };
-    const onEnd=(e)=>{e.preventDefault();drawingRef.current=false;};
-    canvas.addEventListener('mousedown',onStart);
-    canvas.addEventListener('mousemove',onMove);
-    canvas.addEventListener('mouseup',onEnd);
-    canvas.addEventListener('touchstart',onStart,{passive:false});
-    canvas.addEventListener('touchmove',onMove,{passive:false});
-    canvas.addEventListener('touchend',onEnd);
-    return()=>{
-      canvas.removeEventListener('mousedown',onStart);
-      canvas.removeEventListener('mousemove',onMove);
-      canvas.removeEventListener('mouseup',onEnd);
-      canvas.removeEventListener('touchstart',onStart);
-      canvas.removeEventListener('touchmove',onMove);
-      canvas.removeEventListener('touchend',onEnd);
+    const end=(e)=>{
+      e.preventDefault();
+      drawing.current=false;
+      if(ctx.current){ctx.current.beginPath();}
     };
-  },[canvasRef,init]);
+
+    c.addEventListener('mousedown',start,{passive:false});
+    c.addEventListener('mousemove',move,{passive:false});
+    c.addEventListener('mouseup',end,{passive:false});
+    c.addEventListener('touchstart',start,{passive:false});
+    c.addEventListener('touchmove',move,{passive:false});
+    c.addEventListener('touchend',end,{passive:false});
+    c.addEventListener('touchcancel',end,{passive:false});
+
+    // Re-setup on resize
+    const ro=window.ResizeObserver?new ResizeObserver(()=>{if(!hasSig)setup();}):null;
+    if(ro)ro.observe(c);
+
+    return()=>{
+      clearTimeout(t);
+      c.removeEventListener('mousedown',start);
+      c.removeEventListener('mousemove',move);
+      c.removeEventListener('mouseup',end);
+      c.removeEventListener('touchstart',start);
+      c.removeEventListener('touchmove',move);
+      c.removeEventListener('touchend',end);
+      c.removeEventListener('touchcancel',end);
+      if(ro)ro.disconnect();
+    };
+  },[canvasRef,setup]);
 
   const clear=React.useCallback(()=>{
-    const canvas=canvasRef.current;
-    if(!canvas)return;
-    const ctx=ctxRef.current;
-    if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height);
+    const c=canvasRef.current;
+    if(!c||!ctx.current)return;
+    ctx.current.clearRect(0,0,c.width,c.height);
     setHasSig(false);
   },[canvasRef]);
 
   const getDataUrl=React.useCallback(()=>{
-    const canvas=canvasRef.current;
-    return canvas?canvas.toDataURL('image/png'):null;
+    const c=canvasRef.current;
+    return c?c.toDataURL('image/png'):null;
   },[canvasRef]);
 
-  return{hasSig,clear,getDataUrl,init};
+  return{hasSig,clear,getDataUrl,setup};
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
