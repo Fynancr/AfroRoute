@@ -38,7 +38,7 @@ button{cursor:pointer}
 @keyframes toastIn{0%{opacity:0;transform:translateX(-50%) translateY(10px)}15%,85%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(10px)}}
 @keyframes dotPulse{0%,80%,100%{transform:scale(0);opacity:.4}40%{transform:scale(1);opacity:1}}
 .page{animation:fadeUp .3s ease both}
-.nav{position:sticky;top:0;z-index:800;height:calc(var(--nav-h) + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);background:rgba(255,255,255,.96);backdrop-filter:blur(20px);border-bottom:1px solid var(--bord);display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-shadow:0 1px 12px rgba(0,0,0,.05)}
+.nav{position:sticky;top:0;z-index:800;height:calc(var(--nav-h) + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);background:rgba(255,255,255,.96);backdrop-filter:blur(20px);border-bottom:1px solid var(--bord);display:flex;align-items:center;justify-content:space-between;padding-top:env(safe-area-inset-top,0px);padding-left:18px;padding-right:18px;padding-bottom:0;box-shadow:0 1px 12px rgba(0,0,0,.05)}
 .nav-logo{display:flex;align-items:center;gap:9px;cursor:pointer}
 .nav-logo-mark{width:36px;height:36px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(10,37,64,.15);padding:2px;overflow:hidden}
 .nav-logo-text{font-family:'Sora',sans-serif;font-weight:800;font-size:18px;color:var(--navy)}
@@ -2499,8 +2499,10 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
   const[uploadingPhoto,setUploadingPhoto]=React.useState(false);
 
   // Agreement draft — single source of truth
-  const[draft,setDraft]=React.useReducer((s,u)=>({...s,...u}),{
-    id:null,
+  // Generate agreement ID once, synchronously
+  const _agrId=React.useMemo(()=>generateAgreementId(),[]);
+  const[draft,setDraft]=React.useReducer((s,u)=>u._addPhotos?{...s,photos:[...s.photos,...u._addPhotos]}:{...s,...u},{
+    id:_agrId,
     trip_id:trip?.id||'',
     sender_id:user?.id||'',
     sender_name:user?.name||'',
@@ -2528,21 +2530,17 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
 
   // ── Generate ID on mount ───────────────────────────────────────────────────
   React.useEffect(()=>{
-    if(!draft.id){
-      const id=generateAgreementId();
-      setDraft({id});
-      // Restore from localStorage if exists
-      try{
-        const saved=localStorage.getItem('agr_draft_'+trip?.id);
-        if(saved){
-          const d=JSON.parse(saved);
-          if(d.status==='draft'||d.status==='sender_signed'){
-            setDraft(d);
-            showToast('Restored unfinished agreement');
-          }
+    // Restore draft from localStorage if available
+    try{
+      const saved=localStorage.getItem('agr_draft_'+trip?.id);
+      if(saved){
+        const d=JSON.parse(saved);
+        if(d.id&&(d.status==='draft'||d.status==='sender_signed')){
+          setDraft(d);
+          showToast('Restored unfinished agreement');
         }
-      }catch(e){}
-    }
+      }
+    }catch(e){}
   },[]);
 
   // ── Supabase helpers ───────────────────────────────────────────────────────
@@ -2569,30 +2567,48 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
 
   const uploadPhoto=async(file)=>{
     setUploadingPhoto(true);
+    // Step 1: compress & read as base64 so photo shows instantly
+    const base64Url=await new Promise(res=>{
+      const img=new Image();
+      const objUrl=URL.createObjectURL(file);
+      img.onload=()=>{
+        URL.revokeObjectURL(objUrl);
+        const canvas=document.createElement('canvas');
+        const MAX=1200;
+        let w=img.width,h=img.height;
+        if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+        if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        res(canvas.toDataURL('image/jpeg',0.82));
+      };
+      img.onerror=()=>{
+        const r=new FileReader();
+        r.onload=ev=>res(ev.target.result);
+        r.readAsDataURL(file);
+      };
+      img.src=objUrl;
+    });
+    // Step 2: attempt Supabase Storage upload in background
+    const agrId=draft.id||_agrId;
     try{
-      const ext=file.name.split('.').pop();
-      const path=`${draft.id}/${Date.now()}.${ext}`;
-      // Upload to Supabase Storage
+      const ext=(file.name||'photo').split('.').pop()||'jpg';
+      const path=`${agrId}/${Date.now()}.${ext}`;
+      const token=(typeof sb!=='undefined'&&sb._token)||SUPABASE_KEY;
       const upRes=await fetch(`${SUPABASE_URL}/storage/v1/object/agreement-photos/${path}`,{
         method:'POST',
-        headers:{
-          'apikey':SUPABASE_KEY,
-          'Authorization':'Bearer '+SUPABASE_KEY,
-          'Content-Type':file.type
-        },
+        headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':file.type||'image/jpeg'},
         body:file
       });
       if(upRes.ok){
         const publicUrl=`${SUPABASE_URL}/storage/v1/object/public/agreement-photos/${path}`;
         return{url:publicUrl,caption:'',uploaded_by:'sender',created_at:new Date().toISOString()};
       }
-    }catch(e){console.warn('Storage upload failed, using base64 fallback');}
-    // Fallback: base64 for offline/error
-    return new Promise((resolve)=>{
-      const reader=new FileReader();
-      reader.onload=ev=>resolve({url:ev.target.result,caption:'',uploaded_by:'sender',created_at:new Date().toISOString(),local:true});
-      reader.readAsDataURL(file);
-    });
+      const errTxt=await upRes.text();
+      console.warn('Storage upload failed:',upRes.status,errTxt);
+    }catch(e){console.warn('Storage upload error:',e);}
+    // Return base64 — still works for display, signatures, evidence
+    return{url:base64Url,caption:'',uploaded_by:'sender',created_at:new Date().toISOString(),local:true};
   };
 
   // ── Item helpers ───────────────────────────────────────────────────────────
@@ -2604,10 +2620,13 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
   const handleFileAdd=async(e)=>{
     const files=Array.from(e.target.files);
     e.target.value='';
+    const newPhotos=[];
     for(const file of files){
       const ph=await uploadPhoto(file);
-      setDraft(prev=>({photos:[...prev.photos,ph]}));
+      newPhotos.push(ph);
     }
+    // Use a ref snapshot to avoid stale closure
+    setDraft({_addPhotos:newPhotos});
     setUploadingPhoto(false);
   };
   const removePhoto=(i)=>setDraft({photos:draft.photos.filter((_,idx)=>idx!==i)});
