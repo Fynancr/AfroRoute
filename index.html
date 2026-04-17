@@ -1179,8 +1179,8 @@ function SBadge({status,t}){const cls={active:'bs-a',paused:'bs-p',completed:'bs
 function Empty({icon,title,sub,cta,onCta}){return <div className="empty-st"><div className="empty-icon">{icon}</div><div className="empty-title">{title}</div><div className="empty-sub">{sub}</div>{cta&&<button className="btn-ec" onClick={onCta}>{cta}</button>}</div>;}
 function PW({t,type,onSub}){const ip=type==='post';return <div className="pw-card"><div className="pw-icon">{ip?'📝':'💬'}</div><div className="pw-title">{ip?t.paywall_post_title:t.paywall_msg_title}</div><div className="pw-sub">{ip?t.paywall_post_sub:t.paywall_msg_sub}</div><button className="btn-pw" onClick={onSub}>{t.unlock_access}</button></div>;}
 function RBar({from,to,fc,tc}){return <div className="rbar"><div><div className="rcity">{from}</div>{fc&&<div style={{fontSize:11,color:'#64748b',marginTop:1}}>{fc}</div>}</div><div className="rarr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1ABC9C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div><div style={{textAlign:'right'}}><div className="rcity">{to}</div>{tc&&<div style={{fontSize:11,color:'#64748b',marginTop:1}}>{tc}</div>}</div></div>;}
-function TCard({trip,t,onContact,onSave,saved,onDetail}){return <div className="lcard card" onClick={()=>trip.isDemo?null:onDetail(trip,'trip')} style={{cursor:trip.isDemo?'default':'pointer'}}>{trip.isDemo&&<div className="demo-banner">✦ Example listing — sign up to see real travelers ✦</div>}<div className="card-top"><Av name={trip.user} size={44}/><div style={{flex:1,minWidth:0}}><div className="card-un">{trip.user}</div><div className="card-mr">{trip.verified&&<VBadge t={t}/>}<SBadge status={trip.status} t={t}/></div><div style={{marginTop:3}}><Stars r={trip.rating} c={trip.reviews}/></div></div><div style={{textAlign:'right',flexShrink:0}}><div className="cprice">{trip.open?<span style={{fontSize:14}}>💬</span>:`$${trip.price}`}</div><div className="cprice-sub">{trip.open?t.open_offers:t.price_kg}</div></div></div><RBar from={trip.from} to={trip.to} fc={trip.fc} tc={trip.tc}/><div className="chips"><span className="chip ch-b">⚖️ {trip.kg} {t.kg}</span><span className="chip ch-gr">📅 {trip.date}</span>{trip.cats.slice(0,2).map(c=><span key={c} className="chip ch-g">{c}</span>)}{trip.cats.length>2&&<span className="chip ch-gr">+{trip.cats.length-2}</span>}</div>{trip.notes&&<div style={{fontSize:12,color:'#64748b',marginBottom:11,lineHeight:1.5}}>"{trip.notes}"</div>}<div className="card-ft" onClick={e=>e.stopPropagation()}><button className="btn-contact" onClick={()=>!trip.isDemo&&onContact(trip,'trip')} style={{opacity:trip.isDemo?.5:1,cursor:trip.isDemo?'not-allowed':'pointer'}}>{t.contact}</button><button className={`btn-save ${saved?'saved':''}`} onClick={()=>!trip.isDemo&&onSave(trip.id,'trip')}>{saved?'⭐':'☆'} {saved?t.saved:t.save}</button></div></div>;}
-function SCard({ship,t,onContact,onSave,saved,onDetail}){return <div className="lcard card" onClick={()=>ship.isDemo?null:onDetail(ship,'ship')} style={{cursor:ship.isDemo?'default':'pointer'}}>{ship.isDemo&&<div className="demo-banner">✦ Example request — sign up to see real senders ✦</div>}<div className="card-top"><Av name={ship.user} size={44}/><div style={{flex:1,minWidth:0}}><div className="card-un">{ship.user}</div><div className="card-mr">{ship.verified&&<VBadge t={t}/>}{ship.urgent&&<span className="chip ch-r">{t.urgent}</span>}<SBadge status={ship.status} t={t}/></div><div style={{marginTop:3}}><Stars r={ship.rating} c={ship.reviews}/></div></div><div style={{textAlign:'right',flexShrink:0}}><div className="cprice">${ship.budget}</div><div className="cprice-sub">{t.budget}</div></div></div><RBar from={ship.from} to={ship.to} fc={ship.fc} tc={ship.tc}/><div className="chips"><span className="chip ch-b">⚖️ {ship.kg} {t.kg}</span><span className="chip ch-gr">📅 {ship.pref_date}</span><span className="chip ch-g">{ship.category}</span></div>{ship.desc&&<div style={{fontSize:12,color:'#64748b',marginBottom:11,lineHeight:1.5}}>"{ship.desc}"</div>}<div className="card-ft" onClick={e=>e.stopPropagation()}><button className="btn-contact" onClick={()=>!ship.isDemo&&onContact(ship,'ship')} style={{opacity:ship.isDemo?.5:1,cursor:ship.isDemo?'not-allowed':'pointer'}}>{t.contact}</button><button className={`btn-save ${saved?'saved':''}`} onClick={()=>!ship.isDemo&&onSave(ship.id,'ship')}>{saved?'⭐':'☆'} {saved?t.saved:t.save}</button></div></div>;}
+function TCard({trip,t,onContact,onSave,saved,onDetail,currentUserId}){return <div className="lcard card" onClick={()=>trip.isDemo?null:onDetail(trip,'trip')} style={{cursor:trip.isDemo?'default':'pointer'}}>{trip.isDemo&&<div className="demo-banner">✦ Example listing — sign up to see real travelers ✦</div>}<div className="card-top"><Av name={trip.user} size={44}/><div style={{flex:1,minWidth:0}}><div className="card-un">{trip.user}</div><div className="card-mr">{trip.verified&&<VBadge t={t}/>}<SBadge status={trip.status} t={t}/></div><div style={{marginTop:3}}><Stars r={trip.rating} c={trip.reviews}/></div></div><div style={{textAlign:'right',flexShrink:0}}><div className="cprice">{trip.open?<span style={{fontSize:14}}>💬</span>:`$${trip.price}`}</div><div className="cprice-sub">{trip.open?t.open_offers:t.price_kg}</div></div></div><RBar from={trip.from} to={trip.to} fc={trip.fc} tc={trip.tc}/><div className="chips"><span className="chip ch-b">⚖️ {trip.kg} {t.kg}</span><span className="chip ch-gr">📅 {trip.date}</span>{trip.cats.slice(0,2).map(c=><span key={c} className="chip ch-g">{c}</span>)}{trip.cats.length>2&&<span className="chip ch-gr">+{trip.cats.length-2}</span>}</div>{trip.notes&&<div style={{fontSize:12,color:'#64748b',marginBottom:11,lineHeight:1.5}}>"{trip.notes}"</div>}<div className="card-ft" onClick={e=>e.stopPropagation()}>{trip.user_id!==currentUserId&&<button className="btn-contact" onClick={()=>!trip.isDemo&&onContact(trip,'trip')} style={{opacity:trip.isDemo?.5:1,cursor:trip.isDemo?'not-allowed':'pointer'}}>{t.contact}</button>}<button className={`btn-save ${saved?'saved':''}`} onClick={()=>!trip.isDemo&&onSave(trip.id,'trip')}>{saved?'⭐':'☆'} {saved?t.saved:t.save}</button></div></div>;}
+function SCard({ship,t,onContact,onSave,saved,onDetail,currentUserId}){return <div className="lcard card" onClick={()=>ship.isDemo?null:onDetail(ship,'ship')} style={{cursor:ship.isDemo?'default':'pointer'}}>{ship.isDemo&&<div className="demo-banner">✦ Example request — sign up to see real senders ✦</div>}<div className="card-top"><Av name={ship.user} size={44}/><div style={{flex:1,minWidth:0}}><div className="card-un">{ship.user}</div><div className="card-mr">{ship.verified&&<VBadge t={t}/>}{ship.urgent&&<span className="chip ch-r">{t.urgent}</span>}<SBadge status={ship.status} t={t}/></div><div style={{marginTop:3}}><Stars r={ship.rating} c={ship.reviews}/></div></div><div style={{textAlign:'right',flexShrink:0}}><div className="cprice">${ship.budget}</div><div className="cprice-sub">{t.budget}</div></div></div><RBar from={ship.from} to={ship.to} fc={ship.fc} tc={ship.tc}/><div className="chips"><span className="chip ch-b">⚖️ {ship.kg} {t.kg}</span><span className="chip ch-gr">📅 {ship.pref_date}</span><span className="chip ch-g">{ship.category}</span></div>{ship.desc&&<div style={{fontSize:12,color:'#64748b',marginBottom:11,lineHeight:1.5}}>"{ship.desc}"</div>}<div className="card-ft" onClick={e=>e.stopPropagation()}>{ship.user_id!==currentUserId&&<button className="btn-contact" onClick={()=>!ship.isDemo&&onContact(ship,'ship')} style={{opacity:ship.isDemo?.5:1,cursor:ship.isDemo?'not-allowed':'pointer'}}>{t.contact}</button>}<button className={`btn-save ${saved?'saved':''}`} onClick={()=>!ship.isDemo&&onSave(ship.id,'ship')}>{saved?'⭐':'☆'} {saved?t.saved:t.save}</button></div></div>;}
 function CtrySel({value,onChange,label,required,err}){return <div className="ff"><label className="fl">{label}{required&&<span>*</span>}</label><select className={`fsel ${err?'err':''}`} value={value} onChange={e=>onChange(e.target.value)}><option value="">— Select —</option>{COUNTRIES.map(c=><option key={c} value={c}>{c}</option>)}</select>{err&&<div className="ferr">⚠ {err}</div>}</div>;}
 function CatSel({selected,onChange,t}){const cats=[t.cat_clothing,t.cat_electronics,t.cat_documents,t.cat_personal,t.cat_food,t.cat_cosmetics,t.cat_gifts,t.cat_other];const tog=c=>selected.includes(c)?onChange(selected.filter(x=>x!==c)):onChange([...selected,c]);return <div className="tog-grp">{cats.map(c=><button type="button" key={c} className={`tog-btn ${selected.includes(c)?'sel':''}`} onClick={()=>tog(c)}>{c}</button>)}</div>;}
 function FaqSec({t,pricingOnly}){
@@ -1254,7 +1254,7 @@ function Footer({t,go}){return(
 </footer>
 );}
 
-function BrowseTrips({t,trips,onContact,onSave,savedIds,onDetail}){
+function BrowseTrips({t,trips,onContact,onSave,savedIds,onDetail,currentUserId}){
 const[from,setFrom]=useState('');const[to,setTo]=useState('');const[date,setDate]=useState('');const[maxPrice,setMaxP]=useState('');const[openOnly,setOO]=useState(false);const[sort,setSort]=useState('newest');const[showF,setShowF]=useState(false);
 const filtered=useMemo(()=>{let r=[...trips];if(from)r=r.filter(x=>x.from.toLowerCase().includes(from.toLowerCase()));if(to)r=r.filter(x=>x.to.toLowerCase().includes(to.toLowerCase()));if(date)r=r.filter(x=>x.date>=date);if(maxPrice)r=r.filter(x=>x.open||x.price<=parseFloat(maxPrice));if(openOnly)r=r.filter(x=>x.open);if(sort==='newest')r.sort((a,b)=>b.id-a.id);else if(sort==='price_low')r.sort((a,b)=>a.price-b.price);else if(sort==='price_high')r.sort((a,b)=>b.price-a.price);else if(sort==='kg')r.sort((a,b)=>b.kg-a.kg);return r;},[trips,from,to,date,maxPrice,openOnly,sort]);
 const reset=()=>{setFrom('');setTo('');setDate('');setMaxP('');setOO(false);};
@@ -1277,10 +1277,10 @@ return <div style={{padding:'0 16px 32px'}}>
 <div className="sbar"><span className="sbar-lbl">{t.sort_by}</span>
 {[['newest',t.sort_newest],['price_low',t.sort_price_low],['price_high',t.sort_price_high],['kg',t.sort_kg]].map(([k,l])=><button key={k} className={`srt-btn ${sort===k?'active':''}`} onClick={()=>setSort(k)}>{l}</button>)}
 </div>
-{filtered.length===0?<Empty icon="✈️" title="No results" sub="Try adjusting your filters." cta={t.reset_filters} onCta={reset}/>:filtered.map(trip=><TCard key={trip.id} trip={trip} t={t} onContact={onContact} onSave={onSave} saved={isSaved(trip.id,'trip')} onDetail={onDetail}/>)}
+{filtered.length===0?<Empty icon="✈️" title="No results" sub="Try adjusting your filters." cta={t.reset_filters} onCta={reset}/>:filtered.map(trip=><TCard key={trip.id} trip={trip} t={t} onContact={onContact} onSave={onSave} saved={isSaved(trip.id,'trip')} onDetail={onDetail} currentUserId={user?.id}/>)}
 </div>;
 }
-function BrowseShips({t,ships,onContact,onSave,savedIds,onDetail}){
+function BrowseShips({t,ships,onContact,onSave,savedIds,onDetail,currentUserId}){
 const[from,setFrom]=useState('');const[to,setTo]=useState('');const[date,setDate]=useState('');const[maxB,setMaxB]=useState('');const[urgOnly,setUO]=useState(false);const[sort,setSort]=useState('newest');const[showF,setShowF]=useState(false);
 const filtered=useMemo(()=>{let r=[...ships];if(from)r=r.filter(x=>x.from.toLowerCase().includes(from.toLowerCase()));if(to)r=r.filter(x=>x.to.toLowerCase().includes(to.toLowerCase()));if(date)r=r.filter(x=>x.pref_date>=date);if(maxB)r=r.filter(x=>x.budget<=parseFloat(maxB));if(urgOnly)r=r.filter(x=>x.urgent);if(sort==='newest')r.sort((a,b)=>b.id-a.id);else if(sort==='price_low')r.sort((a,b)=>a.budget-b.budget);else if(sort==='price_high')r.sort((a,b)=>b.budget-a.budget);else if(sort==='kg')r.sort((a,b)=>b.kg-a.kg);return r;},[ships,from,to,date,maxB,urgOnly,sort]);
 const reset=()=>{setFrom('');setTo('');setDate('');setMaxB('');setUO(false);};
@@ -1303,7 +1303,7 @@ return <div style={{padding:'0 16px 32px'}}>
 <div className="sbar"><span className="sbar-lbl">{t.sort_by}</span>
 {[['newest',t.sort_newest],['price_low',t.sort_price_low],['price_high',t.sort_price_high],['kg',t.sort_kg]].map(([k,l])=><button key={k} className={`srt-btn ${sort===k?'active':''}`} onClick={()=>setSort(k)}>{l}</button>)}
 </div>
-{filtered.length===0?<Empty icon="📦" title="No results" sub="Try adjusting your filters." cta={t.reset_filters} onCta={reset}/>:filtered.map(ship=><SCard key={ship.id} ship={ship} t={t} onContact={onContact} onSave={onSave} saved={isSaved(ship.id,'ship')} onDetail={onDetail}/>)}
+{filtered.length===0?<Empty icon="📦" title="No results" sub="Try adjusting your filters." cta={t.reset_filters} onCta={reset}/>:filtered.map(ship=><SCard key={ship.id} ship={ship} t={t} onContact={onContact} onSave={onSave} saved={isSaved(ship.id,'ship')} onDetail={onDetail} currentUserId={currentUserId}/>)}
 </div>;
 }
 function PostTripForm({t,onSubmit}){
@@ -2253,7 +2253,7 @@ const handleAvatarChange=async(e)=>{
     // Save base64 directly into profiles.avatar_url
     await sb.upsertProfile({id:user.id,avatar_url:base64Url,updated_at:new Date().toISOString()});
     // Update UI with the saved value + cache bust
-    setUser(prev=>({...prev,avatarUrl:base64Url+'?t='+Date.now()}));
+    setUser(prev=>({...prev,avatarUrl:base64Url}));
     try{localStorage.removeItem('ar_av_'+user.id);}catch(err){}
     showToast('Profile photo updated! ✓');
   }catch(err){
@@ -2536,7 +2536,7 @@ function SignatureOverlay({onSave,onCancel,label}){
 
 
 // ── Main Component ────────────────────────────────────────────────────────────
-function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
+function ShipmentAgreementPage({user,trip,listingType,onComplete,onCancel,showToast,sb}){
   const SUPABASE_URL='https://fzokrhosmthdiymdewuw.supabase.co';
   const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6b2tyaG9zbXRoZGl5bWRld3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTY2MTgsImV4cCI6MjA5MTY5MjYxOH0.ee5OBNh6Om0mLTSjmFOqH0JVGu4cbjcLL9Ekawem4YE';
 
@@ -2549,12 +2549,18 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
 
   // Agreement draft — single source of truth
   // Determine role: 'sender' if user is contacting the traveler, 'traveler' if user owns the trip
+  // listingType: 'trip' = traveler's listing, 'ship' = sender's request
   const userRole=React.useMemo(()=>{
     if(!user||!trip)return'sender';
-    // If the trip belongs to current user, they are the traveler
-    if(trip.user_id===user.id||trip.userId===user.id)return'traveler';
-    return'sender';
-  },[user,trip]);
+    const isMine=trip.user_id===user.id||trip.userId===user.id;
+    if(listingType==='trip'){
+      // Contacting a trip post: trip owner is traveler, I am sender
+      return isMine?'traveler':'sender';
+    }else{
+      // Contacting a shipment request: request owner is sender, I am traveler
+      return isMine?'sender':'traveler';
+    }
+  },[user,trip,listingType]);
 
   // Generate agreement ID once, synchronously
   const _agrId=React.useMemo(()=>generateAgreementId(),[]);
@@ -2950,9 +2956,14 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
         <div className="agr-hero">
           <button onClick={onCancel} style={{background:'rgba(255,255,255,.1)',border:'none',color:'rgba(255,255,255,.7)',padding:'6px 12px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',marginBottom:14,fontFamily:"'Sora',sans-serif"}}>← Back</button>
           <div style={{fontSize:28,marginBottom:6}}>📋</div>
-          <h2 style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:20,color:'#fff',marginBottom:4}}>Shipment Agreement</h2>
+          <h2 style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:20,color:'#fff',marginBottom:4}}>
+            {userRole==='sender'?'Sender Agreement':'Traveler Confirmation'}
+          </h2>
           <p style={{color:'rgba(255,255,255,.6)',fontSize:13,lineHeight:1.5,margin:0}}>
-            Both parties must document and sign before any handover.<br/>
+            {userRole==='sender'
+              ?'Document what you are sending and sign the declaration.'
+              :'Inspect the items and confirm what you are carrying.'
+            }<br/>
             <strong style={{color:'rgba(255,255,255,.75)',fontSize:11}}>Agreement ID: {draft.id||'…'}</strong>
           </p>
         </div>
@@ -3269,7 +3280,7 @@ useEffect(()=>{
           });
           profile = await sb.getProfile(oauthUser.id);
         }
-        const oauthAvatar=profile?.avatar_url?(profile.avatar_url+'?t='+(profile.updated_at||Date.now())):null;
+        const oauthAvatar=profile?.avatar_url||null;
         setUser({id:oauthUser.id,email:oauthUser.email,name:profile?.name||oauthUser.email,country:profile?.country||'',wa:profile?.whatsapp||'',isSubscribed:profile?.is_subscribed||false,avatarUrl:oauthAvatar});
         setLI(true);setSub(profile?.is_subscribed||false);
         showToast('Welcome, '+(oauthUser.user_metadata?.full_name||oauthUser.email||'').split(' ')[0]+'! 👋');
@@ -3348,7 +3359,7 @@ useEffect(()=>{
         const u=await sb.refreshSession();
         if(u){
           const profile=await sb.getProfile(u.id);
-          const savedAvatar=profile?.avatar_url?(profile.avatar_url+'?t='+(profile.updated_at||Date.now())):null;
+          const savedAvatar=profile?.avatar_url||null;
           // Check subscription from Supabase OR localStorage fallback
           const isSub=profile?.is_subscribed||localStorage.getItem('ar_sub')==='1'||false;
           // If localStorage says subscribed but Supabase doesn't, sync it
@@ -3429,7 +3440,7 @@ const handleLogin=async(formData)=>{
     }else{
       const data=await sb.signIn(formData.email,formData.password);
       const profile=await sb.getProfile(data.user.id);
-      const loginAvatar=profile?.avatar_url?(profile.avatar_url+'?t='+(profile.updated_at||Date.now())):null;
+      const loginAvatar=profile?.avatar_url||null;
       const isSubLogin=profile?.is_subscribed||localStorage.getItem('ar_sub')==='1'||false;
       if(localStorage.getItem('ar_sub')==='1'&&!profile?.is_subscribed){
         sb.update('profiles',{is_subscribed:true},`id=eq.${data.user.id}`).catch(()=>{});
@@ -3490,6 +3501,11 @@ const openChat=(item,type)=>{
 const handleContact=(item,type)=>{
   if(!loggedIn){setPage('auth');return;}
   if(!subscribed){setModal({type:'paywall_msg'});return;}
+  // Block contacting your own listing
+  if(user&&item.user_id===user.id){
+    showToast('This is your own listing — you cannot contact yourself.','error');
+    return;
+  }
   // Route through shipment agreement before opening chat
   setAgreementFlow({item,type});
   setPage('agreement');
@@ -3566,7 +3582,7 @@ const renderHome=()=><div className="page"><div className="hero"><div className=
 </div>
 <div className="sec">
 <div className="sec-hd"><span className="sec-title">{t.sec_ships}</span><button className="sec-link" onClick={()=>go('browse-ships')}>{t.see_all}</button></div>
-{appLoading?null:ships.slice(0,2).map(ship=><SCard key={ship.id} ship={ship} t={t} onContact={handleContact} onSave={handleSave} saved={isSaved(ship.id,'ship')} onDetail={item=>setDetail({item,type:'ship'})}/>)}
+{appLoading?null:ships.slice(0,2).map(ship=><SCard key={ship.id} ship={ship} t={t} onContact={handleContact} onSave={handleSave} saved={isSaved(ship.id,'ship')} onDetail={item=>setDetail({item,type:'ship'})} currentUserId={user?.id}/>)}
 </div>
 <div className="sec"><div className="sec-hd"><span className="sec-title">{t.hiw_title}</span></div><div className="hiw-grid">{[[1,t.hiw_1_t,t.hiw_1_d],[2,t.hiw_2_t,t.hiw_2_d],[3,t.hiw_3_t,t.hiw_3_d],[4,t.hiw_4_t,t.hiw_4_d]].map(([n,tt,td])=><div key={n} className="hiw-card"><div className="hiw-step">{n}</div><div className="hiw-t">{tt}</div><div className="hiw-d">{td}</div></div>)}</div></div>
 <div className="sec"><div className="sec-hd"><span className="sec-title">{t.trust_title}</span></div><div className="trust-grid">{[['🔒',t.tr1_t,t.tr1_d],['🚨',t.tr2_t,t.tr2_d],['⚠️',t.tr3_t,t.tr3_d],['⭐',t.tr4_t,t.tr4_d]].map(([i,tt,td])=><div key={tt} className="trust-item"><div className="trust-icon">{i}</div><div className="trust-t">{tt}</div><div className="trust-d">{td}</div></div>)}</div></div>
@@ -3597,8 +3613,8 @@ const renderPage=()=>{
 if(detail)return renderDetail();
 switch(page){
 case 'home':return renderHome();
-case 'browse-trips':return <div className="page"><div className="phd"><div className="phd-icon">✈️</div><div><div className="phd-title">{t.nav_trips}</div><div className="phd-sub">{trips.length} listings</div></div></div><BrowseTrips t={t} trips={trips} onContact={handleContact} onSave={handleSave} savedIds={savedIds} onDetail={item=>setDetail({item,type:'trip'})}/></div>;
-case 'browse-ships':return <div className="page"><div className="phd"><div className="phd-icon">📦</div><div><div className="phd-title">{t.nav_ships}</div><div className="phd-sub">{ships.length} requests</div></div></div><BrowseShips t={t} ships={ships} onContact={handleContact} onSave={handleSave} savedIds={savedIds} onDetail={item=>setDetail({item,type:'ship'})}/></div>;
+case 'browse-trips':return <div className="page"><div className="phd"><div className="phd-icon">✈️</div><div><div className="phd-title">{t.nav_trips}</div><div className="phd-sub">{trips.length} listings</div></div></div><BrowseTrips t={t} trips={trips} currentUserId={user?.id} onContact={handleContact} onSave={handleSave} savedIds={savedIds} onDetail={item=>setDetail({item,type:'trip'})}/></div>;
+case 'browse-ships':return <div className="page"><div className="phd"><div className="phd-icon">📦</div><div><div className="phd-title">{t.nav_ships}</div><div className="phd-sub">{ships.length} requests</div></div></div><BrowseShips t={t} ships={ships} currentUserId={user?.id} onContact={handleContact} onSave={handleSave} savedIds={savedIds} onDetail={item=>setDetail({item,type:'ship'})}/></div>;
 case 'post-trip':return <div className="page"><div className="phd"><div className="phd-icon">✈️</div><div><div className="phd-title">{t.post_trip_title}</div><div className="phd-sub">{t.post_trip_sub}</div></div></div><div style={{padding:'0 16px 32px'}}>{!loggedIn?<PW t={t} type="post" onSub={()=>go('auth')}/>:!subscribed?<PW t={t} type="post" onSub={()=>go('pricing')}/>:<PostTripForm t={t} onSubmit={handlePostTrip}/>}</div></div>;
 case 'post-shipment':return <div className="page"><div className="phd"><div className="phd-icon">📦</div><div><div className="phd-title">{t.post_ship_title}</div><div className="phd-sub">{t.post_ship_sub}</div></div></div><div style={{padding:'0 16px 32px'}}>{!loggedIn?<PW t={t} type="post" onSub={()=>go('auth')}/>:!subscribed?<PW t={t} type="post" onSub={()=>go('pricing')}/>:<PostShipForm t={t} onSubmit={handlePostShip}/>}</div></div>;
 case 'messages':return <div className="page" style={{padding:0}}>{!loggedIn?<div style={{padding:'0 16px'}}><PW t={t} type="msg" onSub={()=>go('auth')}/></div>:!subscribed?<div style={{padding:'0 16px'}}><PW t={t} type="msg" onSub={()=>go('pricing')}/></div>:<div className="msg-layout"><div className="conv-sb">{convos.map(c=><div key={c.id} className={`conv-item ${activeConvo?.id===c.id?'active':''}`} onClick={()=>setConvo(c)}><div style={{position:'relative'}}><Av name={c.user} size={38}/>{c.unread>0&&<span className="cunread">{c.unread}</span>}</div><div className="conv-name">{c.user.split(' ')[0]}</div></div>)}</div><div className="chat-area">{activeConvo?<><div className="chat-hd"><Av name={activeConvo.user} size={36}/><div style={{flex:1,minWidth:0}}><div className="chat-hn">{activeConvo.user}</div><div style={{display:'flex',gap:6,marginTop:2,flexWrap:'wrap'}}><div className="chat-hs">● {t.online}</div>{activeConvo.listing&&<div className="chat-hl">{activeConvo.listing}</div>}</div></div></div><div className="chat-msgs">{activeConvo.msgs.map((m,i)=><div key={i} className={`msg-row ${m.from}`}><div className={`msg-b ${m.from}`}>{m.text}<div className={`msg-time ${m.from}`}>{m.t}</div></div></div>)}<div ref={chatEnd}/></div><div className="chat-ib"><textarea className="chat-inp" placeholder={t.type_msg} value={chatIn} onChange={e=>setChatIn(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}} rows={1}/><button className="btn-send" onClick={sendMsg}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>{t.send_btn}</button></div></>:<Empty icon="💬" title={t.inbox_empty} sub={t.inbox_empty_sub}/>}</div></div>}</div>;
@@ -3632,6 +3648,7 @@ case 'contact':return <ContactPage t={T['en']} go={go} showToast={showToast}/>;
 case 'agreement':return agreementFlow?<ShipmentAgreementPage
   user={user}
   trip={agreementFlow.item}
+  listingType={agreementFlow.type}
   onComplete={()=>{setAgreementFlow(null);openChat(agreementFlow.item,agreementFlow.type);}}
   onCancel={()=>{setAgreementFlow(null);setPage(agreementFlow.type==='trip'?'browse-trips':'browse-ships');}}
   showToast={showToast}
