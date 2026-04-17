@@ -1047,6 +1047,50 @@ button{cursor:pointer}
 .toast.error .toast-icon::after{content:'✕'}
 .toast.warning{background:linear-gradient(135deg,#431407 0%,#d97706 100%)}
 .toast.warning .toast-icon::after{content:'!'}
+
+
+
+/* ══ SHIPMENT AGREEMENT v2 ═════════════════════════════════════════════════ */
+.agr-page{padding:0 16px 72px;max-width:640px;margin:0 auto}
+.agr-hero{background:linear-gradient(145deg,var(--navy),#0c3060);border-radius:var(--rl);padding:22px 20px 18px;margin-bottom:18px;position:relative;overflow:hidden}
+.agr-hero::after{content:'';position:absolute;top:-40px;right:-40px;width:140px;height:140px;background:rgba(26,188,156,.12);border-radius:50%;pointer-events:none}
+.agr-steps{display:flex;align-items:flex-start;margin-bottom:20px;padding:0 4px}
+.agr-dot{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:'Sora',sans-serif;transition:all .25s;flex-shrink:0}
+.agr-step-lbl{font-size:9px;font-weight:700;letter-spacing:.3px;margin-top:4px;text-align:center;max-width:38px;line-height:1.2}
+.agr-line{flex:1;height:2px;margin:17px 2px 0;transition:background .25s}
+.agr-card{background:#fff;border-radius:14px;border:1px solid var(--bord);padding:18px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.agr-card-title{font-family:'Sora',sans-serif;font-weight:700;font-size:14px;color:var(--navy);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.agr-item{background:var(--surf2);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--bord)}
+.agr-item-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin-top:8px}
+@media(max-width:520px){.agr-item-grid{grid-template-columns:1fr 1fr}}
+.agr-photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.agr-photo-cell{position:relative;aspect-ratio:1}
+.agr-photo-thumb{width:100%;height:100%;object-fit:cover;border-radius:10px;border:2px solid var(--bord);display:block}
+.agr-photo-del{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.65);border:none;color:#fff;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.agr-photo-add{aspect-ratio:1;border-radius:10px;border:2px dashed var(--bord2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer;background:var(--surf2);transition:all .18s;font-size:11px;color:var(--text3);font-weight:600}
+.agr-photo-add:hover{border-color:var(--green);background:var(--gpale);color:var(--green)}
+.agr-legal{background:rgba(10,37,64,.03);border:1px solid rgba(10,37,64,.1);border-radius:12px;padding:14px 16px;font-size:12.5px;color:var(--text2);line-height:1.8;margin-bottom:14px;max-height:200px;overflow-y:auto}
+.agr-sig-box{border:2px solid var(--bord);border-radius:12px;overflow:hidden;background:#fafafa;transition:border-color .2s}
+.agr-sig-box.has-sig{border-color:var(--green);background:#f0fdf8}
+.agr-sig-canvas{display:block;width:100%;height:140px;touch-action:none;cursor:crosshair}
+.agr-check-row{display:flex;align-items:flex-start;gap:10px;background:var(--surf2);border-radius:10px;padding:12px;margin-bottom:14px;cursor:pointer}
+.agr-check-row input[type=checkbox]{width:18px;height:18px;flex-shrink:0;margin-top:1px;accent-color:var(--green);cursor:pointer}
+.agr-check-row label{font-size:13px;color:var(--text2);line-height:1.55;cursor:pointer}
+.agr-decision-row{display:flex;gap:10px;margin-bottom:14px}
+.agr-decision-btn{flex:1;padding:13px 8px;border-radius:11px;border:2px solid var(--bord);background:#fff;font-weight:700;font-size:13px;cursor:pointer;transition:all .18s;text-align:center}
+.agr-decision-btn.accept{border-color:var(--green);background:rgba(26,188,156,.07);color:var(--green)}
+.agr-decision-btn.reject{border-color:#ef4444;background:rgba(239,68,68,.06);color:#ef4444}
+.agr-warn{background:#fffbeb;border:1px solid rgba(245,158,11,.25);border-radius:12px;padding:12px 14px;font-size:12.5px;color:#92400e;line-height:1.6;margin-bottom:12px}
+.agr-danger{background:#fef2f2;border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:12px 14px;font-size:12.5px;color:#7f1d1d;line-height:1.6;margin-bottom:12px}
+.agr-complete{text-align:center;padding:36px 16px 24px}
+.agr-id-badge{font-family:'Sora',sans-serif;font-weight:800;font-size:15px;color:var(--green);background:var(--gpale);border:1.5px solid var(--gborder);padding:9px 20px;border-radius:20px;display:inline-block;letter-spacing:1.5px;margin-bottom:16px}
+.agr-nav{display:flex;gap:10px;margin-top:8px}
+.agr-btn-back{flex:1;background:none;border:1.5px solid var(--bord);color:var(--text2);padding:13px;border-radius:11px;font-weight:600;font-size:14px;cursor:pointer}
+.agr-btn-next{flex:2;background:var(--navy);color:#fff;border:none;padding:13px;border-radius:11px;font-weight:700;font-size:14px;font-family:'Sora',sans-serif;cursor:pointer;transition:background .18s}
+.agr-btn-next:disabled{background:var(--bord2);cursor:not-allowed}
+.agr-btn-green{background:var(--green)!important}
+.agr-uploading{font-size:12px;color:var(--green);font-weight:600;display:flex;align-items:center;gap:6px;margin-top:6px}
+
 </style>
 <script>
 // Capture Android install prompt early
@@ -2355,6 +2399,672 @@ async function startStripeCheckout(userEmail,userId){
   window.location.href=data.url;
 }
 
+
+// ── Agreement ID generator ────────────────────────────────────────────────────
+function generateAgreementId(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code='';
+  for(let i=0;i<6;i++) code+=chars[Math.floor(Math.random()*chars.length)];
+  return 'AGR-'+code;
+}
+
+// ── Signature Canvas hook ─────────────────────────────────────────────────────
+function useSignatureCanvas(canvasRef){
+  const[hasSig,setHasSig]=React.useState(false);
+  const drawingRef=React.useRef(false);
+  const ctxRef=React.useRef(null);
+
+  const init=React.useCallback(()=>{
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    const dpr=window.devicePixelRatio||1;
+    const rect=canvas.getBoundingClientRect();
+    canvas.width=rect.width*dpr;
+    canvas.height=140*dpr;
+    const ctx=canvas.getContext('2d');
+    ctx.scale(dpr,dpr);
+    ctx.strokeStyle='#0A2540';
+    ctx.lineWidth=2.5;
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+    ctxRef.current=ctx;
+  },[canvasRef]);
+
+  const getXY=(canvas,e)=>{
+    const r=canvas.getBoundingClientRect();
+    const src=e.touches?e.touches[0]:e;
+    return{x:src.clientX-r.left,y:src.clientY-r.top};
+  };
+
+  React.useEffect(()=>{
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    init();
+    const onStart=(e)=>{
+      e.preventDefault();
+      drawingRef.current=true;
+      const ctx=ctxRef.current;
+      const{x,y}=getXY(canvas,e);
+      ctx.beginPath();ctx.moveTo(x,y);
+    };
+    const onMove=(e)=>{
+      e.preventDefault();
+      if(!drawingRef.current)return;
+      const{x,y}=getXY(canvas,e);
+      ctxRef.current.lineTo(x,y);
+      ctxRef.current.stroke();
+      setHasSig(true);
+    };
+    const onEnd=(e)=>{e.preventDefault();drawingRef.current=false;};
+    canvas.addEventListener('mousedown',onStart);
+    canvas.addEventListener('mousemove',onMove);
+    canvas.addEventListener('mouseup',onEnd);
+    canvas.addEventListener('touchstart',onStart,{passive:false});
+    canvas.addEventListener('touchmove',onMove,{passive:false});
+    canvas.addEventListener('touchend',onEnd);
+    return()=>{
+      canvas.removeEventListener('mousedown',onStart);
+      canvas.removeEventListener('mousemove',onMove);
+      canvas.removeEventListener('mouseup',onEnd);
+      canvas.removeEventListener('touchstart',onStart);
+      canvas.removeEventListener('touchmove',onMove);
+      canvas.removeEventListener('touchend',onEnd);
+    };
+  },[canvasRef,init]);
+
+  const clear=React.useCallback(()=>{
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    const ctx=ctxRef.current;
+    if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height);
+    setHasSig(false);
+  },[canvasRef]);
+
+  const getDataUrl=React.useCallback(()=>{
+    const canvas=canvasRef.current;
+    return canvas?canvas.toDataURL('image/png'):null;
+  },[canvasRef]);
+
+  return{hasSig,clear,getDataUrl,init};
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
+  const SUPABASE_URL='https://fzokrhosmthdiymdewuw.supabase.co';
+  const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6b2tyaG9zbXRoZGl5bWRld3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTY2MTgsImV4cCI6MjA5MTY5MjYxOH0.ee5OBNh6Om0mLTSjmFOqH0JVGu4cbjcLL9Ekawem4YE';
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  const[step,setStep]=React.useState(1);
+  const[saving,setSaving]=React.useState(false);
+  const[uploadingPhoto,setUploadingPhoto]=React.useState(false);
+
+  // Agreement draft — single source of truth
+  const[draft,setDraft]=React.useReducer((s,u)=>({...s,...u}),{
+    id:null,
+    trip_id:trip?.id||'',
+    sender_id:user?.id||'',
+    sender_name:user?.name||'',
+    traveler_id:trip?.user_id||trip?.userId||'',
+    traveler_name:trip?.user||'',
+    items:[{description:'',quantity:1,weight:0,estimated_value:0}],
+    photos:[],
+    sender_declaration_accepted:false,
+    sender_signature_data:'',
+    sender_signed_at:null,
+    traveler_approved:null,
+    traveler_notes:'',
+    traveler_declaration_accepted:false,
+    traveler_signature_data:'',
+    traveler_signed_at:null,
+    status:'draft'
+  });
+
+  // Signature canvas refs
+  const senderCanvasRef=React.useRef(null);
+  const travelerCanvasRef=React.useRef(null);
+  const senderSig=useSignatureCanvas(senderCanvasRef);
+  const travelerSig=useSignatureCanvas(travelerCanvasRef);
+  const fileInputRef=React.useRef(null);
+
+  // ── Generate ID on mount ───────────────────────────────────────────────────
+  React.useEffect(()=>{
+    if(!draft.id){
+      const id=generateAgreementId();
+      setDraft({id});
+      // Restore from localStorage if exists
+      try{
+        const saved=localStorage.getItem('agr_draft_'+trip?.id);
+        if(saved){
+          const d=JSON.parse(saved);
+          if(d.status==='draft'||d.status==='sender_signed'){
+            setDraft(d);
+            showToast('Restored unfinished agreement');
+          }
+        }
+      }catch(e){}
+    }
+  },[]);
+
+  // ── Supabase helpers ───────────────────────────────────────────────────────
+  const upsertAgreement=async(updates)=>{
+    const merged={...draft,...updates};
+    setDraft(updates);
+    // Save to localStorage
+    try{localStorage.setItem('agr_draft_'+trip?.id,JSON.stringify(merged));}catch(e){}
+    // Save to Supabase
+    try{
+      const res=await fetch(`${SUPABASE_URL}/rest/v1/shipment_agreements`,{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'apikey':SUPABASE_KEY,
+          'Authorization':'Bearer '+SUPABASE_KEY,
+          'Prefer':'resolution=merge-duplicates'
+        },
+        body:JSON.stringify(merged)
+      });
+      if(!res.ok){const e=await res.text();console.warn('Supabase upsert warn:',e);}
+    }catch(e){console.warn('Supabase offline, saved to localStorage only',e);}
+  };
+
+  const uploadPhoto=async(file)=>{
+    setUploadingPhoto(true);
+    try{
+      const ext=file.name.split('.').pop();
+      const path=`${draft.id}/${Date.now()}.${ext}`;
+      // Upload to Supabase Storage
+      const upRes=await fetch(`${SUPABASE_URL}/storage/v1/object/agreement-photos/${path}`,{
+        method:'POST',
+        headers:{
+          'apikey':SUPABASE_KEY,
+          'Authorization':'Bearer '+SUPABASE_KEY,
+          'Content-Type':file.type
+        },
+        body:file
+      });
+      if(upRes.ok){
+        const publicUrl=`${SUPABASE_URL}/storage/v1/object/public/agreement-photos/${path}`;
+        return{url:publicUrl,caption:'',uploaded_by:'sender',created_at:new Date().toISOString()};
+      }
+    }catch(e){console.warn('Storage upload failed, using base64 fallback');}
+    // Fallback: base64 for offline/error
+    return new Promise((resolve)=>{
+      const reader=new FileReader();
+      reader.onload=ev=>resolve({url:ev.target.result,caption:'',uploaded_by:'sender',created_at:new Date().toISOString(),local:true});
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // ── Item helpers ───────────────────────────────────────────────────────────
+  const addItem=()=>setDraft({items:[...draft.items,{description:'',quantity:1,weight:0,estimated_value:0}]});
+  const removeItem=(i)=>setDraft({items:draft.items.filter((_,idx)=>idx!==i)});
+  const updateItem=(i,k,v)=>setDraft({items:draft.items.map((it,idx)=>idx===i?{...it,[k]:v}:it)});
+
+  // ── Photo helpers ──────────────────────────────────────────────────────────
+  const handleFileAdd=async(e)=>{
+    const files=Array.from(e.target.files);
+    e.target.value='';
+    for(const file of files){
+      const ph=await uploadPhoto(file);
+      setDraft(prev=>({photos:[...prev.photos,ph]}));
+    }
+    setUploadingPhoto(false);
+  };
+  const removePhoto=(i)=>setDraft({photos:draft.photos.filter((_,idx)=>idx!==i)});
+  const updateCaption=(i,v)=>setDraft({photos:draft.photos.map((p,idx)=>idx===i?{...p,caption:v}:p)});
+
+  // ── Validation ─────────────────────────────────────────────────────────────
+  const canProceed=()=>{
+    if(step===1){
+      if(draft.items.length===0)return false;
+      return draft.items.every(it=>it.description.trim()&&it.quantity>0&&it.weight>=0&&it.estimated_value>=0);
+    }
+    if(step===2)return draft.photos.length>=2;
+    if(step===3)return draft.sender_declaration_accepted&&senderSig.hasSig;
+    if(step===4)return draft.traveler_approved!==null&&(draft.traveler_approved||draft.traveler_notes.trim().length>0);
+    if(step===5)return draft.traveler_declaration_accepted&&travelerSig.hasSig;
+    return true;
+  };
+
+  // ── Step handlers ──────────────────────────────────────────────────────────
+  const handleNextStep1=async()=>{
+    setSaving(true);
+    await upsertAgreement({items:draft.items});
+    setSaving(false);
+    setStep(2);
+  };
+
+  const handleNextStep2=async()=>{
+    setSaving(true);
+    await upsertAgreement({photos:draft.photos});
+    setSaving(false);
+    setStep(3);
+  };
+
+  const handleSenderSign=async()=>{
+    if(!canProceed())return;
+    setSaving(true);
+    const sigData=senderSig.getDataUrl();
+    await upsertAgreement({
+      sender_declaration_accepted:true,
+      sender_signature_data:sigData,
+      sender_signed_at:new Date().toISOString(),
+      status:'sender_signed'
+    });
+    setSaving(false);
+    setStep(4);
+    showToast('Declaration signed. Traveler can now inspect.');
+  };
+
+  const handleTravelerInspect=async()=>{
+    if(!canProceed())return;
+    setSaving(true);
+    const newStatus=draft.traveler_approved?'sender_signed':'traveler_rejected';
+    await upsertAgreement({
+      traveler_approved:draft.traveler_approved,
+      traveler_notes:draft.traveler_notes,
+      status:newStatus
+    });
+    setSaving(false);
+    if(!draft.traveler_approved){
+      showToast('Shipment rejected. Contact sender to resolve.','error');
+      setStep('rejected');
+    }else{
+      setStep(5);
+    }
+  };
+
+  const handleTravelerSign=async()=>{
+    if(!canProceed())return;
+    setSaving(true);
+    const sigData=travelerSig.getDataUrl();
+    await upsertAgreement({
+      traveler_declaration_accepted:true,
+      traveler_signature_data:sigData,
+      traveler_signed_at:new Date().toISOString(),
+      status:'completed'
+    });
+    // Clear localStorage draft
+    try{localStorage.removeItem('agr_draft_'+trip?.id);}catch(e){}
+    setSaving(false);
+    setStep('complete');
+    showToast('Agreement completed! ✅ Chat is now unlocked.');
+  };
+
+  // ── Totals ─────────────────────────────────────────────────────────────────
+  const totalWeight=draft.items.reduce((a,it)=>a+(parseFloat(it.weight)||0)*(parseInt(it.quantity)||1),0).toFixed(2);
+  const totalValue=draft.items.reduce((a,it)=>a+(parseFloat(it.estimated_value)||0)*(parseInt(it.quantity)||1),0).toFixed(0);
+
+  // ── Step bar ───────────────────────────────────────────────────────────────
+  const STEPS=[
+    {n:1,icon:'📦',label:'Items'},
+    {n:2,icon:'📷',label:'Photos'},
+    {n:3,icon:'✍️',label:'You Sign'},
+    {n:4,icon:'🔍',label:'Inspect'},
+    {n:5,icon:'✅',label:'Confirm'},
+  ];
+
+  const StepBar=()=>(
+    <div className="agr-steps">
+      {STEPS.map((s,i)=>{
+        const done=typeof step==='number'&&s.n<step;
+        const active=step===s.n;
+        return(
+          <React.Fragment key={s.n}>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
+              <div className="agr-dot" style={{
+                background:done?'var(--green)':active?'var(--navy)':'var(--bord2)',
+                color:done||active?'#fff':'var(--text4)',
+                boxShadow:active?'0 2px 12px rgba(10,37,64,.3)':'none',
+                fontSize:done?14:12
+              }}>{done?'✓':s.icon}</div>
+              <span className="agr-step-lbl" style={{color:active?'var(--navy)':done?'var(--green)':'var(--text4)'}}>{s.label}</span>
+            </div>
+            {i<STEPS.length-1&&<div className="agr-line" style={{background:done?'var(--green)':'var(--bord)'}}/>}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+
+  // ── COMPLETE SCREEN ────────────────────────────────────────────────────────
+  if(step==='complete')return(
+    <div className="page"><div className="agr-page">
+      <div className="agr-complete">
+        <div style={{fontSize:72,marginBottom:16}}>🎉</div>
+        <h2 style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:'var(--navy)',marginBottom:8}}>Agreement Complete</h2>
+        <p style={{color:'var(--text3)',fontSize:14,lineHeight:1.7,marginBottom:20}}>Both parties have signed. This agreement is legally binding and stored securely.</p>
+        <div className="agr-id-badge">📋 {draft.id}</div>
+        <div style={{background:'var(--gpale)',border:'1px solid var(--gborder)',borderRadius:14,padding:'16px',margin:'20px 0',textAlign:'left'}}>
+          <div style={{fontWeight:700,fontSize:13,color:'var(--navy)',marginBottom:10}}>What was agreed:</div>
+          {draft.items.map((it,i)=>(
+            <div key={i} style={{fontSize:13,color:'var(--text2)',marginBottom:5,display:'flex',gap:8}}>
+              <span style={{color:'var(--green)',fontWeight:700}}>{it.quantity}×</span>
+              <span>{it.description}{it.weight>0?` · ${it.weight}kg`:''}{it.estimated_value>0?` · ~€${it.estimated_value}`:''}</span>
+            </div>
+          ))}
+          <div style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--gborder)',fontSize:12,color:'var(--text3)'}}>
+            📷 {draft.photos.length} photos · ~{totalWeight}kg · ~€{totalValue}
+          </div>
+        </div>
+        <p style={{fontSize:12,color:'var(--text4)',marginBottom:20,lineHeight:1.6}}>
+          Keep your agreement ID: <strong style={{color:'var(--navy)'}}>{draft.id}</strong><br/>
+          Reference this in any dispute with AfroRoute or legal authorities.
+        </p>
+        <button onClick={onComplete} style={{width:'100%',background:'var(--green)',color:'#fff',border:'none',padding:'15px',borderRadius:12,fontWeight:700,fontSize:15,cursor:'pointer',fontFamily:"'Sora',sans-serif"}}>
+          Open Chat →
+        </button>
+      </div>
+    </div></div>
+  );
+
+  // ── REJECTED SCREEN ────────────────────────────────────────────────────────
+  if(step==='rejected')return(
+    <div className="page"><div className="agr-page">
+      <div className="agr-complete">
+        <div style={{fontSize:64,marginBottom:16}}>⚠️</div>
+        <h2 style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:'#b91c1c',marginBottom:8}}>Shipment Rejected</h2>
+        <p style={{color:'var(--text3)',fontSize:14,lineHeight:1.7,marginBottom:16}}>The traveler found discrepancies and rejected the shipment.</p>
+        {draft.traveler_notes&&(
+          <div className="agr-danger" style={{textAlign:'left',marginBottom:16}}>
+            <strong>Traveler's notes:</strong><br/>{draft.traveler_notes}
+          </div>
+        )}
+        <div style={{background:'var(--surf2)',borderRadius:12,padding:'14px',marginBottom:20,textAlign:'left',fontSize:13,color:'var(--text2)',lineHeight:1.7}}>
+          <strong>What to do:</strong><br/>
+          Resolve the discrepancy with the traveler, then start a new agreement. Agreement ID <strong>{draft.id}</strong> is saved as a rejection record.
+        </div>
+        <button onClick={onCancel} style={{width:'100%',background:'var(--navy)',color:'#fff',border:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif"}}>
+          ← Go Back
+        </button>
+      </div>
+    </div></div>
+  );
+
+  // ── MAIN WIZARD ────────────────────────────────────────────────────────────
+  return(
+    <div className="page">
+      <div className="agr-page">
+
+        {/* Hero */}
+        <div className="agr-hero">
+          <button onClick={onCancel} style={{background:'rgba(255,255,255,.1)',border:'none',color:'rgba(255,255,255,.7)',padding:'6px 12px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',marginBottom:14,fontFamily:"'Sora',sans-serif"}}>← Back</button>
+          <div style={{fontSize:28,marginBottom:6}}>📋</div>
+          <h2 style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:20,color:'#fff',marginBottom:4}}>Shipment Agreement</h2>
+          <p style={{color:'rgba(255,255,255,.6)',fontSize:13,lineHeight:1.5,margin:0}}>
+            Both parties must document and sign before any handover.<br/>
+            <strong style={{color:'rgba(255,255,255,.75)',fontSize:11}}>Agreement ID: {draft.id||'…'}</strong>
+          </p>
+        </div>
+
+        <StepBar/>
+
+        {/* ═══ STEP 1 — ITEMS ═══════════════════════════════════════════════ */}
+        {step===1&&(
+          <div>
+            <div className="agr-card">
+              <div className="agr-card-title">📦 List every item being sent</div>
+              <p style={{fontSize:12,color:'var(--text3)',marginBottom:14,lineHeight:1.6}}>
+                Be precise. Include brand, colour, size, condition. This is your legal record.
+              </p>
+              {draft.items.map((it,i)=>(
+                <div key={i} className="agr-item">
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                    <span style={{fontWeight:700,fontSize:12,color:'var(--navy)'}}>Item {i+1}</span>
+                    {draft.items.length>1&&<button onClick={()=>removeItem(i)} style={{background:'none',border:'none',color:'#ef4444',fontSize:12,cursor:'pointer',fontWeight:700}}>✕ Remove</button>}
+                  </div>
+                  <div className="ff" style={{marginBottom:8}}>
+                    <label className="fl">Description <span style={{color:'#ef4444'}}>*</span></label>
+                    <input className="fi" value={it.description} onChange={e=>updateItem(i,'description',e.target.value)} placeholder="e.g. Blue Nike Air Max, size 42, new"/>
+                  </div>
+                  <div className="agr-item-grid">
+                    <div className="ff">
+                      <label className="fl">Quantity <span style={{color:'#ef4444'}}>*</span></label>
+                      <input className="fi" type="number" min="1" value={it.quantity} onChange={e=>updateItem(i,'quantity',parseInt(e.target.value)||1)}/>
+                    </div>
+                    <div className="ff">
+                      <label className="fl">Weight (kg)</label>
+                      <input className="fi" type="number" min="0" step="0.1" placeholder="0.0" value={it.weight||''} onChange={e=>updateItem(i,'weight',parseFloat(e.target.value)||0)}/>
+                    </div>
+                    <div className="ff">
+                      <label className="fl">Value (€)</label>
+                      <input className="fi" type="number" min="0" placeholder="0" value={it.estimated_value||''} onChange={e=>updateItem(i,'estimated_value',parseFloat(e.target.value)||0)}/>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button onClick={addItem} style={{width:'100%',background:'none',border:'1.5px dashed var(--bord2)',color:'var(--text3)',padding:'10px',borderRadius:10,fontWeight:600,fontSize:13,cursor:'pointer',marginTop:4,transition:'all .18s'}}>
+                + Add Another Item
+              </button>
+              <div style={{marginTop:12,background:'var(--gpale)',borderRadius:8,padding:'8px 12px',fontSize:12,color:'var(--green)',fontWeight:600}}>
+                {draft.items.length} item type{draft.items.length!==1?'s':''} · ~{totalWeight}kg · ~€{totalValue}
+              </div>
+            </div>
+            <div className="agr-warn">
+              <strong>⚠️ Prohibited:</strong> No cash, drugs, weapons, or dangerous goods. Any prohibited item triggers immediate account suspension and legal reporting.
+            </div>
+            <div className="agr-nav">
+              <button className="agr-btn-next" disabled={!canProceed()||saving} onClick={handleNextStep1}>
+                {saving?'Saving…':'Next: Add Photos →'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ STEP 2 — PHOTOS ══════════════════════════════════════════════ */}
+        {step===2&&(
+          <div>
+            <div className="agr-card">
+              <div className="agr-card-title">📷 Photograph everything</div>
+              <p style={{fontSize:12,color:'var(--text3)',marginBottom:14,lineHeight:1.6}}>
+                Open every package. Show all contents clearly. Minimum <strong>2 photos</strong>. More is always better.
+              </p>
+              <div className="agr-photo-grid">
+                {draft.photos.map((ph,i)=>(
+                  <div key={i} className="agr-photo-cell">
+                    <img src={ph.url} className="agr-photo-thumb" alt={ph.caption||`Photo ${i+1}`}/>
+                    <button className="agr-photo-del" onClick={()=>removePhoto(i)}>✕</button>
+                  </div>
+                ))}
+                <div className="agr-photo-add" onClick={()=>!uploadingPhoto&&fileInputRef.current?.click()}>
+                  {uploadingPhoto?<>⏳<span>Uploading…</span></>:<><span style={{fontSize:24}}>📷</span><span>Add Photo</span></>}
+                </div>
+              </div>
+              <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleFileAdd}/>
+              {draft.photos.length>0&&(
+                <div>
+                  <p style={{fontSize:12,fontWeight:600,color:'var(--text2)',marginBottom:8}}>Add captions (recommended):</p>
+                  {draft.photos.map((ph,i)=>(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                      <img src={ph.url} style={{width:36,height:36,borderRadius:6,objectFit:'cover',flexShrink:0}}/>
+                      <input className="fi" style={{fontSize:12}} value={ph.caption} onChange={e=>updateCaption(i,e.target.value)} placeholder={`Photo ${i+1} description…`}/>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{marginTop:10,fontSize:12,fontWeight:600,color:draft.photos.length>=2?'var(--green)':'#ef4444'}}>
+                {draft.photos.length>=2?`✓ ${draft.photos.length} photos added`:`⚠ ${2-draft.photos.length} more photo${2-draft.photos.length===1?'':'s'} needed`}
+              </div>
+            </div>
+            <div style={{background:'var(--surf2)',border:'1px solid var(--bord)',borderRadius:12,padding:'12px 14px',fontSize:12,color:'var(--text3)',lineHeight:1.6,marginBottom:12}}>
+              💡 <strong>Tips:</strong> Show items next to each other, show open packages, include serial numbers, photograph any existing damage or wear.
+            </div>
+            <div className="agr-nav">
+              <button className="agr-btn-back" onClick={()=>setStep(1)}>← Back</button>
+              <button className="agr-btn-next" disabled={!canProceed()||saving} onClick={handleNextStep2}>
+                {saving?'Saving…':'Next: Sign Declaration →'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ STEP 3 — SENDER SIGNATURE ════════════════════════════════════ */}
+        {step===3&&(
+          <div>
+            <div className="agr-card">
+              <div className="agr-card-title">✍️ Your Declaration (Sender)</div>
+              <div className="agr-legal">
+                <strong>AfroRoute Shipment Agreement — Sender Declaration</strong><br/><br/>
+                I, <strong>{user?.name||'the Sender'}</strong>, hereby declare that:<br/><br/>
+                1. The items listed below are the complete and accurate contents of the package(s) I am handing over to the traveller.<br/><br/>
+                2. All photographs attached to this agreement are an accurate, unaltered representation of the items being shipped.<br/><br/>
+                3. All items comply with AfroRoute's prohibited items policy and applicable customs, import, and export laws of both the origin and destination country.<br/><br/>
+                4. I understand that providing false or incomplete information in this agreement may constitute fraud and could result in criminal liability, account suspension, and reporting to relevant authorities.<br/><br/>
+                5. I agree that this signed document, including the item list and photographs, may be used as legal evidence in any dispute, claim, or proceeding arising from this shipment.<br/><br/>
+                <strong>Items being sent:</strong><br/>
+                {draft.items.map((it,i)=><span key={i}>{i+1}. {it.quantity}× {it.description}{it.weight>0?` (${it.weight}kg each)`:''}{it.estimated_value>0?` · ~€${it.estimated_value}`:''}<br/></span>)}
+                <br/>Total: ~{totalWeight}kg · ~€{totalValue} · {draft.photos.length} photos attached
+              </div>
+              <div className="agr-check-row" onClick={()=>setDraft({sender_declaration_accepted:!draft.sender_declaration_accepted})}>
+                <input type="checkbox" checked={draft.sender_declaration_accepted} onChange={()=>{}} style={{width:18,height:18,flexShrink:0,marginTop:1,accentColor:'var(--green)',cursor:'pointer'}}/>
+                <label>I confirm this declaration is true and accurate to the best of my knowledge, and I consent to this document being used as evidence.</label>
+              </div>
+              <p style={{fontSize:13,fontWeight:600,color:'var(--text2)',marginBottom:8}}>Draw your signature:</p>
+              <div className={`agr-sig-box ${senderSig.hasSig?'has-sig':''}`}>
+                <canvas ref={senderCanvasRef} className="agr-sig-canvas"/>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',marginTop:6,alignItems:'center'}}>
+                <span style={{fontSize:11,fontWeight:600,color:senderSig.hasSig?'var(--green)':'var(--text4)'}}>
+                  {senderSig.hasSig?'✓ Signature captured':'Draw above with finger or mouse'}
+                </span>
+                <button onClick={senderSig.clear} style={{background:'none',border:'none',color:'var(--text3)',fontSize:12,cursor:'pointer',fontWeight:600}}>Clear</button>
+              </div>
+            </div>
+            <div className="agr-nav">
+              <button className="agr-btn-back" onClick={()=>setStep(2)}>← Back</button>
+              <button className={`agr-btn-next ${canProceed()?'agr-btn-green':''}`} disabled={!canProceed()||saving} onClick={handleSenderSign}>
+                {saving?'Saving…':'Sign & Continue →'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ STEP 4 — TRAVELER INSPECTION ═════════════════════════════════ */}
+        {step===4&&(
+          <div>
+            <div className="agr-card">
+              <div className="agr-card-title">🔍 Traveler Inspection</div>
+              <p style={{fontSize:13,color:'var(--text3)',marginBottom:14,lineHeight:1.6}}>
+                <strong>{trip?.user||'The traveler'}</strong> must physically check every item against the list and photos, then confirm below.
+              </p>
+              <div style={{marginBottom:16}}>
+                <p style={{fontWeight:700,fontSize:13,color:'var(--navy)',marginBottom:8}}>Items to verify:</p>
+                {draft.items.map((it,i)=>(
+                  <div key={i} style={{display:'flex',gap:10,padding:'10px 12px',background:'var(--surf2)',borderRadius:8,marginBottom:6,alignItems:'flex-start'}}>
+                    <span style={{fontSize:18,flexShrink:0}}>📦</span>
+                    <div>
+                      <div style={{fontWeight:600,fontSize:13,color:'var(--navy)'}}>{it.quantity}× {it.description}</div>
+                      <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>
+                        {it.weight>0&&`${it.weight}kg each`}{it.weight>0&&it.estimated_value>0&&' · '}{it.estimated_value>0&&`~€${it.estimated_value}`}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {draft.photos.length>0&&(
+                <div style={{marginBottom:16}}>
+                  <p style={{fontWeight:700,fontSize:13,color:'var(--navy)',marginBottom:8}}>Verify against sender photos:</p>
+                  <div className="agr-photo-grid">
+                    {draft.photos.map((ph,i)=>(
+                      <div key={i} style={{aspectRatio:'1',borderRadius:10,overflow:'hidden',border:'2px solid var(--bord)'}}>
+                        <img src={ph.url} style={{width:'100%',height:'100%',objectFit:'cover'}} alt={ph.caption||`Photo ${i+1}`}/>
+                      </div>
+                    ))}
+                  </div>
+                  {draft.photos.some(p=>p.caption)&&draft.photos.map((ph,i)=>ph.caption&&<div key={i} style={{fontSize:11,color:'var(--text3)',marginBottom:3}}>📷 {i+1}: {ph.caption}</div>)}
+                </div>
+              )}
+              {draft.sender_signature_data&&(
+                <div style={{marginBottom:16}}>
+                  <p style={{fontWeight:700,fontSize:13,color:'var(--navy)',marginBottom:6}}>Sender signature:</p>
+                  <img src={draft.sender_signature_data} className="agr-sig-preview" alt="Sender signature" style={{border:'1px solid var(--bord)',borderRadius:10}}/>
+                </div>
+              )}
+              <p style={{fontWeight:700,fontSize:13,color:'var(--navy)',marginBottom:10}}>Your decision:</p>
+              <div className="agr-decision-row">
+                <button className={`agr-decision-btn${draft.traveler_approved===true?' accept':''}`} onClick={()=>setDraft({traveler_approved:true})}>
+                  ✅ All matches — Accept
+                </button>
+                <button className={`agr-decision-btn${draft.traveler_approved===false?' reject':''}`} onClick={()=>setDraft({traveler_approved:false})}>
+                  ❌ Something wrong — Reject
+                </button>
+              </div>
+              {draft.traveler_approved===false&&(
+                <div>
+                  <div className="ff">
+                    <label className="fl">Describe the discrepancy <span style={{color:'#ef4444'}}>*</span></label>
+                    <textarea className="fta" value={draft.traveler_notes} onChange={e=>setDraft({traveler_notes:e.target.value})} placeholder="What is missing or different from what was listed?" style={{minHeight:80}}/>
+                  </div>
+                  <div className="agr-danger">Rejecting will stop the process. A rejection record will be saved with your notes as evidence.</div>
+                </div>
+              )}
+              {draft.traveler_approved===true&&(
+                <div className="ff">
+                  <label className="fl">Optional notes</label>
+                  <textarea className="fta" value={draft.traveler_notes} onChange={e=>setDraft({traveler_notes:e.target.value})} placeholder="Any observations you want on record…" style={{minHeight:60}}/>
+                </div>
+              )}
+            </div>
+            <div className="agr-nav">
+              <button className="agr-btn-back" onClick={()=>setStep(3)}>← Back</button>
+              <button className={`agr-btn-next ${canProceed()&&draft.traveler_approved===false?'':''}${canProceed()&&draft.traveler_approved===true?'agr-btn-green':''}`}
+                disabled={!canProceed()||saving}
+                style={draft.traveler_approved===false?{background:'#ef4444'}:{}}
+                onClick={handleTravelerInspect}>
+                {saving?'Saving…':draft.traveler_approved===false?'Reject Shipment':'Proceed to Sign →'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ STEP 5 — TRAVELER SIGNATURE ══════════════════════════════════ */}
+        {step===5&&(
+          <div>
+            <div className="agr-card">
+              <div className="agr-card-title">✅ Your Declaration (Traveler)</div>
+              <div className="agr-legal">
+                <strong>AfroRoute Shipment Agreement — Traveler Declaration</strong><br/><br/>
+                I, <strong>{trip?.user||'the Traveler'}</strong>, hereby declare that:<br/><br/>
+                1. I have physically inspected all items listed in this agreement and confirmed they match the descriptions and photographs provided by the sender.<br/><br/>
+                2. I accept responsibility for transporting the listed items from <strong>{trip?.from||'the origin'}</strong> to <strong>{trip?.to||'the destination'}</strong>.<br/><br/>
+                3. To the best of my knowledge, none of the items are prohibited under AfroRoute's policy or applicable law.<br/><br/>
+                4. I understand this signed document may be used as legal evidence in any dispute or proceeding.<br/><br/>
+                5. I agree to deliver the items in the same condition as received, absent circumstances beyond my control.<br/><br/>
+                {draft.traveler_notes&&<><strong>My notes on inspection:</strong> {draft.traveler_notes}<br/><br/></>}
+                <strong>Items accepted:</strong><br/>
+                {draft.items.map((it,i)=><span key={i}>{i+1}. {it.quantity}× {it.description}<br/></span>)}
+                <br/>Total: ~{totalWeight}kg · {draft.photos.length} photos on record
+              </div>
+              <div className="agr-check-row" onClick={()=>setDraft({traveler_declaration_accepted:!draft.traveler_declaration_accepted})}>
+                <input type="checkbox" checked={draft.traveler_declaration_accepted} onChange={()=>{}} style={{width:18,height:18,flexShrink:0,marginTop:1,accentColor:'var(--green)',cursor:'pointer'}}/>
+                <label>I confirm I have inspected all items and agree to the above declaration. I consent to this document being used as evidence.</label>
+              </div>
+              <p style={{fontSize:13,fontWeight:600,color:'var(--text2)',marginBottom:8}}>Draw your signature:</p>
+              <div className={`agr-sig-box ${travelerSig.hasSig?'has-sig':''}`}>
+                <canvas ref={travelerCanvasRef} className="agr-sig-canvas"/>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',marginTop:6,alignItems:'center'}}>
+                <span style={{fontSize:11,fontWeight:600,color:travelerSig.hasSig?'var(--green)':'var(--text4)'}}>
+                  {travelerSig.hasSig?'✓ Signature captured':'Draw above with finger or mouse'}
+                </span>
+                <button onClick={travelerSig.clear} style={{background:'none',border:'none',color:'var(--text3)',fontSize:12,cursor:'pointer',fontWeight:600}}>Clear</button>
+              </div>
+            </div>
+            <div className="agr-nav">
+              <button className="agr-btn-back" onClick={()=>setStep(4)}>← Back</button>
+              <button className={`agr-btn-next ${canProceed()?'agr-btn-green':''}`} disabled={!canProceed()||saving} onClick={handleTravelerSign}>
+                {saving?'Saving…':'Sign & Complete Agreement ✅'}
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+
 function App(){
 const[lang,setLang]=useState('en');
 const[page,setPage]=useState('home');
@@ -2372,6 +3082,7 @@ const[convos,setConvos]=useState([]);
 const[activeConvo,setConvo]=useState(null);
 const[chatIn,setChatIn]=useState('');
 const chatEnd=useRef(null);
+const[agreementFlow,setAgreementFlow]=React.useState(null);
 const t=T[lang];
 
 // Handle OAuth redirect (Apple/Google sign-in returns here)
@@ -2590,9 +3301,7 @@ const handlePostShip=async(form)=>{
   }catch(e){showToast('Failed: '+e.message,'error');}
 };
 
-const handleContact=(item,type)=>{
-  if(!loggedIn){setPage('auth');return;}
-  if(!subscribed){setModal({type:'paywall_msg'});return;}
+const openChat=(item,type)=>{
   const ex=convos.find(c=>c.other_user_id===item.user_id);
   if(ex){setConvo(ex);}else{
     (async()=>{
@@ -2607,6 +3316,13 @@ const handleContact=(item,type)=>{
     })();
   }
   setPage('messages');
+};
+const handleContact=(item,type)=>{
+  if(!loggedIn){setPage('auth');return;}
+  if(!subscribed){setModal({type:'paywall_msg'});return;}
+  // Route through shipment agreement before opening chat
+  setAgreementFlow({item,type});
+  setPage('agreement');
 };
 
 const handleSave=(id,type)=>{
@@ -2731,6 +3447,14 @@ case 'admin':return user?.email==='alcino.manuel86@gmail.com'?<AdminPage t={t} u
 case 'terms':return <TermsPage go={go}/>;
 case 'privacy':return <PrivacyPage go={go}/>;
 case 'contact':return <ContactPage t={T['en']} go={go} showToast={showToast}/>;
+case 'agreement':return agreementFlow?<ShipmentAgreementPage
+  user={user}
+  trip={agreementFlow.item}
+  onComplete={()=>{setAgreementFlow(null);openChat(agreementFlow.item,agreementFlow.type);}}
+  onCancel={()=>{setAgreementFlow(null);setPage(agreementFlow.type==='trip'?'browse-trips':'browse-ships');}}
+  showToast={showToast}
+  sb={sb}
+/>:renderHome();
 case 'install':return <InstallPage go={go}/>;
 default:return renderHome();
 }};
