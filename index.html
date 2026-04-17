@@ -2215,22 +2215,28 @@ function MyListingsPage({t,items,type,go,sb,user,showToast,loadListings}){
 }
 
 function ProfilePage({t,user,subscribed,savedIds,trips=[],ships=[],onLogout,onSubscribe,go,onSaveProfile,setUser,showToast,sb}){
-const[editing,setEditing]=useState(false);const[ef,setEF]=useState({name:user?.name||'',country:user?.country||'',bio:'',wa:user?.wa||''});
-const handleAvatarChange=(e)=>{
+const[editing,setEditing]=useState(false);const[ef,setEF]=useState({name:user?.name||'',country:user?.country||'',bio:user?.bio||'',wa:user?.wa||''});
+const avatarSrc=user?.avatarUrl?`${user.avatarUrl}?t=${new Date(user.updated_at||Date.now()).getTime()}`:null;
+const handleAvatarChange=async(e)=>{
   const file=e.target.files[0];
-  if(!file)return;
+  if(!file||!user?.id)return;
   if(file.size>5*1024*1024){showToast('Image too large. Max 5MB.','error');return;}
-  const reader=new FileReader();
-  reader.onload=(ev)=>{
-    const dataUrl=ev.target.result;
-    try{localStorage.setItem('ar_av_'+user.id,dataUrl);}catch(err){}
-    setUser(function(prev){return Object.assign({},prev,{avatarUrl:dataUrl});});
+  try{
+    const ext=((file.name||'avatar.jpg').split('.').pop()||'jpg').toLowerCase();
+    const safeExt=/^(jpg|jpeg|png|webp|gif)$/i.test(ext)?ext:'jpg';
+    const filePath=`${user.id}/avatar.${safeExt}`;
+    await sb.uploadFile('avatars',filePath,file,file.type||'image/jpeg');
+    const avatarUrl=`${SUPABASE_URL}/storage/v1/object/public/avatars/${filePath}`;
+    await sb.update('profiles',{avatar_url:avatarUrl,updated_at:new Date().toISOString()},`id=eq.${user.id}`);
+    const profile=await sb.getProfile(user.id);
+    setUser(function(prev){return Object.assign({},prev,{avatarUrl:profile?.avatar_url||avatarUrl,updated_at:profile?.updated_at||new Date().toISOString()});});
     showToast('Profile photo updated!');
-    fetch(dataUrl).then(function(r){return r.blob();}).then(function(blob){
-      sb.uploadFile('verifications',user.id+'/avatar.jpg',blob,'image/jpeg').catch(function(){});
-    });
-  };
-  reader.readAsDataURL(file);
+  }catch(err){
+    console.error('Avatar upload failed',err);
+    showToast('Failed to update profile photo','error');
+  }finally{
+    e.target.value='';
+  }
 };
 if(editing)return <div className="page"><div className="phd"><div className="phd-icon">✏️</div><div><div className="phd-title">{t.edit_profile}</div></div></div><div style={{padding:'0 16px 32px'}}><div className="form-card"><div className="fg" style={{gap:14}}><div className="ff"><label className="fl">{t.display_name}</label><input className="fi" value={ef.name} onChange={e=>setEF(p=>({...p,name:e.target.value}))}/></div><CtrySel value={ef.country} onChange={v=>setEF(p=>({...p,country:v}))} label={t.country_}/><div className="ff"><label className="fl">Bio</label><textarea className="fta" value={ef.bio} onChange={e=>setEF(p=>({...p,bio:e.target.value}))} placeholder="Tell others about yourself..."/></div><div className="ff"><label className="fl">{t.wa_number}</label><input className="fi" type="tel" value={ef.wa} onChange={e=>setEF(p=>({...p,wa:e.target.value}))}/></div></div><button className="btn-submit" style={{marginTop:16}} onClick={()=>{onSaveProfile({...user,...ef});setEditing(false);}}>Save Changes</button><button onClick={()=>setEditing(false)} style={{width:'100%',marginTop:8,background:'none',border:'1.5px solid #e2e8f0',color:'#64748b',padding:'13px',borderRadius:11,fontWeight:600,fontSize:14}}>Cancel</button></div></div></div>;
 return <div className="page"><div style={{padding:'16px 16px 80px'}}>
@@ -2238,8 +2244,8 @@ return <div className="page"><div style={{padding:'16px 16px 80px'}}>
 <div className="prof-hero">
   <div style={{position:'relative',display:'inline-block',marginBottom:8}}>
     <div className="prof-av" onClick={()=>document.getElementById('avatar-upload').click()} style={{cursor:'pointer',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center'}}>
-      {user?.avatarUrl
-        ? <img src={user.avatarUrl} style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}} alt="avatar"/>
+      {avatarSrc
+        ? <img src={avatarSrc} style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}} alt="avatar"/>
         : ini(user?.name||'You')
       }
     </div>
@@ -3149,7 +3155,7 @@ useEffect(()=>{
           });
           profile = await sb.getProfile(oauthUser.id);
         }
-        setUser({id:oauthUser.id,email:oauthUser.email,name:profile?.name||oauthUser.email,country:profile?.country||'',wa:profile?.whatsapp||'',isSubscribed:profile?.is_subscribed||false});
+        setUser({id:oauthUser.id,email:oauthUser.email,name:profile?.name||oauthUser.email,country:profile?.country||'',wa:profile?.whatsapp||'',bio:profile?.bio||'',isSubscribed:profile?.is_subscribed||false,avatarUrl:profile?.avatar_url||null,updated_at:profile?.updated_at||null});
         setLI(true);setSub(profile?.is_subscribed||false);
         showToast('Welcome, '+(oauthUser.user_metadata?.full_name||oauthUser.email||'').split(' ')[0]+'! 👋');
       }catch(e){ console.error('OAuth profile setup:', e); }
@@ -3234,14 +3240,13 @@ useEffect(()=>{
         const u=await sb.refreshSession();
         if(u){
           const profile=await sb.getProfile(u.id);
-          const savedAvatar=localStorage.getItem('ar_av_'+u.id)||null;
           // Check subscription from Supabase OR localStorage fallback
           const isSub=profile?.is_subscribed||localStorage.getItem('ar_sub')==='1'||false;
           // If localStorage says subscribed but Supabase doesn't, sync it
           if(localStorage.getItem('ar_sub')==='1'&&!profile?.is_subscribed){
             sb.update('profiles',{is_subscribed:true},`id=eq.${u.id}`).catch(()=>{});
           }
-          setUser({id:u.id,email:u.email,name:profile?.name||u.user_metadata?.name||u.email.split('@')[0],country:profile?.country||'',wa:profile?.whatsapp||'',isSubscribed:isSub,avatarUrl:savedAvatar});
+          setUser({id:u.id,email:u.email,name:profile?.name||u.user_metadata?.name||u.email.split('@')[0],country:profile?.country||'',wa:profile?.whatsapp||'',bio:profile?.bio||'',isSubscribed:isSub,avatarUrl:profile?.avatar_url||null,updated_at:profile?.updated_at||null});
           setLI(true);setSub(isSub);
           loadConversations(u.id);
           loadListings(true);
@@ -3304,7 +3309,7 @@ const handleLogin=async(formData)=>{
             console.log('Selfie upload error (non-fatal):', uploadErr.message);
           }
         }
-        setUser({id:userId,email:formData.email,name:formData.name,country:formData.country,wa:formData.wa,isSubscribed:false});
+        setUser({id:userId,email:formData.email,name:formData.name,country:formData.country,wa:formData.wa,bio:'',isSubscribed:false,avatarUrl:null,updated_at:null});
         setLI(true);setSub(false);loadListings(true);
         showToast('Welcome to AfroRoute, '+formData.name.split(' ')[0]+'! 🎉');go('home');
       }else{
@@ -3315,12 +3320,11 @@ const handleLogin=async(formData)=>{
     }else{
       const data=await sb.signIn(formData.email,formData.password);
       const profile=await sb.getProfile(data.user.id);
-      const loginAvatar=localStorage.getItem('ar_av_'+data.user.id)||null;
       const isSubLogin=profile?.is_subscribed||localStorage.getItem('ar_sub')==='1'||false;
       if(localStorage.getItem('ar_sub')==='1'&&!profile?.is_subscribed){
         sb.update('profiles',{is_subscribed:true},`id=eq.${data.user.id}`).catch(()=>{});
       }
-      setUser({id:data.user.id,email:formData.email,name:profile?.name||formData.email.split('@')[0],country:profile?.country||'',wa:profile?.whatsapp||'',isSubscribed:isSubLogin,avatarUrl:loginAvatar});
+      setUser({id:data.user.id,email:formData.email,name:profile?.name||formData.email.split('@')[0],country:profile?.country||'',wa:profile?.whatsapp||'',bio:profile?.bio||'',isSubscribed:isSubLogin,avatarUrl:profile?.avatar_url||null,updated_at:profile?.updated_at||null});
       setLI(true);setSub(isSubLogin);
       loadConversations(data.user.id);
       loadListings(true); // logged in — hide demos
@@ -3338,8 +3342,9 @@ const handleLogout=async()=>{
 
 const handleSaveProfile=async(updated)=>{
   try{
-    await sb.upsertProfile({id:user.id,name:updated.name,country:updated.country,whatsapp:updated.wa});
-    setUser(prev=>({...prev,...updated}));showToast(t.toast_profile_saved);
+    const rows=await sb.upsertProfile({id:user.id,name:updated.name,country:updated.country,whatsapp:updated.wa,bio:updated.bio||user?.bio||'',avatar_url:user?.avatarUrl||null,updated_at:new Date().toISOString()});
+    const profile=rows&&rows[0]?rows[0]:await sb.getProfile(user.id);
+    setUser(prev=>({...prev,...updated,bio:profile?.bio||updated.bio||'',avatarUrl:profile?.avatar_url||prev?.avatarUrl||null,updated_at:profile?.updated_at||new Date().toISOString()}));showToast(t.toast_profile_saved);
   }catch(e){showToast('Failed to save','error');}
 };
 
