@@ -2541,11 +2541,21 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
   const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6b2tyaG9zbXRoZGl5bWRld3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTY2MTgsImV4cCI6MjA5MTY5MjYxOH0.ee5OBNh6Om0mLTSjmFOqH0JVGu4cbjcLL9Ekawem4YE';
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const[step,setStep]=React.useState(1);
+  // Initial step depends on role and existing agreement status
+  const[step,setStep]=React.useState(()=>userRole==='traveler'?4:1);
+  const[agrLoading,setAgrLoading]=React.useState(userRole==='traveler');
   const[saving,setSaving]=React.useState(false);
   const[uploadingPhoto,setUploadingPhoto]=React.useState(false);
 
   // Agreement draft — single source of truth
+  // Determine role: 'sender' if user is contacting the traveler, 'traveler' if user owns the trip
+  const userRole=React.useMemo(()=>{
+    if(!user||!trip)return'sender';
+    // If the trip belongs to current user, they are the traveler
+    if(trip.user_id===user.id||trip.userId===user.id)return'traveler';
+    return'sender';
+  },[user,trip]);
+
   // Generate agreement ID once, synchronously
   const _agrId=React.useMemo(()=>generateAgreementId(),[]);
   const[draft,setDraft]=React.useReducer((s,u)=>u._addPhotos?{...s,photos:[...s.photos,...u._addPhotos]}:{...s,...u},{
@@ -2577,14 +2587,46 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
 
   // ── Generate ID on mount ───────────────────────────────────────────────────
   React.useEffect(()=>{
-    // Restore draft from localStorage if available
+    if(userRole==='traveler'){
+      // Traveler: load the agreement from Supabase by trip_id
+      (async()=>{
+        try{
+          const rows=await sb.select('shipment_agreements','*',`trip_id=eq.${trip?.id}&status=eq.sender_signed&order=created_at.desc`);
+          if(rows&&rows.length>0){
+            const agr=rows[0];
+            setDraft({
+              id:agr.id,trip_id:agr.trip_id,
+              sender_id:agr.sender_id,sender_name:agr.sender_name,
+              traveler_id:agr.traveler_id,traveler_name:agr.traveler_name,
+              items:agr.items||[],photos:agr.photos||[],
+              sender_declaration_accepted:agr.sender_declaration_accepted,
+              sender_signature_data:agr.sender_signature_data,
+              sender_signed_at:agr.sender_signed_at,
+              status:agr.status
+            });
+            setStep(4);
+          }else{
+            // No signed agreement from sender yet
+            setStep('waiting');
+          }
+        }catch(e){setStep('waiting');}
+        setAgrLoading(false);
+      })();
+      return;
+    }
+    // Sender: Draft is keyed by BOTH user.id and trip.id — never shared between accounts
+    const draftKey='agr_draft_'+(user?.id||'anon')+'_'+(trip?.id||'unknown');
     try{
-      const saved=localStorage.getItem('agr_draft_'+trip?.id);
+      const saved=localStorage.getItem(draftKey);
       if(saved){
         const d=JSON.parse(saved);
-        if(d.id&&(d.status==='draft'||d.status==='sender_signed')){
+        // Only restore if this user is the sender
+        if(d.id&&d.sender_id===user?.id&&(d.status==='draft'||d.status==='sender_signed')){
           setDraft(d);
-          showToast('Restored unfinished agreement');
+          showToast('Restored your unfinished agreement');
+        }else if(d.sender_id&&d.sender_id!==user?.id){
+          // Wrong user — clear it
+          localStorage.removeItem(draftKey);
         }
       }
     }catch(e){}
@@ -2594,8 +2636,8 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
   const upsertAgreement=async(updates)=>{
     const merged={...draft,...updates};
     setDraft(updates);
-    // Save to localStorage
-    try{localStorage.setItem('agr_draft_'+trip?.id,JSON.stringify(merged));}catch(e){}
+    // Save to localStorage — keyed by sender+trip
+    try{localStorage.setItem('agr_draft_'+(user?.id||'anon')+'_'+(trip?.id||'unknown'),JSON.stringify(merged));}catch(e){}
     // Save to Supabase
     try{
       const res=await fetch(`${SUPABASE_URL}/rest/v1/shipment_agreements`,{
@@ -2718,8 +2760,8 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
       status:'sender_signed'
     });
     setSaving(false);
-    setStep(4);
-    showToast('Declaration signed. Traveler can now inspect.');
+    setStep(4); // Will show "Waiting for Traveler" guard since userRole==='sender'
+    showToast('Agreement signed! Share your ID with the traveler.');
   };
 
   const handleTravelerInspect=async()=>{
@@ -2751,7 +2793,7 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
       status:'completed'
     });
     // Clear localStorage draft
-    try{localStorage.removeItem('agr_draft_'+trip?.id);}catch(e){}
+    try{localStorage.removeItem('agr_draft_'+(user?.id||'anon')+'_'+(trip?.id||'unknown'));}catch(e){}
     setSaving(false);
     setStep('complete');
     showToast('Agreement completed! ✅ Chat is now unlocked.');
@@ -2762,13 +2804,9 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
   const totalValue=draft.items.reduce((a,it)=>a+(parseFloat(it.estimated_value)||0)*(parseInt(it.quantity)||1),0).toFixed(0);
 
   // ── Step bar ───────────────────────────────────────────────────────────────
-  const STEPS=[
-    {n:1,icon:'📦',label:'Items'},
-    {n:2,icon:'📷',label:'Photos'},
-    {n:3,icon:'✍️',label:'You Sign'},
-    {n:4,icon:'🔍',label:'Inspect'},
-    {n:5,icon:'✅',label:'Confirm'},
-  ];
+  const STEPS=userRole==='traveler'
+    ?[{n:4,icon:'🔍',label:'Inspect'},{n:5,icon:'✅',label:'Sign'}]
+    :[{n:1,icon:'📦',label:'Items'},{n:2,icon:'📷',label:'Photos'},{n:3,icon:'✍️',label:'Sign'}];
 
   const StepBar=()=>(
     <div className="agr-steps">
@@ -2794,6 +2832,62 @@ function ShipmentAgreementPage({user,trip,onComplete,onCancel,showToast,sb}){
   );
 
   // ── COMPLETE SCREEN ────────────────────────────────────────────────────────
+  // Loading screen for traveler waiting for Supabase
+  if(agrLoading)return(
+    <div className="page"><div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',flexDirection:'column',gap:16}}>
+      <div className="ldr"><div className="ldr-dots"><div className="ldr-dot"/><div className="ldr-dot"/><div className="ldr-dot"/></div></div>
+      <p style={{color:'var(--text3)',fontSize:14}}>Loading agreement…</p>
+    </div></div>
+  );
+
+  // Waiting screen: sender hasn't signed yet, traveler is waiting
+  if(step==='waiting')return(
+    <div className="page"><div className="agr-page">
+      <div className="agr-complete">
+        <div style={{fontSize:64,marginBottom:16}}>⏳</div>
+        <h2 style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:'var(--navy)',marginBottom:8}}>Waiting for Sender</h2>
+        <p style={{color:'var(--text3)',fontSize:14,lineHeight:1.7,marginBottom:20}}>
+          The sender hasn't completed and signed the shipment agreement yet.<br/>
+          You'll be able to inspect and sign once they do.
+        </p>
+        <div style={{background:'var(--surf2)',border:'1px solid var(--bord)',borderRadius:12,padding:'14px',marginBottom:20,fontSize:13,color:'var(--text2)',lineHeight:1.7}}>
+          Ask <strong>{trip?.user||'the sender'}</strong> to open the Contact flow and complete the 3-step sender agreement (items → photos → signature).
+        </div>
+        <button onClick={onCancel} style={{width:'100%',background:'var(--navy)',color:'#fff',border:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif"}}>← Go Back</button>
+      </div>
+    </div></div>
+  );
+
+  // Role guard: sender cannot access steps 4-5
+  if(userRole==='sender'&&(step===4||step===5))return(
+    <div className="page"><div className="agr-page">
+      <div className="agr-complete">
+        <div style={{fontSize:64,marginBottom:16}}>⏳</div>
+        <h2 style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:'var(--navy)',marginBottom:8}}>Waiting for Traveler</h2>
+        <p style={{color:'var(--text3)',fontSize:14,lineHeight:1.7,marginBottom:16}}>
+          You've signed the agreement. The traveler needs to inspect the items and add their signature.
+        </p>
+        <div className="agr-id-badge">📋 {draft.id}</div>
+        <div style={{background:'var(--surf2)',border:'1px solid var(--bord)',borderRadius:12,padding:'14px',margin:'20px 0',fontSize:13,color:'var(--text2)',lineHeight:1.7}}>
+          Share your Agreement ID with <strong>{trip?.user||'the traveler'}</strong> so they can complete the process when they're ready to inspect the items.
+        </div>
+        <button onClick={onCancel} style={{width:'100%',background:'var(--navy)',color:'#fff',border:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif"}}>← Back to Listings</button>
+      </div>
+    </div></div>
+  );
+
+  // Role guard: traveler cannot access steps 1-3
+  if(userRole==='traveler'&&step<=3)return(
+    <div className="page"><div className="agr-page">
+      <div className="agr-complete">
+        <div style={{fontSize:64,marginBottom:16}}>⛔</div>
+        <h2 style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:'#b91c1c',marginBottom:8}}>Not Your Step</h2>
+        <p style={{color:'var(--text3)',fontSize:14,lineHeight:1.7}}>These steps are for the sender only.</p>
+        <button onClick={()=>setStep(4)} style={{width:'100%',background:'var(--navy)',color:'#fff',border:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:14,cursor:'pointer',marginTop:20,fontFamily:"'Sora',sans-serif"}}>Go to Inspection →</button>
+      </div>
+    </div></div>
+  );
+
   if(step==='complete')return(
     <div className="page"><div className="agr-page">
       <div className="agr-complete">
