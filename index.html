@@ -1116,6 +1116,7 @@ window.addEventListener('appinstalled', function() {
       document.head.appendChild(script);
   })();
 </script>
+<script src="https://cdn.withpersona.com/dist/persona-v5.5.0.js" integrity="sha384-UK+a2yEU9KOzEmsgI4IlkrXWE4AekM/iAgWF60Zuyule702g7qaQ2nYccO3tnT0A" crossorigin="anonymous"></script>
 </head>
 <body>
 <div id="app"></div>
@@ -1471,7 +1472,7 @@ const[mode,setMode]=useState('login');
 const[step,setStep]=useState(1);
 const[otpSent,setOtpSent]=useState(false);
 const[otpError,setOtpError]=useState('');
-const[f,setF]=useState({email:'',password:'',confirm:'',name:'',country:'',wa:'',idType:'',idImageData:null,selfieData:null,agreed:false});
+const[f,setF]=useState({email:'',password:'',confirm:'',name:'',country:'',wa:'',idType:'',idImageData:null,selfieData:null,personaInquiryId:'',personaStatus:'not_started',personaFields:null,agreed:false});
 const[errors,setE]=useState({});
 const[loading,setL]=useState(false);
 
@@ -1498,127 +1499,63 @@ useEffect(()=>{
   };
 },[idStream,selfieStream]);
 
-// ── ID SCANNER ────────────────────────────────────────
-const startIdScan=async()=>{
-  try{
-    const st=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false
-    });
-    setIdStream(st);setIdScan('scanning');
-    setTimeout(()=>{ if(idVideoRef.current){idVideoRef.current.srcObject=st;idVideoRef.current.play();} },150);
-  }catch(e){
-    setE({idFile:'Camera not available. Please use a device with a camera.'});
+// ── PERSONA VERIFICATION ─────────────────────────────
+const launchPersona=()=>{
+  setE(prev=>({...(prev||{}),idFile:null}));
+  setIdVerifyResult(null);
+  if(!window.Persona||!window.Persona.Client){
+    setIdScan('failed');
+    setIdVerifyResult({verdict:'FAIL',reason:'Persona failed to load. Please refresh and try again.',document_type:'persona'});
+    return;
   }
-};
-
-const captureIdPhoto=()=>{
-  const video=idVideoRef.current;const canvas=idCanvasRef.current;
-  if(!video||!canvas)return;
-  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
-  canvas.getContext('2d').drawImage(video,0,0);
-  const dataUrl=canvas.toDataURL('image/jpeg',0.92);
-  if(idStream)idStream.getTracks().forEach(t=>t.stop());
-  setIdStream(null);
-  s('idImageData',dataUrl);
-  setIdScan('verifying');
-  verifyIdWithAI(dataUrl);
-};
-
-const verifyIdWithAI=async(imageData)=>{
   try{
-    const base64=imageData.split(',')[1];
-    // Basic size check
-    if(!base64||base64.length<5000){
-      setIdVerifyResult({verdict:'FAIL',reason:'Image too small or unclear. Please retake.',document_type:'unknown'});
-      setIdScan('failed');s('idImageData',null);return;
-    }
-    const imageSizeKB=Math.round(base64.length*0.75/1024);
-    if(imageSizeKB<15){
-      setIdVerifyResult({verdict:'FAIL',reason:'Image quality too low. Ensure good lighting.',document_type:'unknown'});
-      setIdScan('failed');s('idImageData',null);return;
-    }
-
-    // Check user selected a valid government ID type
-    const validTypes=['Passport','National ID Card','Drivers License','Residence Permit','Citizen Card'];
-    const selectedType=f.idType||'';
-    if(!selectedType){
-      setIdVerifyResult({verdict:'FAIL',reason:'Please select your document type first.',document_type:'unknown'});
-      setIdScan('failed');s('idImageData',null);return;
-    }
-
-    // Use Claude API to verify the document is actually a government ID
-    await new Promise(r=>setTimeout(r,2000));
-    try{
-      const resp=await fetch('https://api.anthropic.com/v1/messages',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body:JSON.stringify({
-          model:'claude-haiku-4-5-20251001',
-          max_tokens:200,
-          messages:[{role:'user',content:[
-            {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
-            {type:'text',text:'Look at this image. Is this a government-issued identity document (passport, national ID card, drivers license, residence permit)? Answer with JSON only: {"is_gov_id": true/false, "document_type": "type or unknown", "reason": "brief reason"}. If it is a credit card, bank card, business card, or any non-government document, return is_gov_id: false.'}
-          ]}]
-        })
-      });
-      if(resp.ok){
-        const data=await resp.json();
-        const text=data.content?.[0]?.text||'{}';
-        const clean=text.replace(/```json|```/g,'').trim();
-        const result=JSON.parse(clean);
-        if(!result.is_gov_id){
-          setIdVerifyResult({verdict:'FAIL',reason:'This does not appear to be a government-issued ID. Please use a passport, national ID card, or drivers license.',document_type:result.document_type||'invalid'});
-          setIdScan('failed');s('idImageData',null);return;
+    setIdScan('verifying');
+    let client;
+    client=new window.Persona.Client({
+      templateId: PERSONA_TEMPLATE_ID,
+      environmentId: PERSONA_ENVIRONMENT_ID,
+      onReady: ()=> client.open(),
+      onComplete: ({ inquiryId, status, fields }) => {
+        const normalized=(status||'completed').toLowerCase();
+        s('personaInquiryId', inquiryId||'');
+        s('personaStatus', normalized);
+        s('personaFields', fields||null);
+        s('idImageData','persona-verified');
+        s('selfieData','persona-verified');
+        setSelfieMode('captured');
+        if(inquiryId && !['failed','declined','expired'].includes(normalized)){
+          setIdVerifyResult({verdict:'PASS',reason:'Identity verification completed successfully with Persona.',document_type:'persona'});
+          setIdScan('passed');
+        }else{
+          setIdVerifyResult({verdict:'FAIL',reason:`Persona returned status: ${normalized||'unknown'}. Please try again.`,document_type:'persona'});
+          setIdScan('failed');
         }
-        setIdVerifyResult({verdict:'PASS',confidence:92,reason:'Document captured successfully. Your ID will be verified by our team within 24 hours.',document_type:result.document_type||selectedType});
-        setIdScan('passed');return;
+      },
+      onCancel: ()=>{
+        setIdScan('idle');
+      },
+      onError: (error)=>{
+        console.error('Persona error',error);
+        setIdVerifyResult({verdict:'FAIL',reason:'Verification could not be started. Please try again.',document_type:'persona'});
+        setIdScan('failed');
       }
-    }catch(apiErr){
-      console.log('AI check unavailable, using manual review');
-    }
-
-    // Fallback: queue for manual review but warn user
-    setIdVerifyResult({verdict:'PASS',confidence:75,reason:'Document queued for manual verification. Our team will review within 24 hours.',document_type:selectedType});
-    setIdScan('passed');
+    });
   }catch(e){
-    console.error('ID verify error:',e);
-    setIdVerifyResult({verdict:'FAIL',reason:'Verification failed. Please try again.',document_type:'unknown'});
-    setIdScan('failed');s('idImageData',null);
+    console.error('Persona init error',e);
+    setIdVerifyResult({verdict:'FAIL',reason:'Verification could not be started. Please refresh and try again.',document_type:'persona'});
+    setIdScan('failed');
   }
 };
 
 const retakeId=()=>{
   s('idImageData',null);
+  s('selfieData',null);
+  s('personaInquiryId','');
+  s('personaStatus','not_started');
+  s('personaFields',null);
   setIdVerifyResult(null);
+  setSelfieMode('idle');
   setIdScan('idle');
-};
-
-// ── SELFIE CAMERA (camera only, no upload) ────────────
-const startSelfie=async()=>{
-  try{
-    const st=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}},audio:false
-    });
-    setSelfieStream(st);setSelfieMode('camera');
-    setTimeout(()=>{ if(selfieVideoRef.current){selfieVideoRef.current.srcObject=st;selfieVideoRef.current.play();} },150);
-  }catch(e){
-    setE({selfie:'Camera not available. A camera is required to take your verification selfie.'});
-  }
-};
-
-const captureSelfie=()=>{
-  const video=selfieVideoRef.current;const canvas=selfieCanvasRef.current;
-  if(!video||!canvas)return;
-  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
-  // Mirror the selfie (front camera is mirrored)
-  const ctx=canvas.getContext('2d');
-  ctx.translate(canvas.width,0);ctx.scale(-1,1);
-  ctx.drawImage(video,0,0);
-  const dataUrl=canvas.toDataURL('image/jpeg',0.9);
-  if(selfieStream)selfieStream.getTracks().forEach(t=>t.stop());
-  setSelfieStream(null);
-  s('selfieData',dataUrl);
-  setSelfieMode('captured');
 };
 
 const retakeSelfie=()=>{ s('selfieData',null); setSelfieMode('idle'); };
@@ -1637,12 +1574,12 @@ const validateStep1=()=>{
 const validateStep2=()=>{
   const e={};
   if(!f.idType)e.idType='Please select your ID type';
-  if(!f.idImageData||idScanMode!=='passed')e.idFile='Please scan your ID and wait for verification to pass';
+  if(!f.personaInquiryId||idScanMode!=='passed')e.idFile='Please complete identity verification with Persona to continue';
   setE(e);return Object.keys(e).length===0;
 };
 const validateStep3=()=>{
   const e={};
-  if(!f.selfieData)e.selfie='You must take a live selfie with your camera to continue';
+  if(idScanMode!=='passed')e.selfie='Please complete identity verification before creating your account';
   if(!f.agreed)e.agreed='You must agree to the terms to create your account';
   setE(e);return Object.keys(e).length===0;
 };
@@ -1774,242 +1711,123 @@ return(
       <input className={`fi ${errors.wa?'err':''}`} type="tel" value={f.wa} onChange={e=>s('wa',e.target.value)} placeholder="+351 964 362 617"/>
       {errors.wa?<div className="ferr">⚠ {errors.wa}</div>:<div className="fhint">Required. Used to connect with travelers and senders. Include country code.</div>}
     </div>
-    <button className="btn-auth" onClick={nextStep}>Continue to ID Scan →</button>
+    <button className="btn-auth" onClick={nextStep}>Continue to Verification →</button>
     <p className="auth-sw">{t.have_acc} <a onClick={()=>switchMode('login')}>{t.login_btn}</a></p>
   </div>
   )}
 
-  {/* ══ STEP 2 — ID Scanner ══ */}
+  {/* ══ STEP 2 — Identity Verification ══ */}
   {step===2&&(
   <div className="auth-form">
-    {/* ID type selector */}
+    <div style={{background:'rgba(10,37,64,.04)',border:'1px solid var(--bord)',borderRadius:12,padding:'14px 16px',marginBottom:4}}>
+      <div style={{fontWeight:700,color:'var(--navy)',fontSize:13,marginBottom:6,display:'flex',alignItems:'center',gap:6}}>🛡️ Persona Identity Verification</div>
+      <div style={{fontSize:13,color:'var(--text3)',lineHeight:1.65}}>
+        To help keep AfroRoute safe, we use Persona to verify traveler identity. You will be asked to complete a secure identity check before continuing.
+      </div>
+    </div>
+
+    <div className="ff"><label className="fl">Document Type <span>*</span></label>
+      <select className={`fsel ${errors.idType?'err':''}`} value={f.idType} onChange={e=>s('idType',e.target.value)}>
+        <option value="">— Select document type —</option>
+        {ID_TYPES.map(tp=><option key={tp} value={tp}>{tp}</option>)}
+      </select>
+      {errors.idType&&<div className="ferr">⚠ {errors.idType}</div>}
+    </div>
+
     {idScanMode==='idle'&&(
-    <>
-      <div style={{background:'rgba(10,37,64,.04)',border:'1px solid var(--bord)',borderRadius:12,padding:'14px 16px',marginBottom:4}}>
-        <div style={{fontWeight:700,color:'var(--navy)',fontSize:13,marginBottom:6,display:'flex',alignItems:'center',gap:6}}>🛡️ AI-Powered ID Verification</div>
-        <div style={{fontSize:13,color:'var(--text3)',lineHeight:1.65}}>
-          We'll scan your physical ID with your camera. Our AI instantly checks if it's an authentic government-issued document. Printed copies, screenshots, or edited images will be rejected.
+      <div style={{background:'var(--surf2)',border:'1.5px solid var(--bord)',borderRadius:14,padding:'22px 18px',textAlign:'center',marginBottom:10}}>
+        <div style={{fontSize:46,marginBottom:10}}>🪪</div>
+        <div style={{fontWeight:700,color:'var(--navy)',fontSize:16,marginBottom:8}}>Verify your identity with Persona</div>
+        <div style={{fontSize:13,color:'var(--text3)',lineHeight:1.65,marginBottom:18}}>
+          Persona will guide you through a secure ID and identity verification flow. This helps us reduce fraud and keep transactions safer on AfroRoute.
         </div>
+        <button className="btn-auth" style={{background:'linear-gradient(135deg,var(--navy),#0c5460)',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:10,fontSize:15}} onClick={()=>{ if(!f.idType){setE({idType:'Please select your document type first'});return;} launchPersona(); }}>
+          <span style={{fontSize:20}}>🔐</span> Start Persona Verification
+        </button>
       </div>
-      <div className="ff"><label className="fl">Document Type <span>*</span></label>
-        <select className={`fsel ${errors.idType?'err':''}`} value={f.idType} onChange={e=>s('idType',e.target.value)}>
-          <option value="">— Select document type —</option>
-          {ID_TYPES.map(tp=><option key={tp} value={tp}>{tp}</option>)}
-        </select>
-        {errors.idType&&<div className="ferr">⚠ {errors.idType}</div>}
-      </div>
-      <div style={{background:'var(--wpale)',border:'1px solid rgba(245,158,11,.25)',borderRadius:10,padding:'10px 14px',marginBottom:4}}>
-        <div style={{fontSize:12,color:'#92400e',lineHeight:1.65}}>
-          📌 <strong>Before scanning:</strong> Place your ID on a flat, well-lit surface. Make sure all 4 corners are visible and text is clear. Avoid glare.
-        </div>
-      </div>
-      <button className="btn-auth" style={{background:'linear-gradient(135deg,var(--navy),#0c5460)',display:'flex',alignItems:'center',justifyContent:'center',gap:10,fontSize:15}} onClick={()=>{ if(!f.idType){setE({idType:'Please select your document type first'});return;} startIdScan(); }}>
-        <span style={{fontSize:20}}>🔍</span> Scan My ID Document
-      </button>
-      {errors.idFile&&<div className="ferr">⚠ {errors.idFile}</div>}
-    </>
     )}
 
-    {/* Live camera for ID scan */}
-    {idScanMode==='scanning'&&(
-    <div>
-      <div style={{position:'relative',borderRadius:14,overflow:'hidden',background:'#000',marginBottom:12}}>
-        <video ref={idVideoRef} style={{width:'100%',display:'block',height:'56vw',maxHeight:360,objectFit:'cover'}} autoPlay playsInline muted/>
-        <canvas ref={idCanvasRef} style={{display:'none'}}/>
-        {/* Scanning overlay guide */}
-        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
-          <div style={{width:'92%',height:'72%',border:'3px solid rgba(26,188,156,.9)',borderRadius:12,boxShadow:'0 0 0 2000px rgba(0,0,0,.45)',position:'relative'}}>
-            {/* Corner markers */}
-            {[['0%','0%','top:0;left:0;border-top:3px solid #1ABC9C;border-left:3px solid #1ABC9C'],
-              ['0%','100%','top:0;right:0;border-top:3px solid #1ABC9C;border-right:3px solid #1ABC9C'],
-              ['100%','0%','bottom:0;left:0;border-bottom:3px solid #1ABC9C;border-left:3px solid #1ABC9C'],
-              ['100%','100%','bottom:0;right:0;border-bottom:3px solid #1ABC9C;border-right:3px solid #1ABC9C']
-            ].map(([y,x,style],i)=>(
-              <div key={i} style={{position:'absolute',width:20,height:20,...Object.fromEntries(style.split(';').filter(Boolean).map(s=>[s.split(':')[0].trim(),s.split(':')[1]?.trim()]))}}/>
-            ))}
-            <div style={{position:'absolute',bottom:-28,left:'50%',transform:'translateX(-50%)',color:'#fff',fontSize:11,fontWeight:600,whiteSpace:'nowrap',textShadow:'0 1px 4px rgba(0,0,0,.8)'}}>
-              Align your ID within the frame
-            </div>
-          </div>
-        </div>
-        {/* Scan animation line */}
-        <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:'linear-gradient(90deg,transparent,var(--green),transparent)',animation:'scanLine 2s ease-in-out infinite'}}/>
-      </div>
-      <button className="btn-auth" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,background:'var(--green)'}} onClick={captureIdPhoto}>
-        <span style={{fontSize:18}}>📷</span> Capture & Verify ID
-      </button>
-      <button onClick={()=>{if(idStream)idStream.getTracks().forEach(t=>t.stop());setIdStream(null);setIdScan('idle');}} style={{width:'100%',marginTop:8,background:'none',border:'1.5px solid var(--bord)',color:'var(--text3)',padding:11,borderRadius:10,fontWeight:600,fontSize:13,cursor:'pointer'}}>
-        Cancel
-      </button>
-    </div>
-    )}
-
-    {/* AI verification in progress */}
     {idScanMode==='verifying'&&(
-    <div style={{textAlign:'center',padding:'32px 20px'}}>
-      <div style={{fontSize:48,marginBottom:16,animation:'spin 1.5s linear infinite',display:'inline-block'}}>🔍</div>
-      <div style={{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:18,color:'var(--navy)',marginBottom:8}}>Verifying your ID...</div>
-      <div style={{color:'var(--text3)',fontSize:14,lineHeight:1.65}}>Our AI is checking the authenticity of your document. This takes a few seconds.</div>
-      <div style={{display:'flex',gap:6,justifyContent:'center',marginTop:20}}>
-        <div className="ldr-dot"/><div className="ldr-dot"/><div className="ldr-dot"/>
+      <div style={{textAlign:'center',padding:'32px 20px'}}>
+        <div style={{fontSize:48,marginBottom:16,animation:'spin 1.5s linear infinite',display:'inline-block'}}>🔍</div>
+        <div style={{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:18,color:'var(--navy)',marginBottom:8}}>Launching Persona...</div>
+        <div style={{color:'var(--text3)',fontSize:14,lineHeight:1.65}}>Complete the verification flow in the Persona modal to continue.</div>
       </div>
-      <div style={{marginTop:20,display:'flex',flexDirection:'column',gap:8}}>
-        {['Checking document format...','Detecting security features...','Verifying image authenticity...'].map((msg,i)=>(
-          <div key={i} style={{display:'flex',alignItems:'center',gap:8,justifyContent:'center',fontSize:12,color:'var(--text3)'}}>
-            <div style={{width:6,height:6,borderRadius:'50%',background:'var(--green)',animation:`dotPulse 1.4s ease-in-out ${i*0.3}s infinite`}}/>
-            {msg}
-          </div>
-        ))}
-      </div>
-    </div>
     )}
 
-    {/* Verification PASSED */}
-    {idScanMode==='passed'&&f.idImageData&&(
-    <div>
-      <div style={{background:'var(--spale)',border:'1px solid rgba(16,185,129,.25)',borderRadius:12,padding:'16px',marginBottom:16,display:'flex',alignItems:'flex-start',gap:12}}>
-        <div style={{fontSize:28,flexShrink:0}}>✅</div>
-        <div>
-          <div style={{fontWeight:700,color:'var(--succ,#10b981)',fontSize:15,marginBottom:4}}>ID Verified Successfully</div>
-          <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.6}}>
-            {idVerifyResult?.document_type && idVerifyResult.document_type!=='unknown' && <span><strong>{idVerifyResult.document_type}</strong> detected. </span>}
-            Your document passed our authenticity check.
+    {idScanMode==='passed'&&(
+      <div>
+        <div style={{background:'var(--spale)',border:'1px solid rgba(16,185,129,.25)',borderRadius:12,padding:'16px',marginBottom:16,display:'flex',alignItems:'flex-start',gap:12}}>
+          <div style={{fontSize:28,flexShrink:0}}>✅</div>
+          <div>
+            <div style={{fontWeight:700,color:'var(--succ,#10b981)',fontSize:15,marginBottom:4}}>Verification completed</div>
+            <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.6}}>Your identity verification was completed through Persona. You can continue and create your AfroRoute account.</div>
+            {f.personaInquiryId&&<div style={{fontSize:12,color:'var(--text3)',marginTop:6}}>Inquiry ID: <strong>{f.personaInquiryId}</strong></div>}
           </div>
-          {idVerifyResult?.reason&&<div style={{fontSize:12,color:'var(--text3)',marginTop:4,fontStyle:'italic'}}>"{idVerifyResult.reason}"</div>}
         </div>
+        <button onClick={retakeId} style={{width:'100%',background:'none',border:'1.5px solid var(--bord)',color:'var(--text3)',padding:11,borderRadius:10,fontWeight:600,fontSize:13,cursor:'pointer',marginBottom:8}}>
+          ↺ Restart Verification
+        </button>
       </div>
-      <div style={{position:'relative',marginBottom:16}}>
-        <img src={f.idImageData} alt="ID" style={{width:'100%',maxHeight:180,objectFit:'cover',borderRadius:12,border:'2px solid var(--green)'}}/>
-        <div style={{position:'absolute',top:10,right:10,background:'var(--green)',color:'#fff',fontSize:11,fontWeight:700,padding:'4px 10px',borderRadius:20}}>✓ Authenticated</div>
-      </div>
-      <button onClick={retakeId} style={{width:'100%',background:'none',border:'1.5px solid var(--bord)',color:'var(--text3)',padding:11,borderRadius:10,fontWeight:600,fontSize:13,cursor:'pointer',marginBottom:8}}>
-        🔄 Rescan (use different document)
-      </button>
-    </div>
     )}
 
-    {/* Verification FAILED */}
     {idScanMode==='failed'&&(
-    <div>
-      <div style={{background:'var(--dpale)',border:'1px solid rgba(239,68,68,.2)',borderRadius:12,padding:'16px',marginBottom:16,display:'flex',alignItems:'flex-start',gap:12}}>
-        <div style={{fontSize:28,flexShrink:0}}>❌</div>
-        <div>
-          <div style={{fontWeight:700,color:'var(--danger)',fontSize:15,marginBottom:4}}>ID Could Not Be Verified</div>
-          <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.6}}>{idVerifyResult?.reason||'The document did not pass our authenticity check.'}</div>
-          <div style={{fontSize:12,color:'var(--text3)',marginTop:6,lineHeight:1.6}}>
-            Common reasons: blurry image, glare, not a physical document, digital copy or screenshot detected.
+      <div>
+        <div style={{background:'var(--dpale)',border:'1px solid rgba(239,68,68,.2)',borderRadius:12,padding:'16px',marginBottom:16,display:'flex',alignItems:'flex-start',gap:12}}>
+          <div style={{fontSize:28,flexShrink:0}}>❌</div>
+          <div>
+            <div style={{fontWeight:700,color:'var(--danger)',fontSize:15,marginBottom:4}}>Verification did not complete</div>
+            <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.6}}>{idVerifyResult?.reason||'Please try again to continue.'}</div>
           </div>
         </div>
+        <button className="btn-auth" style={{background:'var(--navy)',display:'flex',alignItems:'center',justifyContent:'center',gap:8}} onClick={retakeId}>
+          ↺ Try Again
+        </button>
       </div>
-      <button className="btn-auth" style={{background:'var(--navy)',display:'flex',alignItems:'center',justifyContent:'center',gap:8}} onClick={retakeId}>
-        🔄 Try Again
-      </button>
-    </div>
     )}
 
-    {/* Navigation */}
-    {(idScanMode==='idle'||idScanMode==='passed')&&(
+    {(idScanMode==='idle'||idScanMode==='passed'||idScanMode==='failed')&&(
     <div style={{display:'flex',gap:10,marginTop:4}}>
       <button onClick={()=>setStep(1)} style={{flex:1,background:'none',border:'1.5px solid var(--bord)',color:'var(--text2)',padding:13,borderRadius:11,fontWeight:600,fontSize:14,cursor:'pointer'}}>← Back</button>
-      {idScanMode==='passed'&&<button className="btn-auth" style={{flex:2}} onClick={nextStep}>Continue to Selfie →</button>}
+      {idScanMode==='passed'&&<button className="btn-auth" style={{flex:2}} onClick={nextStep}>Continue →</button>}
     </div>
     )}
   </div>
   )}
 
-  {/* ══ STEP 3 — Live Selfie ══ */}
+  {/* ══ STEP 3 — Review & Create Account ══ */}
   {step===3&&(
   <div className="auth-form">
-    <div style={{background:'rgba(10,37,64,.04)',border:'1px solid var(--bord)',borderRadius:12,padding:'14px 16px',marginBottom:4}}>
-      <div style={{fontWeight:700,color:'var(--navy)',fontSize:13,marginBottom:6}}>📸 Live Selfie Required</div>
+    <div style={{background:'rgba(16,185,129,.08)',border:'1px solid rgba(16,185,129,.22)',borderRadius:12,padding:'14px 16px',marginBottom:4}}>
+      <div style={{fontWeight:700,color:'var(--navy)',fontSize:13,marginBottom:6}}>✅ Identity verified</div>
       <div style={{fontSize:13,color:'var(--text3)',lineHeight:1.65}}>
-        Take a live photo using your camera. <strong>You cannot upload a photo</strong> — this ensures the person registering is physically present. Hold your phone at eye level and look directly at the camera.
+        Your Persona verification has been completed. Review the final confirmation below and create your account.
       </div>
+      {f.personaInquiryId&&<div style={{fontSize:12,color:'var(--text3)',marginTop:8}}>Persona inquiry ID: <strong>{f.personaInquiryId}</strong></div>}
     </div>
 
-    {selfieMode==='idle'&&(
-    <div>
-      <div style={{background:'var(--surf2)',border:'2px dashed var(--bord2)',borderRadius:14,padding:'32px 20px',textAlign:'center',marginBottom:4}}>
-        <div style={{fontSize:52,marginBottom:12}}>🤳</div>
-        <div style={{fontWeight:700,color:'var(--navy)',fontSize:15,marginBottom:8}}>Ready to take your selfie?</div>
-        <div style={{fontSize:13,color:'var(--text3)',lineHeight:1.65,marginBottom:20}}>
-          Make sure you're in a well-lit area.<br/>Look directly into the camera.<br/>No sunglasses or face coverings.
-        </div>
-        <button className="btn-auth" style={{background:'linear-gradient(135deg,var(--navy),#0c5460)',display:'inline-flex',alignItems:'center',gap:10,padding:'14px 28px'}} onClick={startSelfie}>
-          <span style={{fontSize:20}}>📷</span> Open Camera
-        </button>
-      </div>
-      {errors.selfie&&<div className="ferr">⚠ {errors.selfie}</div>}
-    </div>
-    )}
-
-    {/* Live camera */}
-    {selfieMode==='camera'&&(
-    <div>
-      <div style={{position:'relative',borderRadius:14,overflow:'hidden',background:'#000',marginBottom:12}}>
-        <video ref={selfieVideoRef} style={{width:'100%',display:'block',height:'70vw',maxHeight:420,objectFit:'cover',transform:'scaleX(-1)'}} autoPlay playsInline muted/>
-        <canvas ref={selfieCanvasRef} style={{display:'none'}}/>
-        {/* Face guide overlay */}
-        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
-          <div style={{
-            width:160,height:200,borderRadius:'50% 50% 50% 50% / 60% 60% 40% 40%',
-            border:'2px solid rgba(26,188,156,.8)',
-            boxShadow:'0 0 0 2000px rgba(0,0,0,.4)'
-          }}/>
-        </div>
-        <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'12px',background:'linear-gradient(transparent,rgba(0,0,0,.7))',textAlign:'center'}}>
-          <div style={{color:'rgba(255,255,255,.8)',fontSize:12,marginBottom:10}}>Align your face within the oval</div>
-          <div style={{display:'flex',gap:10,justifyContent:'center'}}>
-            <button onClick={captureSelfie} style={{
-              background:'#fff',border:'4px solid rgba(255,255,255,.5)',
-              borderRadius:'50%',width:64,height:64,
-              cursor:'pointer',fontSize:24,display:'flex',alignItems:'center',justifyContent:'center',
-              boxShadow:'0 2px 12px rgba(0,0,0,.4)',transition:'transform .15s'
-            }}>📸</button>
-            <button onClick={()=>{if(selfieStream)selfieStream.getTracks().forEach(t=>t.stop());setSelfieStream(null);setSelfieMode('idle');}} style={{background:'rgba(255,255,255,.15)',border:'none',borderRadius:12,padding:'10px 16px',color:'#fff',fontWeight:600,cursor:'pointer',fontSize:13}}>Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    )}
-
-    {/* Selfie captured */}
-    {selfieMode==='captured'&&f.selfieData&&(
-    <div>
-      <div style={{position:'relative',marginBottom:12}}>
-        <img src={f.selfieData} alt="Selfie" style={{width:'100%',maxHeight:280,objectFit:'cover',borderRadius:14,border:'2px solid var(--green)',transform:'scaleX(-1)'}}/>
-        <div style={{position:'absolute',top:10,right:10,background:'var(--green)',color:'#fff',fontSize:11,fontWeight:700,padding:'4px 10px',borderRadius:20}}>✓ Selfie taken</div>
-      </div>
-      <button onClick={retakeSelfie} style={{width:'100%',background:'none',border:'1.5px solid var(--bord)',color:'var(--text3)',padding:11,borderRadius:10,fontWeight:600,fontSize:13,cursor:'pointer',marginBottom:4}}>
-        🔄 Retake Selfie
-      </button>
-      {errors.selfie&&<div className="ferr">⚠ {errors.selfie}</div>}
-    </div>
-    )}
-
-    {/* Terms */}
     <div style={{background:'var(--surf2)',border:'1px solid var(--bord)',borderRadius:12,padding:'14px 16px'}}>
       <label style={{display:'flex',alignItems:'flex-start',gap:12,cursor:'pointer'}}>
         <input type="checkbox" checked={f.agreed} onChange={e=>s('agreed',e.target.checked)} style={{width:18,height:18,marginTop:2,flexShrink:0,accentColor:'var(--green)',cursor:'pointer'}}/>
         <span style={{fontSize:13,color:'var(--text2)',lineHeight:1.65}}>
-          I confirm that all documents and the selfie I have provided are genuine and belong to me. I agree to AfroRoute's{' '}
+          I confirm that the information I provided is accurate and that the Persona verification belongs to me. I agree to AfroRoute's{' '}
           <span style={{color:'var(--green)',fontWeight:700,cursor:'pointer'}}>Terms of Service</span> and{' '}
           <span style={{color:'var(--green)',fontWeight:700,cursor:'pointer'}}>Privacy Policy</span>.
-          I understand that providing false documents results in a <strong>permanent ban</strong> and may be reported to authorities.
         </span>
       </label>
       {errors.agreed&&<div className="ferr" style={{marginTop:6}}>⚠ {errors.agreed}</div>}
+      {errors.selfie&&<div className="ferr" style={{marginTop:6}}>⚠ {errors.selfie}</div>}
     </div>
 
     <div style={{display:'flex',gap:10}}>
       <button onClick={()=>setStep(2)} style={{flex:1,background:'none',border:'1.5px solid var(--bord)',color:'var(--text2)',padding:13,borderRadius:11,fontWeight:600,fontSize:14,cursor:'pointer'}}>← Back</button>
-      <button className="btn-auth" style={{flex:2,background:'var(--green)',boxShadow:'0 4px 16px rgba(26,188,156,.35)'}} onClick={submit} disabled={loading||!f.selfieData||!f.agreed}>
+      <button className="btn-auth" style={{flex:2,background:'var(--green)',boxShadow:'0 4px 16px rgba(26,188,156,.35)'}} onClick={submit} disabled={loading||idScanMode!=='passed'||!f.agreed}>
         {loading?'Creating account...':'Create Account 🚀'}
       </button>
     </div>
 
     <div style={{textAlign:'center',fontSize:12,color:'var(--text4)',lineHeight:1.6}}>
-      🔒 Your ID and selfie are encrypted. Only our verification team can access them.
+      🔒 AfroRoute uses Persona to help verify identity and reduce fraud on the platform.
     </div>
   </div>
   )}
@@ -2303,6 +2121,9 @@ return <div className="page"><div style={{padding:'16px 16px 80px'}}>
 // ══════════════════════════════════════════════════════════
 const SUPABASE_URL = "https://fzokrhosmthdiymdewuw.supabase.co";
 // Replace with your anon key from Supabase → Settings → API
+const PERSONA_TEMPLATE_ID = "itmpl_SXVcySP1E28pYj3ySXkXgrPLkZZa";
+const PERSONA_ENVIRONMENT_ID = "env_jSVXWwtYWdRUpAkVTeqi5an2t4Ec";
+
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6b2tyaG9zbXRoZGl5bWRld3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTY2MTgsImV4cCI6MjA5MTY5MjYxOH0.ee5OBNh6Om0mLTSjmFOqH0JVGu4cbjcLL9Ekawem4YE";
 
 const sb = {
@@ -3285,13 +3106,16 @@ const handleLogin=async(formData)=>{
             country:formData.country,
             whatsapp:formData.wa,
             id_type:formData.idType||null,
-            verification_status:'pending',
+            verification_status:formData.personaInquiryId ? 'verified' : 'pending',
+            persona_inquiry_id: formData.personaInquiryId || null,
+            persona_status: formData.personaStatus || null,
+            is_verified_traveler: !!formData.personaInquiryId,
           });
         }catch(profileErr){
           console.log('Profile upsert error (non-fatal):', profileErr.message);
         }
         // Upload ID document to Supabase Storage
-        if(formData.idImageData){
+        if(formData.idImageData && String(formData.idImageData).startsWith('data:')){
           try{
             const idBlob = await (await fetch(formData.idImageData)).blob();
             const idPath = `${userId}/id_document.jpg`;
@@ -3302,7 +3126,7 @@ const handleLogin=async(formData)=>{
           }
         }
         // Upload selfie to Supabase Storage
-        if(formData.selfieData){
+        if(formData.selfieData && String(formData.selfieData).startsWith('data:')){
           try{
             const selfieBlob = await (await fetch(formData.selfieData)).blob();
             const selfiePath = `${userId}/selfie.jpg`;
