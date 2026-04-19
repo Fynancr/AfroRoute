@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0A2540">
-<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22AfroRoute%22%2C%22short_name%22%3A%22AfroRoute%22%2C%22start_url%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230A2540%22%2C%22theme_color%22%3A%22%231ABC9C%22%7D">
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22AfroRoute%22%2C%22short_name%22%3A%22AfroRoute%22%2C%22description%22%3A%22Trusted%20shipping%20between%20Portugal%20and%20Angola%22%2C%22start_url%22%3A%22/%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230A2540%22%2C%22theme_color%22%3A%22%231ABC9C%22%2C%22orientation%22%3A%22portrait%22%2C%22categories%22%3A%5B%22shopping%22%2C%22travel%22%5D%2C%22prefer_related_applications%22%3Afalse%7D">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AfroRoute">
@@ -1110,6 +1110,15 @@ window.addEventListener('appinstalled', function() {
 });
 </script>
 
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('/sw.js')
+      .then(function(reg){ console.log('SW registered:', reg.scope); })
+      .catch(function(err){ console.log('SW failed:', err); });
+  });
+}
 </script>
 </head>
 <body>
