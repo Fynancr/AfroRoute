@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.withpersona.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://cdn.withpersona.com; frame-src 'self' https://withpersona.com https://*.withpersona.com;">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.withpersona.com https://*.supabase.co;">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1124,25 +1124,14 @@ if('serviceWorker' in navigator){
 <body>
 <script>
 window.onerror=function(msg,src,line,col,err){
-  // Script error with no source = cross-origin CDN blocked (WKWebView)
-  if(!src && msg==='Script error.'){
-    document.body.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0A2540;padding:32px;text-align:center;font-family:sans-serif">'
-      +'<img src="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%231ABC9C%27/%3E%3C/svg%3E" style="width:64px;height:64px;border-radius:14px;margin-bottom:20px">'
-      +'<div style="color:#fff;font-size:22px;font-weight:800;margin-bottom:10px">AfroRoute</div>'
-      +'<div style="color:rgba(255,255,255,.7);font-size:15px;margin-bottom:28px;line-height:1.6">Para a melhor experiência,<br>abre no Safari</div>'
-      +'<a href="' + window.location.href + '" target="_blank" style="background:#1ABC9C;color:#fff;padding:14px 28px;border-radius:12px;font-weight:700;font-size:16px;text-decoration:none;display:inline-block">Abrir no Safari →</a>'
-      +'<div style="color:rgba(255,255,255,.4);font-size:12px;margin-top:20px">Open in Safari for full experience</div>'
-      +'</div>';
-    return false;
-  }
   document.body.innerHTML='<div style="padding:20px;font-family:monospace;font-size:13px;color:red;background:#fff;white-space:pre-wrap"><b>Error:</b>\n'+msg+'\nFile: '+src+'\nLine: '+line+(err?'\nStack: '+err.stack:'')+'</div>';
   return false;
 };
 </script>
 
 <div id="app"></div>
-<script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" crossorigin="anonymous" onerror="window.__reactFailed=true"></script>
-<script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous" onerror="window.__reactFailed=true"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
 <script>
 // Suppress Babel in-browser transformer warning (harmless in dev, remove in prod)
 (function(){
@@ -2973,35 +2962,13 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
       React.createElement('div',{style:{padding:'20px 16px 16px'}},
         !link?React.createElement('div',null,
           // Fee info box
-          React.createElement('div',{style:{background:'linear-gradient(135deg,rgba(10,37,64,.04),rgba(26,188,156,.06))',border:'1.5px solid rgba(26,188,156,.25)',borderRadius:14,padding:'14px 16px',marginBottom:16}},
-            // Title
-            React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:10}},
-              React.createElement('span',{style:{fontSize:18}},'🛡️'),
-              React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:14,color:'var(--navy)'}},
-                isEN?'Payment Protection':isFR?'Protection du paiement':'Proteção do Pagamento'
-              )
+          React.createElement('div',{style:{background:'var(--gpale)',border:'1px solid var(--gborder)',borderRadius:12,padding:'12px 14px',marginBottom:16,fontSize:13,color:'var(--text2)',lineHeight:1.7}},
+            React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',marginBottom:4}},
+              isEN?'How it works':isFR?'Comment ça marche':'Como funciona'
             ),
-            // Steps
-            [
-              [isEN?'💳 Sender pays securely':isFR?'💳 L\'expéditeur paie en sécurité':'💳 Remetente paga com segurança',
-               isEN?'Payment is processed by Stripe. Funds are held safely until delivery is confirmed.':
-               isFR?'Le paiement est traité par Stripe. Les fonds sont conservés jusqu\'à confirmation de livraison.':
-               'O pagamento é processado pela Stripe. O valor fica retido até confirmação da entrega.'],
-              [isEN?'📦 Package is delivered':isFR?'📦 Colis livré':'📦 Encomenda entregue',
-               isEN?'Both parties confirm the delivery inside AfroRoute. This protects sender and traveler.':
-               isFR?'Les deux parties confirment la livraison. Cela protège l\'expéditeur et le voyageur.':
-               'Ambas as partes confirmam a entrega dentro da AfroRoute. Isto protege remetente e viajante.'],
-              [isEN?'💰 Traveler gets paid':isFR?'💰 Le voyageur est payé':'💰 Viajante recebe o pagamento',
-               isEN?'After confirmation, AfroRoute transfers the traveler\'s share directly. Fast and transparent.':
-               isFR?'Après confirmation, AfroRoute transfère la part du voyageur. Rapide et transparent.':
-               'Após confirmação, a AfroRoute transfere a parte do viajante. Rápido e transparente.']
-            ].map(([title,desc],i)=>React.createElement('div',{key:i,style:{display:'flex',gap:10,marginBottom:i<2?10:0}},
-              React.createElement('div',{style:{width:4,borderRadius:4,background:'var(--green)',flexShrink:0,minHeight:40}}),
-              React.createElement('div',null,
-                React.createElement('div',{style:{fontWeight:700,fontSize:12,color:'var(--navy)',marginBottom:2}},title),
-                React.createElement('div',{style:{fontSize:12,color:'var(--text3)',lineHeight:1.55}},desc)
-              )
-            ))
+            isEN?'Sender pays the agreed amount. AfroRoute keeps 10% as platform fee. You receive 90% after delivery confirmation.':
+            isFR?'L\'expéditeur paie le montant convenu. AfroRoute garde 10% de frais. Vous recevez 90% après confirmation.':
+            'O remetente paga o valor acordado. A AfroRoute fica com 10% de taxa. O viajante recebe 90% após confirmação da entrega.'
           ),
           // Amount input
           React.createElement('div',{className:'ff',style:{marginBottom:14}},
@@ -3021,44 +2988,18 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
             )
           ),
           // Fee breakdown
-          amount&&!isNaN(parseFloat(amount))&&parseFloat(amount)>0&&React.createElement('div',{style:{background:'#fff',border:'1px solid var(--bord)',borderRadius:12,overflow:'hidden',marginBottom:14}},
-            // Header
-            React.createElement('div',{style:{background:'var(--surf2)',padding:'8px 14px',borderBottom:'1px solid var(--bord)',fontSize:11,fontWeight:700,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px'}},
-              isEN?'Payment Breakdown':isFR?'Détail du paiement':'Resumo do Pagamento'
+          amount&&!isNaN(parseFloat(amount))&&parseFloat(amount)>0&&React.createElement('div',{style:{background:'var(--surf2)',borderRadius:10,padding:'12px 14px',marginBottom:14,fontSize:13}},
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:4}},
+              React.createElement('span',{style:{color:'var(--text3)'}},(isEN?'Total paid by sender':isFR?'Total payé par l\'expéditeur':'Total pago pelo remetente')),
+              React.createElement('span',{style:{fontWeight:700,color:'var(--navy)'}},'€'+parseFloat(amount).toFixed(2))
             ),
-            React.createElement('div',{style:{padding:'12px 14px'}},
-              // Sender pays
-              React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,paddingBottom:8,borderBottom:'1px solid var(--surf2)'}},
-                React.createElement('div',null,
-                  React.createElement('div',{style:{fontSize:13,fontWeight:600,color:'var(--navy)'}},'💳 '+(isEN?'Sender pays':isFR?'L\'expéditeur paie':'Remetente paga')),
-                  React.createElement('div',{style:{fontSize:11,color:'var(--text4)',marginTop:1}},isEN?'Held securely by Stripe':isFR?'Retenu par Stripe':'Retido pela Stripe')
-                ),
-                React.createElement('span',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:16,color:'var(--navy)'}},'€'+parseFloat(amount).toFixed(2))
-              ),
-              // AfroRoute fee
-              React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,paddingBottom:8,borderBottom:'1px solid var(--surf2)'}},
-                React.createElement('div',null,
-                  React.createElement('div',{style:{fontSize:13,fontWeight:600,color:'var(--text2)'}},'🏷️ '+(isEN?'AfroRoute platform fee':isFR?'Frais de plateforme AfroRoute':'Taxa de plataforma AfroRoute')),
-                  React.createElement('div',{style:{fontSize:11,color:'var(--text4)',marginTop:1}},isEN?'Covers secure payments, support & platform':isFR?'Couvre paiements sécurisés, support & plateforme':'Cobre pagamentos seguros, suporte e plataforma')
-                ),
-                React.createElement('span',{style:{fontWeight:700,color:'var(--text3)',fontSize:13}},'-€'+(parseFloat(amount)*0.10).toFixed(2)+' (10%)')
-              ),
-              // Stripe processing fee info
-              React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10,paddingBottom:10,borderBottom:'1px solid var(--bord)'}},
-                React.createElement('div',null,
-                  React.createElement('div',{style:{fontSize:13,fontWeight:600,color:'var(--text2)'}},'🔒 '+(isEN?'Stripe processing':isFR?'Traitement Stripe':'Processamento Stripe')),
-                  React.createElement('div',{style:{fontSize:11,color:'var(--text4)',marginTop:1}},isEN?'Secure card processing by Stripe':isFR?'Traitement sécurisé par Stripe':'Processamento seguro pela Stripe')
-                ),
-                React.createElement('span',{style:{fontWeight:600,color:'var(--text4)',fontSize:12}},'~1.5%')
-              ),
-              // Traveler receives
-              React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',background:'var(--gpale)',borderRadius:10,padding:'10px 12px',border:'1px solid var(--gborder)'}},
-                React.createElement('div',null,
-                  React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:14,color:'var(--navy)'}},'✈️ '+(isEN?'Traveler receives':isFR?'Le voyageur reçoit':'Viajante recebe')),
-                  React.createElement('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},isEN?'Transferred after delivery confirmed':isFR?'Transféré après confirmation de livraison':'Transferido após confirmação da entrega')
-                ),
-                React.createElement('span',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:20,color:'var(--green)'}},'€'+(parseFloat(amount)*0.90).toFixed(2))
-              )
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:4}},
+              React.createElement('span',{style:{color:'var(--text3)'}},(isEN?'AfroRoute fee (10%)':isFR?'Frais AfroRoute (10%)':'Taxa AfroRoute (10%)')),
+              React.createElement('span',{style:{fontWeight:700,color:'var(--danger)'}},'-€'+(parseFloat(amount)*0.10).toFixed(2))
+            ),
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',paddingTop:8,borderTop:'1px solid var(--bord)'}},
+              React.createElement('span',{style:{fontWeight:700,color:'var(--navy)'}},(isEN?'Traveler receives':isFR?'Le voyageur reçoit':'Viajante recebe')),
+              React.createElement('span',{style:{fontWeight:800,color:'var(--green)',fontSize:16}},'€'+(parseFloat(amount)*0.90).toFixed(2))
             )
           ),
           // Description
@@ -3091,12 +3032,6 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
             ),
             React.createElement('div',{style:{fontSize:13,color:'var(--text3)'}},
               isEN?'Share this link with the sender':isFR?'Partagez ce lien avec l\'expéditeur':'Partilha este link com o remetente'
-            ),
-            React.createElement('div',{style:{background:'var(--gpale)',border:'1px solid var(--gborder)',borderRadius:10,padding:'10px 12px',marginTop:12,fontSize:12,color:'var(--text2)',lineHeight:1.6,textAlign:'left'}},
-              React.createElement('div',{style:{fontWeight:700,marginBottom:4,color:'var(--navy)'}},isEN?'What happens next:':isFR?'Que se passe-t-il ensuite :':'O que acontece a seguir:'),
-              React.createElement('div',null,'1. '+( isEN?'Sender pays via Stripe secure checkout':isFR?'L\'expéditeur paie via Stripe':'Remetente paga via Stripe')),
-              React.createElement('div',null,'2. '+(isEN?'Funds held safely until delivery confirmed':isFR?'Fonds retenus jusqu\'à confirmation':'Valor retido até confirmação')),
-              React.createElement('div',null,'3. '+(isEN?'AfroRoute transfers your 90% after confirmation':isFR?'AfroRoute transfère vos 90% après confirmation':'AfroRoute transfere os teus 90% após confirmação'))
             )
           ),
           // Link display
@@ -3595,23 +3530,6 @@ const renderDetail=()=>{if(!detail)return null;const{item,type}=detail;const isT
 , (isT?item.notes:item.desc)&&React.createElement('div', { className: "det-card",}, React.createElement('div', { className: "det-ct",}, "📝 Notes" ), React.createElement('div', { style: {fontSize:14,color:'#334155',lineHeight:1.65},}, isT?item.notes:item.desc))
 , React.createElement('div', { style: {background:'#fef3c7',border:'1px solid rgba(245,158,11,.25)',borderRadius:12,padding:'12px 14px',marginBottom:14},}, React.createElement('div', { style: {fontWeight:700,color:'#92400e',fontSize:13,marginBottom:4},}, "⚠️ Safety Notice"  ), React.createElement('div', { style: {fontSize:12,color:'#78350f',lineHeight:1.6},}, "Always verify the other party before shipping. Never send cash, illegal items, or prohibited goods. AfroRoute is not responsible for individual transaction outcomes."                      ))
 )
-,React.createElement('div',{style:{background:'linear-gradient(135deg,rgba(10,37,64,.03),rgba(26,188,156,.06))',border:'1.5px solid rgba(26,188,156,.2)',borderRadius:12,padding:'14px 16px',marginBottom:14}},
-  React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:10}},
-    React.createElement('span',{style:{fontSize:16}},'🛡️'),
-    React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:13,color:'var(--navy)'}},(t.lang==='en'?'Payment Protection':t.lang==='fr'?'Protection du paiement':'Proteção do Pagamento'))
-  ),
-  ['💳','📦','💰','🚫'].map((icon,i)=>{
-    const titles=t.lang==='en'?['Pay inside AfroRoute only','Funds held until delivery','Transparent 10% platform fee','Never pay outside the app']:t.lang==='fr'?['Payez uniquement sur AfroRoute','Fonds retenus jusqu\'à livraison','Frais de plateforme 10% transparents','Ne payez jamais en dehors']:['Pague apenas dentro da AfroRoute','Valor retido até entrega confirmada','Taxa de plataforma 10% transparente','Nunca pagues fora da aplicação'];
-    const descs=t.lang==='en'?['All payments processed by Stripe. Held securely until both parties confirm delivery.','Money is only released after confirmed delivery inside AfroRoute.','AfroRoute keeps 10%. Traveler receives 90% directly after delivery.','Off-platform payments are not protected. AfroRoute cannot help in disputes.']:t.lang==='fr'?['Tous les paiements traités par Stripe. Retenus jusqu\'à confirmation.','L\'argent est libéré après confirmation de livraison.','AfroRoute garde 10%. Le voyageur reçoit 90% après livraison.','Les paiements hors plateforme ne sont pas protégés.']:['Todos os pagamentos processados pela Stripe. Retidos até confirmação.','O dinheiro só é libertado após confirmação da entrega.','A AfroRoute fica com 10%. O viajante recebe 90% após entrega.','Pagamentos fora da plataforma não são protegidos.'];
-    return React.createElement('div',{key:i,style:{display:'flex',gap:10,marginBottom:i<3?8:0}},
-      React.createElement('span',{style:{fontSize:14,flexShrink:0}},icon),
-      React.createElement('div',null,
-        React.createElement('div',{style:{fontSize:12,fontWeight:700,color:'var(--navy)',marginBottom:1}},titles[i]),
-        React.createElement('div',{style:{fontSize:11,color:'var(--text3)',lineHeight:1.5}},descs[i])
-      )
-    );
-  })
-)
 , React.createElement('div',{style:{padding:'0 16px',marginBottom:14}},
     React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:14,color:'var(--navy)',marginBottom:12,display:'flex',alignItems:'center',gap:6}},
       '⭐ Reviews'
@@ -3682,21 +3600,7 @@ case 'post-shipment':return React.createElement('div', { className: "page",}, Re
   );
 })():React.createElement(PostShipForm, { t: t, onSubmit: handlePostShip,})));
 case 'messages':return React.createElement('div', { className: "page", style: {padding:0},}, !loggedIn?React.createElement('div', { style: {padding:'0 16px'},}, React.createElement(PW, { t: t, type: "msg", onSub: ()=>go('auth'),})):!subscribed?React.createElement('div', { style: {padding:'0 16px'},}, React.createElement(PW, { t: t, type: "msg", onSub: ()=>go('pricing'),})):React.createElement('div', { className: "msg-layout",}, React.createElement('div', { className: "conv-sb",}, convos.map(c=>React.createElement('div', { key: c.id, className: `conv-item ${_optionalChain([activeConvo, 'optionalAccess', _105 => _105.id])===c.id?'active':''}`, onClick: ()=>setConvo(c),}, React.createElement('div', { style: {position:'relative'},}, React.createElement(Av, { name: c.user, size: 38,}), c.unread>0&&React.createElement('span', { className: "cunread",}, c.unread)), React.createElement('div', { className: "conv-name",}, c.user.split(' ')[0])))), React.createElement('div', { className: "chat-area",}, activeConvo?React.createElement(React.Fragment, null, React.createElement('div', { className: "chat-hd",}, React.createElement(Av, { name: activeConvo.user, size: 36,}), React.createElement('div', { style: {flex:1,minWidth:0},}, React.createElement('div', { className: "chat-hn",}, activeConvo.user), React.createElement('div', { style: {display:'flex',gap:6,marginTop:2,flexWrap:'wrap'},}, React.createElement('div', { className: "chat-hs",}, "● " , t.online), activeConvo.listing&&React.createElement('div', { className: "chat-hl",}, activeConvo.listing)))), React.createElement('div', { className: "chat-msgs",}, activeConvo.msgs.map((m,i)=>React.createElement('div', { key: i, className: `msg-row ${m.from}`,},
-  m.isNotice
-  ?React.createElement('div',{style:{background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.25)',borderRadius:12,padding:'12px 14px',margin:'4px 0',fontSize:12,color:'#92400e',lineHeight:1.6,textAlign:'center'}},m.text)
-  :(m.isSystem||m.isNotice)
-  ?React.createElement('div',{style:{
-    background:m.isNotice?'linear-gradient(135deg,rgba(10,37,64,.05),rgba(26,188,156,.08))':'rgba(26,188,156,.06)',
-    border:m.isNotice?'1px solid rgba(26,188,156,.3)':'1px solid rgba(26,188,156,.2)',
-    borderRadius:12,padding:'12px 14px',margin:'8px 0',fontSize:12,
-    color:'var(--text2)',lineHeight:1.65,
-    maxWidth:'100%'
-  }},
-    m.isNotice&&React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',marginBottom:6,fontSize:13}},'📋 AfroRoute Payment Notice'),
-    m.text,
-    React.createElement('div',{style:{fontSize:10,color:'var(--text4)',marginTop:6,textAlign:'right'}},m.t)
-  )
-  :m.isPayment
+  m.isPayment
   ?React.createElement('div',{style:{background:m.from==='me'?'linear-gradient(135deg,#0A2540,#1ABC9C)':'#fff',border:m.from==='me'?'none':'1.5px solid var(--green)',borderRadius:14,padding:'12px 14px',maxWidth:280,boxShadow:'0 2px 8px rgba(0,0,0,.1)'}},
     React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
       React.createElement('span',{style:{fontSize:20}},'💳'),
@@ -3705,9 +3609,6 @@ case 'messages':return React.createElement('div', { className: "page", style: {p
     React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:m.from==='me'?'#fff':'var(--green)',marginBottom:8}},'€'+parseFloat(m.amount||0).toFixed(2)),
     React.createElement('a',{href:m.paymentLink,target:'_blank',rel:'noopener noreferrer',style:{display:'block',background:m.from==='me'?'rgba(255,255,255,.2)':'var(--green)',color:'#fff',padding:'10px 14px',borderRadius:10,textAlign:'center',fontWeight:700,fontSize:13,textDecoration:'none',fontFamily:"'Sora',sans-serif"}},
       t.lang==='en'?'Pay Now →':t.lang==='fr'?'Payer →':'Pagar Agora →'
-    ),
-    React.createElement('div',{style:{fontSize:10,color:m.from==='me'?'rgba(255,255,255,.4)':'var(--text3)',marginTop:8,background:m.from==='me'?'rgba(255,255,255,.08)':'rgba(26,188,156,.06)',borderRadius:8,padding:'6px 10px',lineHeight:1.5}},
-      '🔒 '+(t.lang==='en'?'Funds held by Stripe until delivery confirmed':t.lang==='fr'?'Fonds retenus jusqu\'à confirmation':'Valor retido até confirmação da entrega')
     ),
     React.createElement('div',{style:{fontSize:10,color:m.from==='me'?'rgba(255,255,255,.5)':'var(--text4)',marginTop:6,textAlign:'right'}},m.t)
   )
@@ -3789,21 +3690,10 @@ return React.createElement('div', null, toast&&React.createElement('div', { key:
         setChatIn('');
         const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
         const nm={from:'me',text:msg,t:now,isPayment:true,paymentLink:link,amount:amount};
-        // System notice message explaining payment protection
-        const notice={
-          from:'system',
-          t:now,
-          isNotice:true,
-          text:lang==='en'
-            ?'🛡️ Payment Protection Active — Funds are held securely by AfroRoute until delivery is confirmed by both parties. AfroRoute takes 10% platform fee. The traveler receives 90% after confirmed delivery. Never pay outside the app.'
-            :lang==='fr'
-            ?'🛡️ Protection du paiement — Les fonds sont retenus par AfroRoute jusqu\'à confirmation de livraison par les deux parties. AfroRoute prend 10% de frais. Le voyageur reçoit 90% après livraison confirmée. Ne payez jamais en dehors de l\'application.'
-            :'🛡️ Proteção do Pagamento Ativa — O valor fica retido pela AfroRoute até confirmação da entrega por ambas as partes. A AfroRoute cobra 10% de taxa de plataforma. O viajante recebe 90% após entrega confirmada. Nunca pagues fora da aplicação.'
-        };
-        setConvos(p=>p.map(c=>c.id===activeConvo.id?{...c,msgs:[...c.msgs,nm,notice],last:msg,lastTime:'now'}:c));
-        setConvo(p=>({...p,msgs:[...p.msgs,nm,notice]}));
+        setConvos(p=>p.map(c=>c.id===activeConvo.id?{...c,msgs:[...c.msgs,nm],last:msg,lastTime:'now'}:c));
+        setConvo(p=>({...p,msgs:[...p.msgs,nm]}));
         if(user)sb.insert('messages',{conversation_id:activeConvo.id,sender_id:user.id,content:msg,is_payment:true,payment_link:link}).catch(()=>{});
-        showToast(lang==='en'?'Payment link sent in chat!':lang==='fr'?'Lien envoyé dans le chat !':'Link de pagamento enviado no chat!');
+        showToast(t.lang==='en'?'Payment link sent in chat!':t.lang==='fr'?'Lien envoyé dans le chat !':'Link de pagamento enviado no chat!');
       }
     }), 
     React.createElement(NavBar, null), React.createElement('div', { className: "content",}, renderPage()), React.createElement(BotNav, null));}
