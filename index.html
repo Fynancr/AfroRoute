@@ -1867,7 +1867,12 @@ const handleAvatarChange=(e)=>{
   };
   reader.readAsDataURL(file);
 };
-if(editing)return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "✏️"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.edit_profile))), React.createElement('div', { style: {padding:'0 16px 32px'},}, React.createElement('div', { className: "form-card",}, React.createElement('div', { className: "fg", style: {gap:14},}, React.createElement('div', { className: "ff",}, React.createElement('label', { className: "fl",}, t.display_name), React.createElement('input', { className: "fi", value: ef.name, onChange: e=>setEF(p=>({...p,name:e.target.value})),})), React.createElement(CtrySel, { value: ef.country, onChange: v=>setEF(p=>({...p,country:v})), label: t.country_,}), React.createElement('div', { className: "ff",}, React.createElement('label', { className: "fl",}, "Bio"), React.createElement('textarea', { className: "fta", value: ef.bio, onChange: e=>setEF(p=>({...p,bio:e.target.value})), placeholder: "Tell others about yourself..."   ,})), React.createElement('div', { className: "ff",}, React.createElement('label', { className: "fl",}, t.wa_number), React.createElement('input', { className: "fi", type: "tel", value: ef.wa, onChange: e=>setEF(p=>({...p,wa:e.target.value})),}))), React.createElement('button', { className: "btn-submit", style: {marginTop:16}, onClick: ()=>{onSaveProfile({...user,...ef});setEditing(false);},}, "Save Changes" ), React.createElement('button', { onClick: ()=>setEditing(false), style: {width:'100%',marginTop:8,background:'none',border:'1.5px solid #e2e8f0',color:'#64748b',padding:'13px',borderRadius:11,fontWeight:600,fontSize:14},}, "Cancel"))));
+if(editing)return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "✏️"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.edit_profile))), React.createElement('div', { style: {padding:'0 16px 32px'},}, React.createElement('div', { className: "form-card",}, React.createElement('div', { className: "fg", style: {gap:14},}, React.createElement('div', { className: "ff",}, React.createElement('label', { className: "fl",}, t.display_name), React.createElement('input', { className: "fi", value: ef.name, onChange: e=>setEF(p=>({...p,name:e.target.value})),})), React.createElement(CtrySel, { value: ef.country, onChange: v=>setEF(p=>({...p,country:v})), label: t.country_,}), React.createElement('div', { className: "ff",}, React.createElement('label', { className: "fl",}, "Bio"), React.createElement('textarea', { className: "fta", value: ef.bio, onChange: e=>setEF(p=>({...p,bio:e.target.value})), placeholder: "Tell others about yourself..."   ,})), React.createElement('div', { className: "ff",}, React.createElement('label', { className: "fl",}, t.wa_number), React.createElement('input', { className: "fi", type: "tel", value: ef.wa, onChange: e=>setEF(p=>({...p,wa:e.target.value})),})),
+          React.createElement('div',{className:'ff'},
+            React.createElement('label',{className:'fl'},'Payout Details (MB Way / IBAN / PayPal)'),
+            React.createElement('input',{className:'fi',value:ef.payout_details||'',onChange:e=>setEF(p=>({...p,payout_details:e.target.value})),placeholder:'MB Way: +351... or IBAN: PT50...'}),
+            React.createElement('div',{style:{fontSize:11,color:'var(--text3)',marginTop:4}},'Only visible to AfroRoute admin for sending your payments')
+          )), React.createElement('button', { className: "btn-submit", style: {marginTop:16}, onClick: ()=>{onSaveProfile({...user,...ef});setEditing(false);},}, "Save Changes" ), React.createElement('button', { onClick: ()=>setEditing(false), style: {width:'100%',marginTop:8,background:'none',border:'1.5px solid #e2e8f0',color:'#64748b',padding:'13px',borderRadius:11,fontWeight:600,fontSize:14},}, "Cancel"))));
 return React.createElement('div', { className: "page",}, React.createElement('div', { style: {padding:'16px 16px 80px'},}
 
 , React.createElement('div', { className: "prof-hero",}
@@ -2394,6 +2399,16 @@ function AdminPage({t,user,sb,showToast}){
   const[tab,setTab]=React.useState('reports');
   const[reports,setReports]=React.useState([]);
   const[loading,setLoading]=React.useState(true);
+  const[transactions,setTransactions]=React.useState([]);
+  React.useEffect(()=>{
+    (async()=>{
+      try{
+        const r2=await fetch(SUPABASE_URL+'/rest/v1/transactions?select=id,amount_eur,platform_fee_eur,traveler_payout_eur,description,status,created_at,payout_status,sender_id,traveler_id,profiles!sender_id(name),profiles!traveler_id(name)&order=created_at.desc',
+          {headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+(localStorage.getItem('ar_tok')||SUPABASE_ANON_KEY)}});
+        setTransactions(r2.ok?await r2.json():[]);
+      }catch(e){setTransactions([]);}
+    })();
+  },[]);
   React.useEffect(()=>{
     (async()=>{
       try{
@@ -2408,7 +2423,7 @@ function AdminPage({t,user,sb,showToast}){
     React.createElement('div', { className: "page",}, React.createElement('div', { style: {padding:'0 16px 72px'},}
       , React.createElement('div', { style: {padding:'20px 0 14px'},}, React.createElement('h1', { style: {fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:20,color:'var(--navy)',marginBottom:2},}, "⚙️ Admin" ), React.createElement('p', { style: {fontSize:12,color:'var(--text4)',margin:0},}, "Moderation · AfroRoute"  ))
       , React.createElement('div', { style: {display:'flex',gap:8,marginBottom:14},}
-        , [['reports','📋 Reports'],['stats','📊 Stats']].map(([k,l])=>(
+        , [['reports','📋 Reports'],['payouts','💰 Payouts'],['stats','📊 Stats']].map(([k,l])=>(
           React.createElement('button', { key: k, onClick: ()=>setTab(k), style: {padding:'8px 14px',borderRadius:8,border:'1px solid var(--bord)',background:tab===k?'#fff':'var(--surf2)',fontWeight:700,fontSize:12,color:tab===k?'var(--navy)':'var(--text4)',cursor:'pointer'},}, l)
         ))
       )
@@ -2427,7 +2442,81 @@ function AdminPage({t,user,sb,showToast}){
           )
         ))
       )
-      , !loading&&tab==='stats'&&(
+      , !loading&&tab==='payouts'&&React.createElement('div',null,
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:16}},
+          React.createElement('div',{style:{background:'#fff',borderRadius:12,border:'1px solid var(--bord)',padding:'14px',textAlign:'center'}},
+            React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:'var(--green)'}},
+              '€'+transactions.filter(t=>t.status==='paid').reduce((s,t)=>s+(t.platform_fee_eur||0),0).toFixed(2)
+            ),
+            React.createElement('div',{style:{fontSize:11,color:'var(--text3)',marginTop:3}},'Revenue Collected')
+          ),
+          React.createElement('div',{style:{background:'#fff',borderRadius:12,border:'1px solid var(--bord)',padding:'14px',textAlign:'center'}},
+            React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:'#f59e0b'}},
+              transactions.filter(t=>t.status==='paid'&&t.payout_status!=='paid_out').length
+            ),
+            React.createElement('div',{style:{fontSize:11,color:'var(--text3)',marginTop:3}},'Pending Payouts')
+          ),
+          React.createElement('div',{style:{background:'#fff',borderRadius:12,border:'1px solid var(--bord)',padding:'14px',textAlign:'center'}},
+            React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:'var(--navy)'}},
+              transactions.length
+            ),
+            React.createElement('div',{style:{fontSize:11,color:'var(--text3)',marginTop:3}},'Total Transactions')
+          )
+        ),
+        transactions.length===0
+          ?React.createElement('div',{style:{textAlign:'center',padding:32,color:'var(--text3)',fontSize:14}},'No transactions yet')
+          :transactions.map(tx=>React.createElement('div',{key:tx.id,style:{background:'#fff',borderRadius:12,border:'1px solid var(--bord)',padding:'14px 16px',marginBottom:10}},
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}},
+              React.createElement('div',null,
+                React.createElement('div',{style:{fontWeight:700,fontSize:14,color:'var(--navy)'}},tx.description||'Shipment'),
+                React.createElement('div',{style:{fontSize:12,color:'var(--text3)',marginTop:2}},
+                  (tx.profiles&&tx.profiles.name||'Sender')+' → '+(tx.traveler_name||'Traveler')
+                )
+              ),
+              React.createElement('div',{style:{textAlign:'right'}},
+                React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:16,color:'var(--navy)'}},'€'+(tx.amount_eur||0).toFixed(2)),
+                React.createElement('span',{style:{
+                  background:tx.status==='paid'?'var(--spale)':tx.status==='pending'?'var(--wpale)':'var(--dpale)',
+                  color:tx.status==='paid'?'var(--succ)':tx.status==='pending'?'var(--warn)':'var(--danger)',
+                  fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20
+                }},tx.status==='paid'?'✓ Paid':tx.status==='pending'?'⏳ Pending':'❌ Failed')
+              )
+            ),
+            tx.status==='paid'&&React.createElement('div',{style:{background:'var(--surf2)',borderRadius:10,padding:'10px 12px',fontSize:12}},
+              React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:4}},
+                React.createElement('span',{style:{color:'var(--text3)'}},'AfroRoute fee'),
+                React.createElement('span',{style:{fontWeight:700,color:'var(--green)'}},'+ €'+(tx.platform_fee_eur||0).toFixed(2))
+              ),
+              React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:8}},
+                React.createElement('span',{style:{color:'var(--text3)'}},'Traveler payout'),
+                React.createElement('span',{style:{fontWeight:700,color:'var(--navy)'}},'€'+(tx.traveler_payout_eur||0).toFixed(2))
+              ),
+              React.createElement('div',{style:{display:'flex',gap:8}},
+                React.createElement('span',{style:{
+                  background:tx.payout_status==='paid_out'?'var(--spale)':'var(--wpale)',
+                  color:tx.payout_status==='paid_out'?'var(--succ)':'var(--warn)',
+                  fontSize:11,fontWeight:700,padding:'3px 10px',borderRadius:20
+                }},tx.payout_status==='paid_out'?'✓ Paid Out':'⏳ Awaiting Payout'),
+                tx.payout_status!=='paid_out'&&React.createElement('button',{
+                  onClick:async()=>{
+                    await fetch(SUPABASE_URL+'/rest/v1/transactions?id=eq.'+tx.id,{
+                      method:'PATCH',
+                      headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+(localStorage.getItem('ar_tok')||SUPABASE_ANON_KEY),'Prefer':'return=minimal'},
+                      body:JSON.stringify({payout_status:'paid_out',paid_out_at:new Date().toISOString()})
+                    });
+                    setTransactions(prev=>prev.map(t=>t.id===tx.id?{...t,payout_status:'paid_out'}:t));
+                    showToast('Marked as paid out ✓');
+                  },
+                  style:{background:'var(--navy)',color:'#fff',border:'none',padding:'4px 12px',borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer'}
+                },'Mark Paid Out ✓')
+              )
+            ),
+            React.createElement('div',{style:{fontSize:11,color:'var(--text4)',marginTop:6}},
+              tx.created_at?new Date(tx.created_at).toLocaleDateString('pt-PT',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):''
+            )
+          ))
+      ),
+      !loading&&tab==='stats'&&(
         React.createElement('div', { style: {display:'grid',gridTemplateColumns:'1fr 1fr',gap:12},}
           , [['📋',reports.length,'Total Reports'],['🚨',reports.filter(r=>(r.reason||'').includes('fraud')).length,'Fraud Reports']].map(([icon,val,label])=>(
             React.createElement('div', { key: label, style: {background:'#fff',borderRadius:12,border:'1px solid var(--bord)',padding:16,textAlign:'center'},}
@@ -2788,6 +2877,183 @@ function RateAfroRoutePrompt({sb,user,agreementId,showToast,t,onDone}){
   );
 }
 
+
+// ── Payment Link Modal ──────────────────────────────────────
+function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
+  const[amount,setAmount]=React.useState('');
+  const[desc,setDesc]=React.useState('');
+  const[loading,setLoading]=React.useState(false);
+  const[link,setLink]=React.useState(null);
+  const isEN=_optionalChain([t,'optionalAccess',_=>_.lang])==='English';
+  const isFR=_optionalChain([t,'optionalAccess',_=>_.lang])==='Français';
+
+  const generate=async()=>{
+    if(!amount||isNaN(parseFloat(amount))||parseFloat(amount)<1){
+      showToast(isEN?'Enter a valid amount':isFR?'Montant invalide':'Valor inválido','error');
+      return;
+    }
+    setLoading(true);
+    try{
+      const r=await fetch('/api/create-payment-link',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          amount:Math.round(parseFloat(amount)*100), // cents
+          description:desc||('AfroRoute: '+(convo&&convo.listing||'Shipment')),
+          conversationId:convo&&convo.id,
+          senderId:_optionalChain([user,'optionalAccess',_=>_.id]),
+          travelerId:convo&&convo.other_user_id,
+          travelerName:convo&&convo.user,
+          senderName:_optionalChain([user,'optionalAccess',_=>_.name]),
+        })
+      });
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.error||'Failed to create payment link');
+      setLink(d.url);
+      // Save transaction to Supabase
+      await sb.insert('transactions',{
+        conversation_id:convo&&convo.id,
+        sender_id:_optionalChain([user,'optionalAccess',_=>_.id]),
+        traveler_id:convo&&convo.other_user_id,
+        amount_cents:Math.round(parseFloat(amount)*100),
+        amount_eur:parseFloat(amount),
+        platform_fee_eur:parseFloat((parseFloat(amount)*0.10).toFixed(2)),
+        traveler_payout_eur:parseFloat((parseFloat(amount)*0.90).toFixed(2)),
+        description:desc||'AfroRoute Shipment',
+        payment_link:d.url,
+        stripe_price_id:d.price_id||null,
+        status:'pending',
+        created_at:new Date().toISOString()
+      }).catch(()=>{});
+      showToast(isEN?'Payment link created! 💳':isFR?'Lien créé ! 💳':'Link criado! 💳');
+    }catch(e){
+      showToast(e.message||'Error creating link','error');
+    }
+    setLoading(false);
+  };
+
+  const copyLink=()=>{
+    navigator.clipboard&&navigator.clipboard.writeText(link).then(()=>showToast(isEN?'Link copied!':isFR?'Lien copié !':'Link copiado!'));
+  };
+
+  const sendToChat=()=>{
+    onSent&&onSent(link,amount);
+    onClose();
+  };
+
+  return React.createElement('div',{className:'modal-ov',onClick:onClose},
+    React.createElement('div',{className:'modal',onClick:e=>e.stopPropagation(),style:{padding:0,overflow:'hidden',borderRadius:20}},
+      // Header
+      React.createElement('div',{style:{background:'linear-gradient(135deg,#0A2540,#0d6e5b)',padding:'20px 20px 18px'}},
+        React.createElement('div',{style:{width:40,height:4,background:'rgba(255,255,255,.3)',borderRadius:4,margin:'0 auto 16px'}}),
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10}},
+          React.createElement('div',{style:{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}},'💳'),
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:17,color:'#fff'}},
+              isEN?'Create Payment Link':isFR?'Créer un lien de paiement':'Criar Link de Pagamento'
+            ),
+            React.createElement('div',{style:{fontSize:12,color:'rgba(255,255,255,.6)',marginTop:1}},
+              isEN?'Secure payment via Stripe':isFR?'Paiement sécurisé via Stripe':'Pagamento seguro via Stripe'
+            )
+          )
+        )
+      ),
+      // Body
+      React.createElement('div',{style:{padding:'20px 16px 16px'}},
+        !link?React.createElement('div',null,
+          // Fee info box
+          React.createElement('div',{style:{background:'var(--gpale)',border:'1px solid var(--gborder)',borderRadius:12,padding:'12px 14px',marginBottom:16,fontSize:13,color:'var(--text2)',lineHeight:1.7}},
+            React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',marginBottom:4}},
+              isEN?'How it works':isFR?'Comment ça marche':'Como funciona'
+            ),
+            isEN?'Sender pays the agreed amount. AfroRoute keeps 10% as platform fee. You receive 90% after delivery confirmation.':
+            isFR?'L\'expéditeur paie le montant convenu. AfroRoute garde 10% de frais. Vous recevez 90% après confirmation.':
+            'O remetente paga o valor acordado. A AfroRoute fica com 10% de taxa. O viajante recebe 90% após confirmação da entrega.'
+          ),
+          // Amount input
+          React.createElement('div',{className:'ff',style:{marginBottom:14}},
+            React.createElement('label',{className:'fl'},
+              isEN?'Agreed Amount (€)':isFR?'Montant convenu (€)':'Valor Acordado (€)'
+            ),
+            React.createElement('div',{className:'price-wrap',style:{marginTop:6}},
+              React.createElement('span',{className:'cur'},'€'),
+              React.createElement('input',{
+                className:'fi',type:'number',min:'1',step:'0.01',
+                value:amount,
+                onChange:e=>setAmount(e.target.value),
+                placeholder:'50.00',
+                style:{paddingLeft:28},
+                autoFocus:true
+              })
+            )
+          ),
+          // Fee breakdown
+          amount&&!isNaN(parseFloat(amount))&&parseFloat(amount)>0&&React.createElement('div',{style:{background:'var(--surf2)',borderRadius:10,padding:'12px 14px',marginBottom:14,fontSize:13}},
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:4}},
+              React.createElement('span',{style:{color:'var(--text3)'}},(isEN?'Total paid by sender':isFR?'Total payé par l\'expéditeur':'Total pago pelo remetente')),
+              React.createElement('span',{style:{fontWeight:700,color:'var(--navy)'}},'€'+parseFloat(amount).toFixed(2))
+            ),
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:4}},
+              React.createElement('span',{style:{color:'var(--text3)'}},(isEN?'AfroRoute fee (10%)':isFR?'Frais AfroRoute (10%)':'Taxa AfroRoute (10%)')),
+              React.createElement('span',{style:{fontWeight:700,color:'var(--danger)'}},'-€'+(parseFloat(amount)*0.10).toFixed(2))
+            ),
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',paddingTop:8,borderTop:'1px solid var(--bord)'}},
+              React.createElement('span',{style:{fontWeight:700,color:'var(--navy)'}},(isEN?'Traveler receives':isFR?'Le voyageur reçoit':'Viajante recebe')),
+              React.createElement('span',{style:{fontWeight:800,color:'var(--green)',fontSize:16}},'€'+(parseFloat(amount)*0.90).toFixed(2))
+            )
+          ),
+          // Description
+          React.createElement('div',{className:'ff',style:{marginBottom:16}},
+            React.createElement('label',{className:'fl'},
+              isEN?'Description (optional)':isFR?'Description (optionnel)':'Descrição (opcional)'
+            ),
+            React.createElement('input',{
+              className:'fi',style:{marginTop:6},
+              value:desc,
+              onChange:e=>setDesc(e.target.value),
+              placeholder:isEN?'e.g. 10kg clothing Lisbon-Luanda':isFR?'ex. 10kg vêtements Lisbonne-Luanda':'ex. 10kg roupa Lisboa-Luanda'
+            })
+          ),
+          // Buttons
+          React.createElement('div',{style:{display:'flex',gap:10}},
+            React.createElement('button',{onClick:onClose,style:{flex:1,padding:'13px',borderRadius:11,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}},
+              isEN?'Cancel':isFR?'Annuler':'Cancelar'
+            ),
+            React.createElement('button',{onClick:generate,disabled:loading||!amount,style:{flex:2,padding:'13px',borderRadius:11,border:'none',background:'var(--green)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif",opacity:(loading||!amount)?0.6:1}},
+              loading?'...':(isEN?'Generate Link 💳':isFR?'Générer →':'Gerar Link 💳')
+            )
+          )
+        ):React.createElement('div',null,
+          // Success - show link
+          React.createElement('div',{style:{textAlign:'center',marginBottom:20}},
+            React.createElement('div',{style:{fontSize:48,marginBottom:8}},'✅'),
+            React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:16,color:'var(--navy)',marginBottom:4}},
+              isEN?'Payment link ready!':isFR?'Lien de paiement prêt !':'Link de pagamento pronto!'
+            ),
+            React.createElement('div',{style:{fontSize:13,color:'var(--text3)'}},
+              isEN?'Share this link with the sender':isFR?'Partagez ce lien avec l\'expéditeur':'Partilha este link com o remetente'
+            )
+          ),
+          // Link display
+          React.createElement('div',{style:{background:'var(--surf2)',border:'1px solid var(--bord)',borderRadius:12,padding:'12px 14px',marginBottom:16,wordBreak:'break-all',fontSize:12,color:'var(--green)',fontWeight:600}},link),
+          // Action buttons
+          React.createElement('div',{style:{display:'flex',gap:10,marginBottom:10}},
+            React.createElement('button',{onClick:copyLink,style:{flex:1,padding:'12px',borderRadius:10,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:13,cursor:'pointer',color:'var(--text2)',display:'flex',alignItems:'center',justifyContent:'center',gap:6}},
+              '📋 '+(isEN?'Copy':isFR?'Copier':'Copiar')
+            ),
+            React.createElement('button',{onClick:sendToChat,style:{flex:2,padding:'12px',borderRadius:10,border:'none',background:'var(--navy)',color:'#fff',fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:"'Sora',sans-serif",display:'flex',alignItems:'center',justifyContent:'center',gap:6}},
+              '💬 '+(isEN?'Send in Chat':isFR?'Envoyer dans le chat':'Enviar no Chat')
+            )
+          ),
+          React.createElement('button',{onClick:onClose,style:{width:'100%',padding:'11px',borderRadius:10,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:13,cursor:'pointer',color:'var(--text3)'}},
+            isEN?'Close':isFR?'Fermer':'Fechar'
+          )
+        )
+      )
+    )
+  );
+}
+
 function ReviewModal({reviewer,reviewee,agreementId,sb,showToast,onClose,onSubmit,t}){
   const[rating,setRating]=React.useState(0);
   const[hovered,setHovered]=React.useState(0);
@@ -2907,6 +3173,7 @@ const[modal,setModal]=useState(null);
 const[phoneModal,setPhoneModal]=useState(false);
 const[phoneVerified,setPhoneVerified]=useState(false);
 const[reviewModal,setReviewModal]=useState(null);
+const[paymentModal,setPaymentModal]=useState(false);
 const[savedIds,setSaved]=useState(new Set());
 const[detail,setDetail]=useState(null);
 const[trips,setTrips]=useState([]);
@@ -3138,7 +3405,7 @@ const handleLogout=async()=>{
 
 const handleSaveProfile=async(updated)=>{
   try{
-    await sb.upsertProfile({id:user.id,name:updated.name,country:updated.country,whatsapp:updated.wa});
+    await sb.upsertProfile({id:user.id,name:updated.name,country:updated.country,whatsapp:updated.wa,payout_details:updated.payout_details||null});
     setUser(prev=>({...prev,...updated}));showToast(t.toast_profile_saved);
   }catch(e){showToast('Failed to save','error');}
 };
@@ -3332,7 +3599,26 @@ case 'post-shipment':return React.createElement('div', { className: "page",}, Re
     )
   );
 })():React.createElement(PostShipForm, { t: t, onSubmit: handlePostShip,})));
-case 'messages':return React.createElement('div', { className: "page", style: {padding:0},}, !loggedIn?React.createElement('div', { style: {padding:'0 16px'},}, React.createElement(PW, { t: t, type: "msg", onSub: ()=>go('auth'),})):!subscribed?React.createElement('div', { style: {padding:'0 16px'},}, React.createElement(PW, { t: t, type: "msg", onSub: ()=>go('pricing'),})):React.createElement('div', { className: "msg-layout",}, React.createElement('div', { className: "conv-sb",}, convos.map(c=>React.createElement('div', { key: c.id, className: `conv-item ${_optionalChain([activeConvo, 'optionalAccess', _105 => _105.id])===c.id?'active':''}`, onClick: ()=>setConvo(c),}, React.createElement('div', { style: {position:'relative'},}, React.createElement(Av, { name: c.user, size: 38,}), c.unread>0&&React.createElement('span', { className: "cunread",}, c.unread)), React.createElement('div', { className: "conv-name",}, c.user.split(' ')[0])))), React.createElement('div', { className: "chat-area",}, activeConvo?React.createElement(React.Fragment, null, React.createElement('div', { className: "chat-hd",}, React.createElement(Av, { name: activeConvo.user, size: 36,}), React.createElement('div', { style: {flex:1,minWidth:0},}, React.createElement('div', { className: "chat-hn",}, activeConvo.user), React.createElement('div', { style: {display:'flex',gap:6,marginTop:2,flexWrap:'wrap'},}, React.createElement('div', { className: "chat-hs",}, "● " , t.online), activeConvo.listing&&React.createElement('div', { className: "chat-hl",}, activeConvo.listing)))), React.createElement('div', { className: "chat-msgs",}, activeConvo.msgs.map((m,i)=>React.createElement('div', { key: i, className: `msg-row ${m.from}`,}, React.createElement('div', { className: `msg-b ${m.from}`,}, m.text, React.createElement('div', { className: `msg-time ${m.from}`,}, m.t)))), React.createElement('div', { ref: chatEnd,})), React.createElement('div', { className: "chat-ib",}, React.createElement('textarea', { className: "chat-inp", placeholder: t.type_msg, value: chatIn, onChange: e=>setChatIn(e.target.value), onKeyDown: e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}, rows: 1,}), React.createElement('button', { className: "btn-send", onClick: sendMsg,}, React.createElement('svg', { width: "14", height: "14", viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "2.5",}, React.createElement('line', { x1: "22", y1: "2", x2: "11", y2: "13",}), React.createElement('polygon', { points: "22 2 15 22 11 13 2 9 22 2"         ,})), t.send_btn))):React.createElement(Empty, { icon: "💬", title: t.inbox_empty, sub: t.inbox_empty_sub,}))));
+case 'messages':return React.createElement('div', { className: "page", style: {padding:0},}, !loggedIn?React.createElement('div', { style: {padding:'0 16px'},}, React.createElement(PW, { t: t, type: "msg", onSub: ()=>go('auth'),})):!subscribed?React.createElement('div', { style: {padding:'0 16px'},}, React.createElement(PW, { t: t, type: "msg", onSub: ()=>go('pricing'),})):React.createElement('div', { className: "msg-layout",}, React.createElement('div', { className: "conv-sb",}, convos.map(c=>React.createElement('div', { key: c.id, className: `conv-item ${_optionalChain([activeConvo, 'optionalAccess', _105 => _105.id])===c.id?'active':''}`, onClick: ()=>setConvo(c),}, React.createElement('div', { style: {position:'relative'},}, React.createElement(Av, { name: c.user, size: 38,}), c.unread>0&&React.createElement('span', { className: "cunread",}, c.unread)), React.createElement('div', { className: "conv-name",}, c.user.split(' ')[0])))), React.createElement('div', { className: "chat-area",}, activeConvo?React.createElement(React.Fragment, null, React.createElement('div', { className: "chat-hd",}, React.createElement(Av, { name: activeConvo.user, size: 36,}), React.createElement('div', { style: {flex:1,minWidth:0},}, React.createElement('div', { className: "chat-hn",}, activeConvo.user), React.createElement('div', { style: {display:'flex',gap:6,marginTop:2,flexWrap:'wrap'},}, React.createElement('div', { className: "chat-hs",}, "● " , t.online), activeConvo.listing&&React.createElement('div', { className: "chat-hl",}, activeConvo.listing)))), React.createElement('div', { className: "chat-msgs",}, activeConvo.msgs.map((m,i)=>React.createElement('div', { key: i, className: `msg-row ${m.from}`,},
+  m.isPayment
+  ?React.createElement('div',{style:{background:m.from==='me'?'linear-gradient(135deg,#0A2540,#1ABC9C)':'#fff',border:m.from==='me'?'none':'1.5px solid var(--green)',borderRadius:14,padding:'12px 14px',maxWidth:280,boxShadow:'0 2px 8px rgba(0,0,0,.1)'}},
+    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
+      React.createElement('span',{style:{fontSize:20}},'💳'),
+      React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:13,color:m.from==='me'?'#fff':'var(--navy)'}},'Payment Link')
+    ),
+    React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:m.from==='me'?'#fff':'var(--green)',marginBottom:8}},'€'+parseFloat(m.amount||0).toFixed(2)),
+    React.createElement('a',{href:m.paymentLink,target:'_blank',rel:'noopener noreferrer',style:{display:'block',background:m.from==='me'?'rgba(255,255,255,.2)':'var(--green)',color:'#fff',padding:'10px 14px',borderRadius:10,textAlign:'center',fontWeight:700,fontSize:13,textDecoration:'none',fontFamily:"'Sora',sans-serif"}},
+      t.lang==='en'?'Pay Now →':t.lang==='fr'?'Payer →':'Pagar Agora →'
+    ),
+    React.createElement('div',{style:{fontSize:10,color:m.from==='me'?'rgba(255,255,255,.5)':'var(--text4)',marginTop:6,textAlign:'right'}},m.t)
+  )
+  :React.createElement('div', { className: `msg-b ${m.from}`,}, m.text, React.createElement('div', { className: `msg-time ${m.from}`,}, m.t)))), React.createElement('div', { ref: chatEnd,})), React.createElement('div', { className: "chat-ib",}, 
+  React.createElement('button',{
+    onClick:()=>setPaymentModal(true),
+    title:'Create payment link',
+    style:{background:'none',border:'1.5px solid var(--bord)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'var(--text3)',fontSize:18,flexShrink:0,transition:'all .18s',display:'flex',alignItems:'center'},
+  },'💳'),
+  React.createElement('textarea', { className: "chat-inp", placeholder: t.type_msg, value: chatIn, onChange: e=>setChatIn(e.target.value), onKeyDown: e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}, rows: 1,}), React.createElement('button', { className: "btn-send", onClick: sendMsg,}, React.createElement('svg', { width: "14", height: "14", viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "2.5",}, React.createElement('line', { x1: "22", y1: "2", x2: "11", y2: "13",}), React.createElement('polygon', { points: "22 2 15 22 11 13 2 9 22 2"         ,})), t.send_btn))):React.createElement(Empty, { icon: "💬", title: t.inbox_empty, sub: t.inbox_empty_sub,}))));
 case 'pricing':return React.createElement(PricingPage, { go: go, lang: lang, onSubscribe: handleSubscribe,});
 case 'auth':return React.createElement('div', { className: "page", style: {display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:20},}, React.createElement(AuthPage, { t: t, onLogin: handleLogin, go: go,}));
 case 'profile':return !loggedIn?React.createElement('div', { className: "page", style: {padding:'16px'},}, React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),})):React.createElement('div', { className: "page",}, React.createElement(ProfilePage, { t: t, user: user, subscribed: subscribed, savedIds: savedIds, trips: trips, ships: ships, onLogout: handleLogout, onSubscribe: ()=>go('pricing'), go: go, onSaveProfile: handleSaveProfile, setUser: setUser, showToast: showToast, sb: sb,}));
@@ -3390,6 +3676,24 @@ return React.createElement('div', null, toast&&React.createElement('div', { key:
       onClose: ()=>setReviewModal(null),
       onSubmit: (rating)=>{
         setReviewModal(null);
+      }
+    }),
+    paymentModal&&activeConvo&&React.createElement(PaymentLinkModal, {
+      convo: activeConvo,
+      user: user,
+      sb: sb,
+      showToast: showToast,
+      t: t,
+      onClose: ()=>setPaymentModal(false),
+      onSent: (link,amount)=>{
+        const msg='💳 Payment link for €'+parseFloat(amount).toFixed(2)+': '+link;
+        setChatIn('');
+        const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+        const nm={from:'me',text:msg,t:now,isPayment:true,paymentLink:link,amount:amount};
+        setConvos(p=>p.map(c=>c.id===activeConvo.id?{...c,msgs:[...c.msgs,nm],last:msg,lastTime:'now'}:c));
+        setConvo(p=>({...p,msgs:[...p.msgs,nm]}));
+        if(user)sb.insert('messages',{conversation_id:activeConvo.id,sender_id:user.id,content:msg,is_payment:true,payment_link:link}).catch(()=>{});
+        showToast(t.lang==='en'?'Payment link sent in chat!':t.lang==='fr'?'Lien envoyé dans le chat !':'Link de pagamento enviado no chat!');
       }
     }), 
     React.createElement(NavBar, null), React.createElement('div', { className: "content",}, renderPage()), React.createElement(BotNav, null));}
