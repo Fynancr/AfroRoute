@@ -1922,7 +1922,7 @@ return React.createElement('div', { className: "page",}, React.createElement('di
 }, style: {background:'linear-gradient(135deg,#0A2540,#1ABC9C)',border:'none',color:'#fff',padding:'9px 16px',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:"'Sora',sans-serif"},}, t.manage_billing, " →" )
 )
 , React.createElement('div', { style: {fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:13,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:10,marginTop:4},}, "Account")
-, [{i:'✏️',bg:'rgba(26,188,156,.1)',l:t.edit_profile,s:'Update your information',a:()=>setEditing(true)},{i:'✈️',bg:'rgba(10,37,64,.08)',l:t.my_trips,s:trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _18 => _18.id])).length+' posted',a:()=>go('my-trips')},{i:'📦',bg:'rgba(26,188,156,.1)',l:t.my_requests,s:ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _19 => _19.id])).length+' posted',a:()=>go('my-requests')},{i:'📋',bg:'rgba(26,188,156,.08)',l:'Os meus Acordos',s:'Ver acordos assinados',a:()=>go('agreements')},{i:'⭐',bg:'rgba(245,158,11,.1)',l:t.saved_listings,s:savedIds.size+' saved',a:()=>go('saved')},{i:'💬',bg:'rgba(10,37,64,.08)',l:t.nav_msgs,s:'Your conversations',a:()=>go('messages')},{i:'💎',bg:'rgba(26,188,156,.1)',l:t.subscription_status,s:subscribed?'Active — €9.99/mo':'Not subscribed',a:()=>go('pricing')},{i:'⚙️',bg:'rgba(100,116,139,.1)',l:'Settings',s:'Account and preferences',a:()=>go('settings')},...(_optionalChain([user, 'optionalAccess', _20 => _20.email])==='alcino.manuel86@gmail.com'?[{i:'🛡️',bg:'rgba(245,158,11,.1)',l:'Moderation Panel',s:'Admin access',a:()=>go('admin')}]:[])].map(item=>React.createElement('button', { key: item.l, className: "mrow", onClick: item.a,}, React.createElement('div', { className: "mrow-icon", style: {background:item.bg},}, item.i), React.createElement('div', { style: {flex:1,textAlign:'left'},}, React.createElement('div', { className: "mrow-t",}, item.l), React.createElement('div', { className: "mrow-s",}, item.s)), React.createElement('span', { className: "mrow-arr",}, "›")))
+, [{i:'✏️',bg:'rgba(26,188,156,.1)',l:t.edit_profile,s:'Update your information',a:()=>setEditing(true)},{i:'✈️',bg:'rgba(10,37,64,.08)',l:t.my_trips,s:trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _18 => _18.id])).length+' posted',a:()=>go('my-trips')},{i:'📦',bg:'rgba(26,188,156,.1)',l:t.my_requests,s:ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _19 => _19.id])).length+' posted',a:()=>go('my-requests')},{i:'📋',bg:'rgba(26,188,156,.08)',l:'Os meus Acordos',s:'Ver acordos assinados',a:()=>go('agreements')},{i:'⭐',bg:'rgba(245,158,11,.1)',l:t.saved_listings,s:savedIds.size+' saved',a:()=>go('saved')},{i:'💬',bg:'rgba(10,37,64,.08)',l:t.nav_msgs,s:'Your conversations',a:()=>go('messages')},{i:'💎',bg:'rgba(26,188,156,.1)',l:t.subscription_status,s:subscribed?'Active — €9.99/mo':'Not subscribed',a:()=>go('pricing')},{i:'📱',bg:'rgba(26,188,156,.08)',l:phoneVerified?'Phone Verified ✅':'Verify Phone Number',s:phoneVerified?'Phone is verified':'Get a verified badge',a:()=>setPhoneModal(true)},{i:'⚙️',bg:'rgba(100,116,139,.1)',l:'Settings',s:'Account and preferences',a:()=>go('settings')},...(_optionalChain([user, 'optionalAccess', _20 => _20.email])==='alcino.manuel86@gmail.com'?[{i:'🛡️',bg:'rgba(245,158,11,.1)',l:'Moderation Panel',s:'Admin access',a:()=>go('admin')}]:[])].map(item=>React.createElement('button', { key: item.l, className: "mrow", onClick: item.a,}, React.createElement('div', { className: "mrow-icon", style: {background:item.bg},}, item.i), React.createElement('div', { style: {flex:1,textAlign:'left'},}, React.createElement('div', { className: "mrow-t",}, item.l), React.createElement('div', { className: "mrow-s",}, item.s)), React.createElement('span', { className: "mrow-arr",}, "›")))
 , React.createElement('button', { className: "mrow", style: {borderTop:'1.5px solid rgba(239,68,68,.15)'}, onClick: onLogout,}, React.createElement('div', { className: "mrow-icon", style: {background:'rgba(239,68,68,.08)'},}, "🚪"), React.createElement('div', { style: {flex:1,textAlign:'left'},}, React.createElement('div', { className: "mrow-t", style: {color:'#ef4444'},}, t.logout)))
 ));}
 // ══════════════════════════════════════════════════════════
@@ -2027,7 +2027,30 @@ const sb = {
       method:'PATCH',headers:{...this._headers(),'Prefer':'return=minimal'},body:JSON.stringify(fields)});
     if(!r.ok)throw new Error('Persona update failed');
     return fields;
-  }};
+  },
+
+  async sendPhoneOTP(phone){
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/otp`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},
+      body:JSON.stringify({phone,channel:'sms'})
+    });
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.msg||d.error_description||'Failed to send code');
+    return true;
+  },
+
+  async verifyPhoneOTP(phone,token){
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/verify`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':`Bearer ${sb._token||SUPABASE_ANON_KEY}`},
+      body:JSON.stringify({phone,token,type:'sms'})
+    });
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.msg||d.error_description||'Invalid code');
+    return d;
+  }
+};
 
 // ══════════════════════════════════════════════════════════
 // STRIPE HELPER
@@ -2545,6 +2568,117 @@ function MyAgreementsPage({user,sb,showToast,go}){
   );
 }
 
+
+function PhoneVerifyModal({user,sb,showToast,onVerified,onClose,t}){
+  const[phone,setPhone]=React.useState(_optionalChain([user,'optionalAccess',_=>_.wa])||'');
+  const[code,setCode]=React.useState('');
+  const[step,setStep]=React.useState('phone');
+  const[loading,setLoading]=React.useState(false);
+  const[error,setError]=React.useState('');
+
+  const isEN=_optionalChain([t,'optionalAccess',_=>_.lang])==='English';
+  const isFR=_optionalChain([t,'optionalAccess',_=>_.lang])==='Français';
+
+  const sendCode=async()=>{
+    if(!phone||phone.length<8){setError(isEN?'Enter a valid phone number':isFR?'Numéro invalide':'Número inválido');return;}
+    setLoading(true);setError('');
+    try{
+      await sb.sendPhoneOTP(phone);
+      setStep('code');
+      showToast(isEN?'Code sent! Check your SMS':isFR?'Code envoyé !':'Código enviado! Verifica o SMS');
+    }catch(e){
+      setError(e.message||'Failed to send code');
+    }
+    setLoading(false);
+  };
+
+  const verifyCode=async()=>{
+    if(code.length<6){setError(isEN?'Enter the 6-digit code':isFR?'Code à 6 chiffres':'Código de 6 dígitos');return;}
+    setLoading(true);setError('');
+    try{
+      await sb.verifyPhoneOTP(phone,code);
+      // Save phone to profile
+      await sb.upsertProfile({id:user.id,whatsapp:phone,phone_verified:true});
+      showToast(isEN?'Phone verified! ✅':isFR?'Téléphone vérifié ! ✅':'Telefone verificado! ✅');
+      onVerified(phone);
+    }catch(e){
+      setError(e.message||'Invalid code');
+    }
+    setLoading(false);
+  };
+
+  return React.createElement('div',{className:'modal-ov',onClick:onClose},
+    React.createElement('div',{className:'modal',onClick:e=>e.stopPropagation(),style:{padding:0,overflow:'hidden',borderRadius:20}},
+      React.createElement('div',{style:{background:'linear-gradient(135deg,#0A2540,#0d6e5b)',padding:'20px 20px 18px'}},
+        React.createElement('div',{style:{width:40,height:4,background:'rgba(255,255,255,.3)',borderRadius:4,margin:'0 auto 16px'}}),
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10}},
+          React.createElement('div',{style:{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}},'📱'),
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:17,color:'#fff'}},
+              isEN?'Verify Phone Number':isFR?'Vérifier le téléphone':'Verificar Número de Telefone'
+            ),
+            React.createElement('div',{style:{fontSize:12,color:'rgba(255,255,255,.6)',marginTop:1}},
+              isEN?'Get a verified badge on your profile':isFR?'Obtenez un badge vérifié':'Receba um selo verificado no perfil'
+            )
+          )
+        )
+      ),
+      React.createElement('div',{style:{padding:'20px 16px 16px'}},
+        step==='phone'?React.createElement('div',null,
+          React.createElement('div',{style:{fontSize:13,color:'var(--text3)',marginBottom:14,lineHeight:1.6}},
+            isEN?'Enter your phone number with country code (e.g. +351912345678)':
+            isFR?'Entrez votre numéro avec indicatif pays (ex. +33612345678)':
+            'Introduz o teu número com indicativo do país (ex. +351912345678)'
+          ),
+          React.createElement('input',{
+            className:'fi',type:'tel',
+            value:phone,
+            onChange:e=>setPhone(e.target.value),
+            placeholder:'+351912345678',
+            style:{fontSize:16,letterSpacing:1},
+            autoFocus:true,
+            onKeyDown:e=>e.key==='Enter'&&sendCode()
+          }),
+          error&&React.createElement('div',{className:'ferr',style:{marginTop:8}},'⚠ ',error),
+          React.createElement('div',{style:{display:'flex',gap:10,marginTop:14}},
+            React.createElement('button',{onClick:onClose,style:{flex:1,padding:'13px',borderRadius:11,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}},
+              isEN?'Cancel':isFR?'Annuler':'Cancelar'
+            ),
+            React.createElement('button',{onClick:sendCode,disabled:loading,style:{flex:2,padding:'13px',borderRadius:11,border:'none',background:'var(--green)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif",opacity:loading?0.6:1}},
+              loading?'...':(isEN?'Send Code →':isFR?'Envoyer →':'Enviar Código →')
+            )
+          )
+        ):React.createElement('div',null,
+          React.createElement('div',{style:{background:'var(--gpale)',border:'1px solid var(--gborder)',borderRadius:12,padding:'12px 14px',marginBottom:14,fontSize:13,color:'var(--text2)',lineHeight:1.6}},
+            '✉️ ',isEN?`Code sent to ${phone}`:isFR?`Code envoyé au ${phone}`:`Código enviado para ${phone}`
+          ),
+          React.createElement('input',{
+            className:'fi',type:'text',inputMode:'numeric',maxLength:6,
+            value:code,
+            onChange:e=>setCode(e.target.value.replace(/\D/g,'')),
+            placeholder:'000000',
+            style:{fontSize:24,textAlign:'center',letterSpacing:8,fontWeight:700},
+            autoFocus:true,
+            onKeyDown:e=>e.key==='Enter'&&verifyCode()
+          }),
+          error&&React.createElement('div',{className:'ferr',style:{marginTop:8}},'⚠ ',error),
+          React.createElement('div',{style:{display:'flex',gap:10,marginTop:14}},
+            React.createElement('button',{onClick:()=>{setStep('phone');setCode('');setError('');},style:{flex:1,padding:'13px',borderRadius:11,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}},
+              '← '+(isEN?'Back':isFR?'Retour':'Voltar')
+            ),
+            React.createElement('button',{onClick:verifyCode,disabled:loading||code.length<6,style:{flex:2,padding:'13px',borderRadius:11,border:'none',background:'var(--green)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif",opacity:(loading||code.length<6)?0.6:1}},
+              loading?'...':(isEN?'Verify ✅':isFR?'Vérifier ✅':'Verificar ✅')
+            )
+          ),
+          React.createElement('button',{onClick:sendCode,disabled:loading,style:{width:'100%',marginTop:10,background:'none',border:'none',color:'var(--green)',fontWeight:600,fontSize:13,cursor:'pointer'}},
+            isEN?'Resend code':isFR?'Renvoyer le code':'Reenviar código'
+          )
+        )
+      )
+    )
+  );
+}
+
 function App(){
 const[lang,setLang]=useState('pt');
 const[page,setPage]=useState('home');
@@ -2554,6 +2688,8 @@ const[user,setUser]=useState(null);
 const[appLoading,setAppLoading]=useState(true);
 const[toast,setToast]=useState(null);
 const[modal,setModal]=useState(null);
+const[phoneModal,setPhoneModal]=useState(false);
+const[phoneVerified,setPhoneVerified]=useState(false);
 const[savedIds,setSaved]=useState(new Set());
 const[detail,setDetail]=useState(null);
 const[trips,setTrips]=useState([]);
@@ -2752,8 +2888,8 @@ const handleLogin=async(formData)=>{
       try{
         const profile=await sb.getProfile(formData.id);
         const isSub=_optionalChain([profile, 'optionalAccess', _86 => _86.is_subscribed])||localStorage.getItem('ar_sub')==='1'||false;
-        setUser({id:formData.id,email:formData.email,name:_optionalChain([profile, 'optionalAccess', _87 => _87.name])||formData.name||formData.email.split('@')[0],country:_optionalChain([profile, 'optionalAccess', _88 => _88.country])||'',wa:_optionalChain([profile, 'optionalAccess', _89 => _89.whatsapp])||'',isSubscribed:isSub,avatarUrl:(_optionalChain([profile,'optionalAccess',_=>_.avatar_url])||loginAvatar),isVerifiedTraveler:_optionalChain([profile, 'optionalAccess', _90 => _90.is_verified_traveler])||false,personaStatus:_optionalChain([profile, 'optionalAccess', _91 => _91.persona_status])||'not_started'});
-        setLI(true);setSub(isSub);loadConversations(formData.id);loadListings(true);
+        setUser({id:formData.id,email:formData.email,name:_optionalChain([profile, 'optionalAccess', _87 => _87.name])||formData.name||formData.email.split('@')[0],country:_optionalChain([profile, 'optionalAccess', _88 => _88.country])||'',wa:_optionalChain([profile, 'optionalAccess', _89 => _89.whatsapp])||'',isSubscribed:isSub,avatarUrl:(_optionalChain([profile,'optionalAccess',_=>_.avatar_url])||loginAvatar),isVerifiedTraveler:_optionalChain([profile, 'optionalAccess', _90 => _90.is_verified_traveler]),phoneVerified:_optionalChain([profile,'optionalAccess',_=>_.phone_verified])||false||false,personaStatus:_optionalChain([profile, 'optionalAccess', _91 => _91.persona_status])||'not_started'});
+        setLI(true);setSub(isSub);setPhoneVerified(_optionalChain([profile,'optionalAccess',_=>_.phone_verified])||false);loadConversations(formData.id);loadListings(true);
         showToast('Welcome back, '+(_optionalChain([profile, 'optionalAccess', _92 => _92.name])||formData.email.split('@')[0]).split(' ')[0]+'! 👋');go('home');
       }catch(e){
         setUser({id:formData.id,email:formData.email,name:formData.name||formData.email.split('@')[0],country:'',wa:'',isSubscribed:false,isVerifiedTraveler:false,personaStatus:'not_started'});
@@ -3012,7 +3148,17 @@ return React.createElement('div', null, toast&&React.createElement('div', { key:
   }
   showToast(t.toast_reported);
   setModal(null);
-},}):null, React.createElement(NavBar, null), React.createElement('div', { className: "content",}, renderPage()), React.createElement(BotNav, null));}
+},}):null, 
+    phoneModal&&React.createElement(PhoneVerifyModal, { 
+      user: user, sb: sb, showToast: showToast, t: t,
+      onClose: ()=>setPhoneModal(false),
+      onVerified: (phone)=>{
+        setPhoneVerified(true);
+        setUser(prev=>({...prev,wa:phone,phoneVerified:true}));
+        setPhoneModal(false);
+      }
+    }), 
+    React.createElement(NavBar, null), React.createElement('div', { className: "content",}, renderPage()), React.createElement(BotNav, null));}
 
 
 const PAGE_COPY = {
