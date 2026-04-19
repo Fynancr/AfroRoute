@@ -1887,15 +1887,16 @@ return React.createElement('div', { className: "page",}, React.createElement('di
   , React.createElement('div', { className: "prof-email",}, _optionalChain([user, 'optionalAccess', _16 => _16.email])||'your@email.com')
   , React.createElement('div', { style: {display:'flex',gap:6,justifyContent:'center',marginTop:10,flexWrap:'wrap',position:'relative',zIndex:1},}
     , subscribed&&React.createElement('span', { className: "bpro",}, "⚡ Pro" )
-    , React.createElement('span', { className: "bv",}, t.verified)
+    , _optionalChain([user,'optionalAccess',_=>_.is_verified_traveler])&&React.createElement('span', { className: "bv", style:{background:'rgba(26,188,156,.15)',border:'1px solid rgba(26,188,156,.4)',color:'#0e8f72'},}, "🪪 ID Verified" )
+    , phoneVerified&&React.createElement('span', { className: "bv", style:{background:'rgba(59,130,246,.1)',border:'1px solid rgba(59,130,246,.3)',color:'#1d4ed8'},}, "📱 Phone Verified" )
     , _optionalChain([user, 'optionalAccess', _17 => _17.verification_status])==='pending'&&React.createElement('span', { style: {background:'rgba(245,158,11,.15)',color:'#d97706',fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:20,border:'1px solid rgba(245,158,11,.3)'},}, "⏳ Pending Review"  )
   )
   , React.createElement('div', { style: {color:'rgba(255,255,255,.35)',fontSize:11,marginTop:8,position:'relative',zIndex:1},}, t.member_since, " April 2025"  )
 )
 
 , React.createElement('div', { className: "prof-stats",}
-  , React.createElement('div', { className: "pstat",}, React.createElement('div', { className: "pstat-n",}, "0"), React.createElement('div', { className: "pstat-l",}, t.trips_posted))
-  , React.createElement('div', { className: "pstat",}, React.createElement('div', { className: "pstat-n",}, "0"), React.createElement('div', { className: "pstat-l",}, t.ships_posted))
+  , React.createElement('div', { className: "pstat",}, React.createElement('div', { className: "pstat-n",}, trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user,'optionalAccess',_=>_.id])).length), React.createElement('div', { className: "pstat-l",}, t.trips_posted))
+  , React.createElement('div', { className: "pstat",}, React.createElement('div', { className: "pstat-n",}, ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user,'optionalAccess',_=>_.id])).length), React.createElement('div', { className: "pstat-l",}, t.ships_posted))
   , React.createElement('div', { className: "pstat",}, React.createElement('div', { className: "pstat-n",}, "—"), React.createElement('div', { className: "pstat-l",}, t.rating_placeholder))
 )
 
@@ -1923,7 +1924,12 @@ return React.createElement('div', { className: "page",}, React.createElement('di
 )
 , React.createElement('div', { style: {fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:13,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:10,marginTop:4},}, "Account")
 , [{i:'✏️',bg:'rgba(26,188,156,.1)',l:t.edit_profile,s:'Update your information',a:()=>setEditing(true)},{i:'✈️',bg:'rgba(10,37,64,.08)',l:t.my_trips,s:trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _18 => _18.id])).length+' posted',a:()=>go('my-trips')},{i:'📦',bg:'rgba(26,188,156,.1)',l:t.my_requests,s:ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _19 => _19.id])).length+' posted',a:()=>go('my-requests')},{i:'📋',bg:'rgba(26,188,156,.08)',l:'Os meus Acordos',s:'Ver acordos assinados',a:()=>go('agreements')},{i:'⭐',bg:'rgba(245,158,11,.1)',l:t.saved_listings,s:savedIds.size+' saved',a:()=>go('saved')},{i:'💬',bg:'rgba(10,37,64,.08)',l:t.nav_msgs,s:'Your conversations',a:()=>go('messages')},{i:'💎',bg:'rgba(26,188,156,.1)',l:t.subscription_status,s:subscribed?'Active — €9.99/mo':'Not subscribed',a:()=>go('pricing')},{i:'📱',bg:'rgba(26,188,156,.08)',l:phoneVerified?'Phone Verified ✅':'Verify Phone Number',s:phoneVerified?'Phone is verified':'Get a verified badge',a:()=>setPhoneModal(true)},{i:'⚙️',bg:'rgba(100,116,139,.1)',l:'Settings',s:'Account and preferences',a:()=>go('settings')},...(_optionalChain([user, 'optionalAccess', _20 => _20.email])==='alcino.manuel86@gmail.com'?[{i:'🛡️',bg:'rgba(245,158,11,.1)',l:'Moderation Panel',s:'Admin access',a:()=>go('admin')}]:[])].map(item=>React.createElement('button', { key: item.l, className: "mrow", onClick: item.a,}, React.createElement('div', { className: "mrow-icon", style: {background:item.bg},}, item.i), React.createElement('div', { style: {flex:1,textAlign:'left'},}, React.createElement('div', { className: "mrow-t",}, item.l), React.createElement('div', { className: "mrow-s",}, item.s)), React.createElement('span', { className: "mrow-arr",}, "›")))
-, React.createElement('button', { className: "mrow", style: {borderTop:'1.5px solid rgba(239,68,68,.15)'}, onClick: onLogout,}, React.createElement('div', { className: "mrow-icon", style: {background:'rgba(239,68,68,.08)'},}, "🚪"), React.createElement('div', { style: {flex:1,textAlign:'left'},}, React.createElement('div', { className: "mrow-t", style: {color:'#ef4444'},}, t.logout)))
+, React.createElement('div',{style:{marginTop:16,padding:'0 0 8px'}},
+    React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:13,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:10}},
+      t.lang==='English'?'My Reviews':t.lang==='Français'?'Mes avis':'As minhas Avaliações'
+    ),
+    React.createElement(ReviewsSection,{userId:_optionalChain([user,'optionalAccess',_=>_.id]),t:t})
+  ),React.createElement('button', { className: "mrow", style: {borderTop:'1.5px solid rgba(239,68,68,.15)'}, onClick: onLogout,}, React.createElement('div', { className: "mrow-icon", style: {background:'rgba(239,68,68,.08)'},}, "🚪"), React.createElement('div', { style: {flex:1,textAlign:'left'},}, React.createElement('div', { className: "mrow-t", style: {color:'#ef4444'},}, t.logout)))
 ));}
 // ══════════════════════════════════════════════════════════
 // SUPABASE CLIENT
@@ -2524,7 +2530,7 @@ function RefundPage({t,go}){
   );
 }
 
-function MyAgreementsPage({user,sb,showToast,go}){
+function MyAgreementsPage({user,sb,showToast,go,onReview,lang}){
   const[agreements,setAgreements]=React.useState([]);
   const[loading,setLoading]=React.useState(true);
   const STATUS_MAP={draft:{l:'Rascunho',c:'#64748b',bg:'rgba(100,116,139,.1)',i:'📝'},sender_signed:{l:'Aguarda revisão',c:'#f59e0b',bg:'rgba(245,158,11,.1)',i:'⏳'},traveler_rejected:{l:'Rejeitado',c:'#ef4444',bg:'rgba(239,68,68,.1)',i:'❌'},completed:{l:'Concluído',c:'#1ABC9C',bg:'rgba(26,188,156,.1)',i:'✅'}};
@@ -2560,10 +2566,20 @@ function MyAgreementsPage({user,sb,showToast,go}){
             )
             , (agr.items||[]).length>0&&React.createElement('div', { style: {background:'var(--surf2)',borderRadius:8,padding:'7px 10px',fontSize:12,color:'var(--text2)'},}, (agr.items||[]).slice(0,2).map((it,i)=>React.createElement('div', { key: i,}, "• " , it.quantity||1, "× " , it.description||'Item')), (agr.items||[]).length>2&&React.createElement('div', null, "+", (agr.items||[]).length-2, " mais" ))
             , agr._local&&React.createElement('div', { style: {marginTop:4,fontSize:11,color:'#f59e0b',fontWeight:600},}, "⚠ Rascunho local"  )
+            ,agr.status==='completed'&&React.createElement('button',{
+              onClick:(e)=>{e.stopPropagation();const otherName=isSender?agr.traveler_name:agr.sender_name;const otherId=isSender?agr.traveler_id:agr.sender_id;if(onReview)onReview({id:otherId,name:otherName},agr.id);},
+              style:{marginTop:8,width:'100%',background:'linear-gradient(135deg,#0A2540,#1ABC9C)',color:'#fff',border:'none',padding:'10px 14px',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:"'Sora',sans-serif",display:'flex',alignItems:'center',justifyContent:'center',gap:6}
+            },'⭐ '+(lang==='en'?'Leave a Review':lang==='fr'?'Laisser un avis':'Deixar Avaliação'))
           );
         })
       
-      , React.createElement('div', { style: {background:'var(--surf2)',border:'1px solid var(--bord)',borderRadius:11,padding:'12px 14px',fontSize:12,color:'var(--text3)',lineHeight:1.6},}, React.createElement('strong', { style: {color:'var(--navy)'},}, "Nota:"), " Guarde o ID do Acordo para referência em qualquer disputa."          )
+      , React.createElement('div', { style: {background:'var(--surf2)',border:'1px solid var(--bord)',borderRadius:11,padding:'12px 14px',fontSize:12,color:'var(--text3)',lineHeight:1.6},}, React.createElement(RateAfroRoutePrompt,{
+      sb:sb, user:user, t:t,
+      agreementId:agreements.filter(a=>a.status==='completed').length>0?agreements.filter(a=>a.status==='completed')[0].id:null,
+      showToast:showToast,
+      onDone:()=>{}
+    }),
+    React.createElement('strong', { style: {color:'var(--navy)'},}, "Nota:"), " Guarde o ID do Acordo para referência em qualquer disputa."          )
     ))
   );
 }
@@ -2679,6 +2695,206 @@ function PhoneVerifyModal({user,sb,showToast,onVerified,onClose,t}){
   );
 }
 
+
+
+// ── Fetch reviews for a user ──────────────────────────────
+async function fetchUserReviews(userId){
+  try{
+    const url=`${SUPABASE_URL}/rest/v1/reviews?reviewee_id=eq.${userId}&select=id,rating,comment,created_at,reviewer_id,profiles!reviewer_id(name,avatar_url)&order=created_at.desc`;
+    const r=await fetch(url,{headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':`Bearer ${SUPABASE_ANON_KEY}`}});
+    if(!r.ok)return[];
+    return r.json();
+  }catch(e){return[];}
+}
+
+function ReviewsSection({userId,t}){
+  const[reviews,setReviews]=React.useState([]);
+  const[loading,setLoading]=React.useState(true);
+  const isEN=_optionalChain([t,'optionalAccess',_=>_.lang])==='English';
+  const isFR=_optionalChain([t,'optionalAccess',_=>_.lang])==='Français';
+  React.useEffect(()=>{
+    if(!userId)return;
+    fetchUserReviews(userId).then(r=>{setReviews(r||[]);setLoading(false);});
+  },[userId]);
+  const avg=reviews.length>0?(reviews.reduce((s,r)=>s+r.rating,0)/reviews.length).toFixed(1):null;
+  if(loading)return React.createElement('div',{style:{padding:'12px 0',color:'var(--text4)',fontSize:13}},isEN?'Loading...':isFR?'Chargement...':'A carregar...');
+  if(reviews.length===0)return React.createElement('div',{style:{padding:'16px',background:'var(--surf2)',borderRadius:12,textAlign:'center',color:'var(--text4)',fontSize:13}},isEN?'No reviews yet':isFR?'Aucun avis encore':'Sem avaliações ainda');
+  return React.createElement('div',null,
+    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:16,padding:'14px 16px',background:'var(--surf2)',borderRadius:12,marginBottom:12}},
+      React.createElement('div',{style:{textAlign:'center',minWidth:60}},
+        React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:36,color:'var(--navy)',lineHeight:1}},avg),
+        React.createElement('div',{style:{color:'#f59e0b',fontSize:16,margin:'2px 0'}},'★'.repeat(Math.round(parseFloat(avg||0)))),
+        React.createElement('div',{style:{fontSize:11,color:'var(--text4)',fontWeight:600}},reviews.length+' '+(isEN?'reviews':isFR?'avis':'avaliações'))
+      ),
+      React.createElement('div',{style:{flex:1}},
+        [5,4,3,2,1].map(star=>{
+          const count=reviews.filter(r=>r.rating===star).length;
+          const pct=reviews.length>0?Math.round(count/reviews.length*100):0;
+          return React.createElement('div',{key:star,style:{display:'flex',alignItems:'center',gap:8,marginBottom:3}},
+            React.createElement('span',{style:{fontSize:11,color:'var(--text3)',width:8}},star),
+            React.createElement('span',{style:{color:'#f59e0b',fontSize:11}},'★'),
+            React.createElement('div',{style:{flex:1,height:6,background:'var(--bord)',borderRadius:99,overflow:'hidden'}},
+              React.createElement('div',{style:{width:pct+'%',height:'100%',background:'#f59e0b',borderRadius:99}})
+            ),
+            React.createElement('span',{style:{fontSize:11,color:'var(--text4)',width:20,textAlign:'right'}},count)
+          );
+        })
+      )
+    ),
+    reviews.map((rev,i)=>React.createElement('div',{key:rev.id||i,style:{background:'#fff',borderRadius:12,border:'1px solid var(--bord)',padding:'14px 16px',marginBottom:10,boxShadow:'0 1px 4px rgba(0,0,0,.04)'}},
+      React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10}},
+          React.createElement('div',{style:{width:34,height:34,borderRadius:'50%',background:'linear-gradient(135deg,var(--navy),var(--green))',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:13}},
+            ini(_optionalChain([rev,'optionalAccess',_=>_.profiles,'optionalAccess',_=>_.name])||'U')
+          ),
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontWeight:700,fontSize:13,color:'var(--navy)'}},_optionalChain([rev,'optionalAccess',_=>_.profiles,'optionalAccess',_=>_.name])||'User'),
+            React.createElement('div',{style:{color:'#f59e0b',fontSize:13}},'★'.repeat(rev.rating)+'☆'.repeat(5-rev.rating))
+          )
+        ),
+        React.createElement('div',{style:{fontSize:11,color:'var(--text4)'}},rev.created_at?new Date(rev.created_at).toLocaleDateString('pt-PT',{day:'numeric',month:'short',year:'numeric'}):'')
+      ),
+      rev.comment&&React.createElement('p',{style:{fontSize:13,color:'var(--text2)',lineHeight:1.65,margin:'8px 0 0',paddingTop:8,borderTop:'1px solid var(--bord)'}},'"'+rev.comment+'"')
+    ))
+  );
+}
+
+function RateAfroRoutePrompt({sb,user,agreementId,showToast,t,onDone}){
+  const[rating,setRating]=React.useState(0);
+  const[done,setDone]=React.useState(false);
+  const isEN=_optionalChain([t,'optionalAccess',_=>_.lang])==='English';
+  const isFR=_optionalChain([t,'optionalAccess',_=>_.lang])==='Français';
+  if(!agreementId)return null;
+  const submit=async(r)=>{
+    setRating(r);
+    try{await sb.insert('platform_ratings',{user_id:_optionalChain([user,'optionalAccess',_=>_.id]),agreement_id:agreementId,rating:r,created_at:new Date().toISOString()});}catch(e){}
+    setDone(true);
+    setTimeout(()=>onDone&&onDone(),1500);
+  };
+  if(done)return React.createElement('div',{style:{textAlign:'center',padding:'14px',background:'var(--gpale)',borderRadius:12,border:'1px solid var(--gborder)',marginBottom:14}},
+    React.createElement('div',{style:{fontSize:24,marginBottom:4}},'🙏'),
+    React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',fontSize:13}},isEN?'Thanks for your feedback!':isFR?'Merci !':'Obrigado pelo feedback!')
+  );
+  return React.createElement('div',{style:{background:'linear-gradient(135deg,var(--navy),#0c3060)',borderRadius:14,padding:'16px',marginBottom:14,textAlign:'center'}},
+    React.createElement('div',{style:{fontSize:13,color:'rgba(255,255,255,.7)',marginBottom:10,fontWeight:600}},
+      isEN?'How was your AfroRoute experience?':isFR?'Comment était votre expérience AfroRoute ?':'Como foi a tua experiência com a AfroRoute?'
+    ),
+    React.createElement('div',{style:{display:'flex',justifyContent:'center',gap:8}},
+      [1,2,3,4,5].map(star=>React.createElement('button',{key:star,onClick:()=>submit(star),
+        style:{background:'none',border:'none',cursor:'pointer',fontSize:32,color:rating>=star?'#f59e0b':'rgba(255,255,255,.25)',transition:'all .15s'}
+      },'★'))
+    ),
+    React.createElement('div',{style:{fontSize:11,color:'rgba(255,255,255,.4)',marginTop:8}},isEN?'Your feedback helps us improve':isFR?'Votre avis nous aide':'O teu feedback ajuda-nos a melhorar')
+  );
+}
+
+function ReviewModal({reviewer,reviewee,agreementId,sb,showToast,onClose,onSubmit,t}){
+  const[rating,setRating]=React.useState(0);
+  const[hovered,setHovered]=React.useState(0);
+  const[comment,setComment]=React.useState('');
+  const[loading,setLoading]=React.useState(false);
+  const isEN=_optionalChain([t,'optionalAccess',_=>_.lang])==='English';
+  const isFR=_optionalChain([t,'optionalAccess',_=>_.lang])==='Français';
+
+  const labels=isEN
+    ?['','Poor','Fair','Good','Very Good','Excellent']
+    :isFR
+    ?['','Mauvais','Passable','Bien','Très bien','Excellent']
+    :['','Mau','Razoável','Bom','Muito bom','Excelente'];
+
+  const submit=async()=>{
+    if(rating===0){showToast(isEN?'Please select a rating':isFR?'Choisissez une note':'Seleciona uma avaliação','error');return;}
+    setLoading(true);
+    try{
+      await sb.insert('reviews',{
+        reviewer_id:_optionalChain([reviewer,'optionalAccess',_=>_.id]),
+        reviewee_id:_optionalChain([reviewee,'optionalAccess',_=>_.id]),
+        agreement_id:agreementId,
+        rating,
+        comment:comment.trim(),
+        created_at:new Date().toISOString()
+      });
+      showToast(isEN?'Review submitted! ⭐':isFR?'Avis envoyé ! ⭐':'Avaliação enviada! ⭐');
+      onSubmit&&onSubmit(rating);
+      onClose();
+    }catch(e){
+      showToast(e.message||'Failed to submit review','error');
+    }
+    setLoading(false);
+  };
+
+  return React.createElement('div',{className:'modal-ov',onClick:onClose},
+    React.createElement('div',{className:'modal',onClick:e=>e.stopPropagation(),style:{padding:0,overflow:'hidden',borderRadius:20}},
+      // Header
+      React.createElement('div',{style:{background:'linear-gradient(135deg,#0A2540,#0d6e5b)',padding:'20px 20px 18px'}},
+        React.createElement('div',{style:{width:40,height:4,background:'rgba(255,255,255,.3)',borderRadius:4,margin:'0 auto 16px'}}),
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10}},
+          React.createElement('div',{style:{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}},'⭐'),
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:17,color:'#fff'}},
+              isEN?'Leave a Review':isFR?'Laisser un avis':'Deixar Avaliação'
+            ),
+            React.createElement('div',{style:{fontSize:12,color:'rgba(255,255,255,.6)',marginTop:1}},
+              (isEN?'How was your experience with ':isFR?'Comment était votre expérience avec ':'Como foi a tua experiência com ')+(_optionalChain([reviewee,'optionalAccess',_=>_.name])||'this user')+'?'
+            )
+          )
+        )
+      ),
+      // Body
+      React.createElement('div',{style:{padding:'20px 16px 16px'}},
+        // Star rating
+        React.createElement('div',{style:{textAlign:'center',marginBottom:20}},
+          React.createElement('div',{style:{fontSize:13,color:'var(--text3)',marginBottom:12,fontWeight:600}},
+            isEN?'Tap to rate':isFR?'Touchez pour noter':'Toca para avaliar'
+          ),
+          React.createElement('div',{style:{display:'flex',justifyContent:'center',gap:8,marginBottom:8}},
+            [1,2,3,4,5].map(star=>
+              React.createElement('button',{
+                key:star,
+                onClick:()=>setRating(star),
+                onMouseEnter:()=>setHovered(star),
+                onMouseLeave:()=>setHovered(0),
+                style:{
+                  background:'none',border:'none',cursor:'pointer',
+                  fontSize:36,lineHeight:1,
+                  color:(hovered||rating)>=star?'#f59e0b':'#e2e8f0',
+                  transform:(hovered||rating)>=star?'scale(1.15)':'scale(1)',
+                  transition:'all .15s'
+                }
+              },'★')
+            )
+          ),
+          rating>0&&React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:14,color:'#f59e0b'}},labels[rating])
+        ),
+        // Comment
+        React.createElement('div',{style:{marginBottom:16}},
+          React.createElement('label',{className:'fl'},
+            isEN?'Comment (optional)':isFR?'Commentaire (optionnel)':'Comentário (opcional)'
+          ),
+          React.createElement('textarea',{
+            className:'fta',
+            value:comment,
+            onChange:e=>setComment(e.target.value),
+            placeholder:isEN?'Share your experience...':isFR?'Partagez votre expérience...':'Partilha a tua experiência...',
+            style:{minHeight:80,marginTop:6}
+          })
+        ),
+        // Buttons
+        React.createElement('div',{style:{display:'flex',gap:10}},
+          React.createElement('button',{
+            onClick:onClose,
+            style:{flex:1,padding:'13px',borderRadius:11,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}
+          },isEN?'Skip':isFR?'Passer':'Ignorar'),
+          React.createElement('button',{
+            onClick:submit,disabled:loading||rating===0,
+            style:{flex:2,padding:'13px',borderRadius:11,border:'none',background:rating>0?'var(--green)':'var(--bord2)',color:'#fff',fontWeight:700,fontSize:14,cursor:rating>0?'pointer':'default',fontFamily:"'Sora',sans-serif",opacity:loading?0.6:1}
+          },loading?'...':(isEN?'Submit Review ⭐':isFR?'Envoyer ⭐':'Enviar Avaliação ⭐'))
+        )
+      )
+    )
+  );
+}
+
 function App(){
 const[lang,setLang]=useState('pt');
 const[page,setPage]=useState('home');
@@ -2690,6 +2906,7 @@ const[toast,setToast]=useState(null);
 const[modal,setModal]=useState(null);
 const[phoneModal,setPhoneModal]=useState(false);
 const[phoneVerified,setPhoneVerified]=useState(false);
+const[reviewModal,setReviewModal]=useState(null);
 const[savedIds,setSaved]=useState(new Set());
 const[detail,setDetail]=useState(null);
 const[trips,setTrips]=useState([]);
@@ -2739,8 +2956,8 @@ const loadListings=async(isLoggedIn)=>{
       fetchPublic('trips','id,user_id,from_country,from_city,to_country,to_city,travel_date,airline,kg_available,price_per_kg,open_to_offers,categories,notes,status,created_at,profiles(name,country)','status=eq.active&order=created_at.desc'),
       fetchPublic('shipments','id,user_id,from_country,from_city,to_country,to_city,preferred_date,category,weight_kg,budget_per_kg,description,is_urgent,status,created_at,profiles(name,country)','status=eq.active&order=created_at.desc'),
     ]);
-    const realTrips=rt.map(r=>({id:r.id,user:_optionalChain([r, 'access', _59 => _59.profiles, 'optionalAccess', _60 => _60.name])||'User',av:ini(_optionalChain([r, 'access', _61 => _61.profiles, 'optionalAccess', _62 => _62.name])||'User'),country:_optionalChain([r, 'access', _63 => _63.profiles, 'optionalAccess', _64 => _64.country])||'',from:r.from_country,fc:r.from_city||'',to:r.to_country,tc:r.to_city||'',date:r.travel_date,airline:r.airline||'',kg:r.kg_available,price:r.price_per_kg||0,open:r.open_to_offers||false,cats:r.categories||[],notes:r.notes||'',status:r.status,verified:true,rating:4.7,reviews:0,user_id:r.user_id,created:r.created_at,isDemo:false}));
-    const realShips=rs.map(r=>({id:r.id,user:_optionalChain([r, 'access', _65 => _65.profiles, 'optionalAccess', _66 => _66.name])||'User',av:ini(_optionalChain([r, 'access', _67 => _67.profiles, 'optionalAccess', _68 => _68.name])||'User'),country:_optionalChain([r, 'access', _69 => _69.profiles, 'optionalAccess', _70 => _70.country])||'',from:r.from_country,fc:r.from_city||'',to:r.to_country,tc:r.to_city||'',pref_date:r.preferred_date,category:r.category,kg:r.weight_kg,budget:r.budget_per_kg,desc:r.description||'',urgent:r.is_urgent||false,status:r.status,verified:true,rating:4.7,reviews:0,user_id:r.user_id,created:r.created_at,isDemo:false}));
+    const realTrips=rt.map(r=>({id:r.id,user:_optionalChain([r, 'access', _59 => _59.profiles, 'optionalAccess', _60 => _60.name])||'User',av:ini(_optionalChain([r, 'access', _61 => _61.profiles, 'optionalAccess', _62 => _62.name])||'User'),country:_optionalChain([r, 'access', _63 => _63.profiles, 'optionalAccess', _64 => _64.country])||'',from:r.from_country,fc:r.from_city||'',to:r.to_country,tc:r.to_city||'',date:r.travel_date,airline:r.airline||'',kg:r.kg_available,price:r.price_per_kg||0,open:r.open_to_offers||false,cats:r.categories||[],notes:r.notes||'',status:r.status,verified:_optionalChain([r,'optionalAccess',_=>_.profiles])&&(_optionalChain([r,'optionalAccess',_=>_.profiles.is_verified_traveler])||_optionalChain([r,'optionalAccess',_=>_.profiles.phone_verified]))||false,rating:4.7,reviews:0,user_id:r.user_id,created:r.created_at,isDemo:false}));
+    const realShips=rs.map(r=>({id:r.id,user:_optionalChain([r, 'access', _65 => _65.profiles, 'optionalAccess', _66 => _66.name])||'User',av:ini(_optionalChain([r, 'access', _67 => _67.profiles, 'optionalAccess', _68 => _68.name])||'User'),country:_optionalChain([r, 'access', _69 => _69.profiles, 'optionalAccess', _70 => _70.country])||'',from:r.from_country,fc:r.from_city||'',to:r.to_country,tc:r.to_city||'',pref_date:r.preferred_date,category:r.category,kg:r.weight_kg,budget:r.budget_per_kg,desc:r.description||'',urgent:r.is_urgent||false,status:r.status,verified:_optionalChain([r,'optionalAccess',_=>_.profiles])&&(_optionalChain([r,'optionalAccess',_=>_.profiles.is_verified_traveler])||_optionalChain([r,'optionalAccess',_=>_.profiles.phone_verified]))||false,rating:4.7,reviews:0,user_id:r.user_id,created:r.created_at,isDemo:false}));
     // Logged in → always show only real data (no demos ever)
     // Visitor (not logged in) → show real data if exists, otherwise show demo cards
     if(isLoggedIn){
@@ -3046,6 +3263,13 @@ const renderDetail=()=>{if(!detail)return null;const{item,type}=detail;const isT
 , (isT?item.notes:item.desc)&&React.createElement('div', { className: "det-card",}, React.createElement('div', { className: "det-ct",}, "📝 Notes" ), React.createElement('div', { style: {fontSize:14,color:'#334155',lineHeight:1.65},}, isT?item.notes:item.desc))
 , React.createElement('div', { style: {background:'#fef3c7',border:'1px solid rgba(245,158,11,.25)',borderRadius:12,padding:'12px 14px',marginBottom:14},}, React.createElement('div', { style: {fontWeight:700,color:'#92400e',fontSize:13,marginBottom:4},}, "⚠️ Safety Notice"  ), React.createElement('div', { style: {fontSize:12,color:'#78350f',lineHeight:1.6},}, "Always verify the other party before shipping. Never send cash, illegal items, or prohibited goods. AfroRoute is not responsible for individual transaction outcomes."                      ))
 )
+, React.createElement('div',{style:{padding:'0 16px',marginBottom:14}},
+    React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:14,color:'var(--navy)',marginBottom:12,display:'flex',alignItems:'center',gap:6}},
+      '⭐ Reviews'
+    ),
+    React.createElement(ReviewsSection,{userId:item.user_id,t:t})
+  )
+
 , React.createElement('div', { className: "det-actions",}
   , React.createElement('button', { className: "btn-dm", onClick: ()=>handleContact(item,type),}, "💬 " , t.contact)
   , React.createElement('button', { className: `btn-ds ${isSaved(item.id,type)?'saved':''}`, onClick: ()=>handleSave(item.id,type), style: {minWidth:52,display:'flex',flexDirection:'column',alignItems:'center',gap:3,fontSize:11,fontWeight:600,color:isSaved(item.id,type)?'#f59e0b':'var(--text3)'},}
@@ -3133,7 +3357,7 @@ case 'traveler-tools':return React.createElement(TravelerToolsPage, { t: t, go: 
 case 'trust':return React.createElement(TrustSafetyPage, { t: t, go: go,});
 case 'dispute':return React.createElement(DisputePage, { t: t, go: go,});
 case 'refund':return React.createElement(RefundPage, { t: t, go: go,});
-case 'agreements':return loggedIn?React.createElement(MyAgreementsPage, { user: user, sb: sb, showToast: showToast, go: go,}):React.createElement('div', { className: "page", style: {padding:'16px'},}, React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),}));
+case 'agreements':return loggedIn?React.createElement(MyAgreementsPage, { user: user, sb: sb, showToast: showToast, go: go, lang: lang, onReview: (reviewee,agreementId)=>setReviewModal({reviewee,agreementId}),}):React.createElement('div', { className: "page", style: {padding:'16px'},}, React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),}));
 default:return renderHome();
 }};
 return React.createElement('div', null, toast&&React.createElement('div', { key: toast.key, className: `toast ${toast.type}`,}, React.createElement('div', { className: "toast-icon",}), React.createElement('div', { className: "toast-msg",}, toast.msg)), modal&&(modal.type==='paywall_msg'||modal.type==='paywall_post')?React.createElement('div', { className: "modal-ov", onClick: ()=>setModal(null),}, React.createElement('div', { className: "modal", onClick: e=>e.stopPropagation(),}, React.createElement('div', { className: "modal-hd",}), React.createElement(PW, { t: t, type: modal.type==='paywall_post'?'post':'msg', onSub: ()=>{setModal(null);go('pricing');},}))):modal&&modal.type==='report'?React.createElement(ReportModal, { t: t, onClose: ()=>setModal(null), onSubmit: (reason,details)=>{
@@ -3156,6 +3380,16 @@ return React.createElement('div', null, toast&&React.createElement('div', { key:
         setPhoneVerified(true);
         setUser(prev=>({...prev,wa:phone,phoneVerified:true}));
         setPhoneModal(false);
+      }
+    }),
+    reviewModal&&React.createElement(ReviewModal, {
+      reviewer: user,
+      reviewee: reviewModal.reviewee,
+      agreementId: reviewModal.agreementId,
+      sb: sb, showToast: showToast, t: t,
+      onClose: ()=>setReviewModal(null),
+      onSubmit: (rating)=>{
+        setReviewModal(null);
       }
     }), 
     React.createElement(NavBar, null), React.createElement('div', { className: "content",}, renderPage()), React.createElement(BotNav, null));}
