@@ -1164,6 +1164,8 @@ const LOGO_1="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQcAAABQCAYAAAAUV7Bc
 
 
 
+
+
  function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }
 
 const loadPersona=(cb)=>{
@@ -1514,141 +1516,379 @@ function OTPInput({ email, onSuccess, t }) {
 
 function AuthPage({t,onLogin,go}){
   const[mode,setMode]=React.useState('login');
+  const[step,setStep]=React.useState(1); // signup steps 1-4
   const[f,setF]=React.useState({email:'',password:'',confirm:'',name:'',country:'',wa:'',agreed:false});
   const[errors,setE]=React.useState({});
   const[loading,setL]=React.useState(false);
   const[otpSent,setOtpSent]=React.useState(false);
   const[otpCode,setOtpCode]=React.useState('');
   const[otpError,setOtpError]=React.useState('');
+  const[phoneVerified,setPhoneVerified]=React.useState(false);
+  const[idPhoto,setIdPhoto]=React.useState(null); // base64
+  const[selfiePhoto,setSelfiePhoto]=React.useState(null); // base64
+  const[idPreview,setIdPreview]=React.useState(null);
+  const[selfiePreview,setSelfiePreview]=React.useState(null);
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
+  const lang=_optionalChain([t,'optionalAccess',_=>_.lang])||'pt';
+  const isEN=lang==='English';
+  const isFR=lang==='Français';
+
+  const tx=(pt,en,fr)=>isFR?fr:isEN?en:pt;
+
+  const validateStep1=()=>{
+    const e={};
+    if(!f.name.trim())e.name=tx('Nome obrigatório','Name required','Nom requis');
+    if(!f.email||!/\S+@\S+\.\S+/.test(f.email))e.email=tx('Email inválido','Invalid email','Email invalide');
+    if(f.password.length<6)e.password=tx('Mínimo 6 caracteres','Min 6 characters','Min 6 caractères');
+    if(f.password!==f.confirm)e.confirm=tx('Passwords não coincidem','Passwords do not match','Mots de passe différents');
+    if(!f.country)e.country=tx('Seleciona o teu país','Select your country','Sélectionne ton pays');
+    setE(e);
+    return Object.keys(e).length===0;
+  };
+
   const validateLogin=()=>{
     const e={};
-    if(!f.email||!/\S+@\S+\.\S+/.test(f.email))e.email=t.err_email||'Email inválido';
-    if(!f.password||f.password.length<6)e.password=t.err_pass_short||'Mínimo 6 caracteres';
-    setE(e);return Object.keys(e).length===0;
+    if(!f.email||!/\S+@\S+\.\S+/.test(f.email))e.email=tx('Email inválido','Invalid email','Email invalide');
+    if(!f.password)e.password=tx('Password obrigatória','Password required','Mot de passe requis');
+    setE(e);
+    return Object.keys(e).length===0;
   };
-  const validateSignup=()=>{
-    const e={};
-    if(!f.name)e.name=t.err_required||'Obrigatório';
-    if(!f.email||!/\S+@\S+\.\S+/.test(f.email))e.email=t.err_email||'Email inválido';
-    if(!f.password||f.password.length<6)e.password=t.err_pass_short||'Mínimo 6 caracteres';
-    if(f.password!==f.confirm)e.confirm=t.err_pass_match||'Passwords não coincidem';
-    if(!f.country)e.country=t.err_required||'Obrigatório';
-    if(!f.agreed)e.agreed='Tens de aceitar os termos para continuar';
-    setE(e);return Object.keys(e).length===0;
-  };
-  const submit=async()=>{
-    const valid=mode==='login'?validateLogin():validateSignup();
-    if(!valid)return;
+
+  // ── Login submit ──
+  const submitLogin=async()=>{
+    if(!validateLogin())return;
     setL(true);
-    try{await onLogin({...f,isNew:mode==='signup'});}
-    catch(ex){setE({email:ex.message||'Erro de autenticação'});}
+    try{await onLogin({...f,isNew:false});}
+    catch(ex){setE({email:ex.message||tx('Erro de autenticação','Auth error','Erreur d\'authentification')});}
     finally{setL(false);}
   };
+
+  // ── Send phone OTP ──
   const sendOtp=async()=>{
-    if(!f.email||!/\S+@\S+\.\S+/.test(f.email)){setOtpError('Introduz o teu email primeiro');return;}
-    setOtpError('');
+    if(!f.wa||f.wa.length<8){
+      setOtpError(tx('Introduz o teu número com indicativo (+351...)','Enter your number with country code (+351...)','Entre ton numéro avec indicatif (+351...)'));
+      return;
+    }
+    setOtpError('');setL(true);
+    try{
+      const r=await fetch(SUPABASE_URL+'/auth/v1/otp',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},
+        body:JSON.stringify({phone:f.wa,channel:'sms'})
+      });
+      if(r.ok){setOtpSent(true);}
+      else{const d=await r.json();setOtpError(d.msg||d.error_description||tx('Não foi possível enviar SMS','Could not send SMS','Impossible d\'envoyer le SMS'));}
+    }catch(ex){setOtpError(ex.message);}
+    finally{setL(false);}
+  };
+
+  // ── Verify phone OTP ──
+  const verifyOtp=async()=>{
+    if(otpCode.length<6){setOtpError(tx('Introduz o código de 6 dígitos','Enter the 6-digit code','Entre le code à 6 chiffres'));return;}
+    setL(true);setOtpError('');
+    try{
+      const r=await fetch(SUPABASE_URL+'/auth/v1/verify',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},
+        body:JSON.stringify({phone:f.wa,token:otpCode,type:'sms'})
+      });
+      if(r.ok){setPhoneVerified(true);setStep(3);}
+      else{const d=await r.json();setOtpError(d.msg||d.error_description||tx('Código inválido','Invalid code','Code invalide'));}
+    }catch(ex){setOtpError(ex.message);}
+    finally{setL(false);}
+  };
+
+  // ── Photo capture helper ──
+  const capturePhoto=(setter,previewSetter)=>(e)=>{
+    const file=e.target.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{setter(ev.target.result);previewSetter(ev.target.result);};
+    reader.readAsDataURL(file);
+  };
+
+  // ── Final signup submit ──
+  const submitSignup=async()=>{
+    if(!f.agreed){setE({agreed:tx('Aceita os termos para continuar','Accept terms to continue','Accepte les conditions pour continuer')});return;}
+    setL(true);setE({});
+    try{
+      await onLogin({
+        ...f,
+        isNew:true,
+        phoneVerified,
+        idImageData:idPhoto,
+        selfieData:selfiePhoto,
+      });
+    }catch(ex){setE({submit:ex.message||tx('Erro ao criar conta','Error creating account','Erreur de création de compte')});}
+    finally{setL(false);}
+  };
+
+  // ── OTP login (magic link) ──
+  const sendLoginOtp=async()=>{
+    if(!f.email||!/\S+@\S+\.\S+/.test(f.email)){setOtpError(tx('Introduz o teu email primeiro','Enter your email first','Entre ton email d\'abord'));return;}
+    setOtpError('');setL(true);
     try{
       const r=await fetch(SUPABASE_URL+'/auth/v1/otp',{method:'POST',
         headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},
         body:JSON.stringify({email:f.email,create_user:false})});
       if(r.ok)setOtpSent(true);
-      else{const d=await r.json();setOtpError(d.msg||'Não foi possível enviar código');}
-    }catch(ex){setOtpError('Erro de ligação');}
+      else{const d=await r.json();setOtpError(d.msg||tx('Não foi possível enviar código','Could not send code','Impossible d\'envoyer le code'));}
+    }catch(ex){setOtpError(ex.message);}
+    finally{setL(false);}
   };
-  const verifyOtp=async()=>{
-    if(otpCode.length<6){setOtpError('Introduz o código de 6 dígitos');return;}
+
+  const verifyLoginOtp=async()=>{
+    if(otpCode.length<6){setOtpError(tx('Introduz o código de 6 dígitos','Enter the 6-digit code','Entre le code à 6 chiffres'));return;}
     setL(true);setOtpError('');
     try{
       const r=await fetch(SUPABASE_URL+'/auth/v1/verify',{method:'POST',
         headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},
         body:JSON.stringify({email:f.email,token:otpCode,type:'email'})});
-      const d=await r.json();
-      if(d.access_token){
-        try{localStorage.setItem('ar_tok',d.access_token);localStorage.setItem('ar_ref',d.refresh_token||'');}catch(ex){}
-        onLogin({id:d.user.id,email:d.user.email,name:d.user.email.split('@')[0],country:'',wa:'',isSubscribed:false,_token:d.access_token,isNew:false,_direct:true});
-      }else{setOtpError(d.msg||d.error_description||'Código inválido');}
-    }catch(ex){setOtpError('Verificação falhou');}
-    setL(false);
+      if(r.ok){const d=await r.json();if(d.access_token)await onLogin({email:f.email,password:'',isNew:false,_session:d});}
+      else{const d=await r.json();setOtpError(d.msg||tx('Código inválido','Invalid code','Code invalide'));}
+    }catch(ex){setOtpError(ex.message);}
+    finally{setL(false);}
   };
-  return(
-    React.createElement('div', { className: "auth-wrap",}
-      , React.createElement('div', { style: {textAlign:'center',marginBottom:20},}
-        , React.createElement('div', { style: {width:54,height:54,borderRadius:14,background:'linear-gradient(135deg,var(--navy),var(--green))',display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,margin:'0 auto 12px'},}, "✈️")
-        , React.createElement('h1', { className: "auth-title",}, mode==='login'?(t.login_title||'Entrar'):(t.signup_title||'Criar Conta'))
-        , React.createElement('p', { className: "auth-sub",}, mode==='login'?(t.login_sub||'Acede à tua conta AfroRoute.'):(t.signup_sub||'Cria a tua conta AfroRoute.'))
-      )
-      , React.createElement('div', { className: "auth-form",}
-        , mode==='signup'&&(
-          React.createElement('div', { className: "ff",}
-            , React.createElement('label', { className: "fl",}, t.display_name||'Nome completo', React.createElement('span', null, "*"))
-            , React.createElement('input', { className: `fi ${errors.name?'err':''}`, value: f.name, onChange: e=>s('name',e.target.value), placeholder: "Nome completo" ,})
-            , errors.name&&React.createElement('div', { className: "ferr",}, "⚠ " , errors.name)
-          )
-        )
-        , React.createElement('div', { className: "ff",}
-          , React.createElement('label', { className: "fl",}, t.email||'Email', React.createElement('span', null, "*"))
-          , React.createElement('input', { className: `fi ${errors.email?'err':''}`, type: "email", value: f.email, onChange: e=>{s('email',e.target.value);setOtpSent(false);setOtpError('');}, placeholder: "email@exemplo.com",})
-          , errors.email&&React.createElement('div', { className: "ferr",}, "⚠ " , errors.email)
-        )
-        , !(mode==='login'&&otpSent)&&(
-          React.createElement('div', { className: "ff",}
-            , React.createElement('label', { className: "fl",}, t.password||'Password', React.createElement('span', null, "*"))
-            , React.createElement('input', { className: `fi ${errors.password?'err':''}`, type: "password", value: f.password, onChange: e=>s('password',e.target.value), placeholder: "••••••••", onKeyDown: e=>e.key==='Enter'&&submit(),})
-            , errors.password&&React.createElement('div', { className: "ferr",}, "⚠ " , errors.password)
-          )
-        )
-        , mode==='signup'&&(
-          React.createElement('div', { className: "ff",}
-            , React.createElement('label', { className: "fl",}, t.confirm_pass||'Confirmar password', React.createElement('span', null, "*"))
-            , React.createElement('input', { className: `fi ${errors.confirm?'err':''}`, type: "password", value: f.confirm, onChange: e=>s('confirm',e.target.value), placeholder: "Repete a password"  ,})
-            , errors.confirm&&React.createElement('div', { className: "ferr",}, "⚠ " , errors.confirm)
-          )
-        )
-        , mode==='signup'&&(
-          React.createElement('div', { className: "ff",}
-            , React.createElement('label', { className: "fl",}, t.country_||'País', React.createElement('span', null, "*"))
-            , React.createElement('select', { className: `fsel ${errors.country?'err':''}`, value: f.country, onChange: e=>s('country',e.target.value),}
-              , React.createElement('option', { value: "",}, "— Selecionar —"  )
-              , COUNTRIES.map(c=>React.createElement('option', { key: c, value: c,}, c))
+
+  const stepLabels=[
+    tx('Dados','Info','Infos'),
+    tx('Telefone','Phone','Téléphone'),
+    tx('Documentos','Documents','Documents'),
+    tx('Termos','Terms','Conditions'),
+  ];
+
+  return React.createElement('div',{className:'modal-ov',onClick:()=>{}},
+    React.createElement('div',{className:'modal',style:{padding:0,overflow:'hidden',borderRadius:20,maxHeight:'90vh',overflowY:'auto'},onClick:e=>e.stopPropagation()},
+
+      // ── Header ──
+      React.createElement('div',{style:{background:'linear-gradient(135deg,#0A2540,#0d6e5b)',padding:'20px 20px 18px',position:'sticky',top:0,zIndex:10}},
+        React.createElement('div',{style:{width:40,height:4,background:'rgba(255,255,255,.3)',borderRadius:4,margin:'0 auto 14px'}}),
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10}},
+          React.createElement('div',{style:{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}},'✈️'),
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:17,color:'#fff'}},
+              mode==='login'?tx('Entrar','Sign In','Se connecter'):tx('Criar Conta','Create Account','Créer un compte')
+            ),
+            mode==='signup'&&React.createElement('div',{style:{fontSize:12,color:'rgba(255,255,255,.6)',marginTop:1}},
+              tx('Passo','Step','Étape')+' '+step+' '+tx('de','of','sur')+' 4 — '+stepLabels[step-1]
             )
-            , errors.country&&React.createElement('div', { className: "ferr",}, "⚠ " , errors.country)
+          )
+        ),
+        // Step progress bar for signup
+        mode==='signup'&&React.createElement('div',{style:{display:'flex',gap:4,marginTop:12}},
+          [1,2,3,4].map(n=>React.createElement('div',{key:n,style:{flex:1,height:3,borderRadius:99,background:n<=step?'#1ABC9C':'rgba(255,255,255,.2)',transition:'background .3s'}}))
+        )
+      ),
+
+      // ── Body ──
+      React.createElement('div',{style:{padding:'20px 16px 16px'}},
+
+        // ════ LOGIN MODE ════
+        mode==='login'&&React.createElement('div',null,
+          React.createElement('div',{className:'ff'},
+            React.createElement('label',{className:'fl'},tx('Email','Email','Email'),'*'),
+            React.createElement('input',{className:`fi ${errors.email?'err':''}`,type:'email',value:f.email,onChange:e=>{s('email',e.target.value);setOtpSent(false);setOtpError('');},placeholder:'email@exemplo.com',autoFocus:true})
+          ),
+          !otpSent&&React.createElement('div',{className:'ff'},
+            React.createElement('label',{className:'fl'},tx('Password','Password','Mot de passe'),'*'),
+            React.createElement('input',{className:`fi ${errors.password?'err':''}`,type:'password',value:f.password,onChange:e=>s('password',e.target.value),placeholder:'••••••••',onKeyDown:e=>e.key==='Enter'&&submitLogin()})
+          ),
+          errors.email&&React.createElement('div',{className:'ferr'},'⚠ ',errors.email),
+          otpSent&&React.createElement('div',{style:{background:'var(--gpale)',border:'1px solid var(--gborder)',borderRadius:12,padding:14,marginBottom:12}},
+            React.createElement('div',{style:{fontSize:13,color:'var(--text2)',marginBottom:10}},tx('Código enviado para ','Code sent to ','Code envoyé à '),React.createElement('strong',null,f.email)),
+            React.createElement('input',{className:'fi',type:'text',inputMode:'numeric',maxLength:6,value:otpCode,onChange:e=>setOtpCode(e.target.value.replace(/\D/g,'')),placeholder:'000000',style:{fontSize:20,textAlign:'center',letterSpacing:6,fontWeight:700},autoFocus:true,onKeyDown:e=>e.key==='Enter'&&verifyLoginOtp()}),
+            otpError&&React.createElement('div',{className:'ferr',style:{marginTop:6}},'⚠ ',otpError),
+            React.createElement('button',{onClick:verifyLoginOtp,disabled:loading||otpCode.length<6,style:{width:'100%',marginTop:10,background:'var(--green)',color:'#fff',border:'none',padding:13,borderRadius:10,fontWeight:700,fontSize:14,cursor:'pointer',opacity:(loading||otpCode.length<6)?.6:1}},loading?'…':tx('Verificar Código','Verify Code','Vérifier le code'))
+          ),
+          !otpSent&&React.createElement('button',{className:'btn-auth',onClick:submitLogin,disabled:loading},loading?'…':tx('Entrar','Sign In','Se connecter')),
+          !otpSent&&React.createElement(React.Fragment,null,
+            React.createElement('div',{className:'auth-div'},'ou'),
+            React.createElement('button',{onClick:sendLoginOtp,style:{width:'100%',background:'var(--surf2)',border:'1.5px solid var(--bord)',borderRadius:11,padding:13,fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)',display:'flex',alignItems:'center',justifyContent:'center',gap:8}},'✉️ ',tx('Entrar com código por email','Sign in with email code','Se connecter avec un code email')),
+            otpError&&React.createElement('div',{className:'ferr'},'⚠ ',otpError)
+          ),
+          React.createElement('p',{className:'auth-sw',style:{marginTop:12}},
+            tx('Ainda não tens conta? ','No account yet? ','Pas encore de compte ? '),
+            React.createElement('a',{style:{color:'var(--green)',fontWeight:700,cursor:'pointer'},onClick:()=>{setMode('signup');setStep(1);setE({});setOtpSent(false);}},tx('Criar conta','Create account','Créer un compte'))
+          )
+        ),
+
+        // ════ SIGNUP STEP 1: Basic info ════
+        mode==='signup'&&step===1&&React.createElement('div',null,
+          React.createElement('div',{className:'ff'},
+            React.createElement('label',{className:'fl'},tx('Nome completo','Full name','Nom complet'),'*'),
+            React.createElement('input',{className:`fi ${errors.name?'err':''}`,value:f.name,onChange:e=>s('name',e.target.value),placeholder:tx('Nome completo','Full name','Nom complet'),autoFocus:true}),
+            errors.name&&React.createElement('div',{className:'ferr'},'⚠ ',errors.name)
+          ),
+          React.createElement('div',{className:'ff'},
+            React.createElement('label',{className:'fl'},tx('Email','Email','Email'),'*'),
+            React.createElement('input',{className:`fi ${errors.email?'err':''}`,type:'email',value:f.email,onChange:e=>s('email',e.target.value),placeholder:'email@exemplo.com'}),
+            errors.email&&React.createElement('div',{className:'ferr'},'⚠ ',errors.email)
+          ),
+          React.createElement('div',{className:'ff'},
+            React.createElement('label',{className:'fl'},tx('Password','Password','Mot de passe'),'*'),
+            React.createElement('input',{className:`fi ${errors.password?'err':''}`,type:'password',value:f.password,onChange:e=>s('password',e.target.value),placeholder:'••••••••'}),
+            errors.password&&React.createElement('div',{className:'ferr'},'⚠ ',errors.password)
+          ),
+          React.createElement('div',{className:'ff'},
+            React.createElement('label',{className:'fl'},tx('Confirmar password','Confirm password','Confirmer le mot de passe'),'*'),
+            React.createElement('input',{className:`fi ${errors.confirm?'err':''}`,type:'password',value:f.confirm,onChange:e=>s('confirm',e.target.value),placeholder:tx('Repete a password','Repeat password','Répète le mot de passe')}),
+            errors.confirm&&React.createElement('div',{className:'ferr'},'⚠ ',errors.confirm)
+          ),
+          React.createElement('div',{className:'ff'},
+            React.createElement('label',{className:'fl'},tx('País','Country','Pays'),'*'),
+            React.createElement('select',{className:`fsel ${errors.country?'err':''}`,value:f.country,onChange:e=>s('country',e.target.value)},
+              React.createElement('option',{value:''},'— '+tx('Selecionar','Select','Sélectionner')+' —'),
+              COUNTRIES.map(c=>React.createElement('option',{key:c,value:c},c))
+            ),
+            errors.country&&React.createElement('div',{className:'ferr'},'⚠ ',errors.country)
+          ),
+          React.createElement('button',{className:'btn-auth',onClick:()=>{if(validateStep1())setStep(2);}},
+            tx('Continuar →','Continue →','Continuer →')
+          ),
+          React.createElement('p',{className:'auth-sw',style:{marginTop:12}},
+            tx('Já tens conta? ','Already have an account? ','Déjà un compte ? '),
+            React.createElement('a',{style:{color:'var(--green)',fontWeight:700,cursor:'pointer'},onClick:()=>{setMode('login');setE({});}},tx('Entrar','Sign in','Se connecter'))
+          )
+        ),
+
+        // ════ SIGNUP STEP 2: Phone verification ════
+        mode==='signup'&&step===2&&React.createElement('div',null,
+          React.createElement('div',{style:{background:'linear-gradient(135deg,rgba(26,188,156,.1),rgba(26,188,156,.05))',border:'1px solid var(--gborder)',borderRadius:12,padding:'12px 14px',marginBottom:16,fontSize:13,color:'var(--text2)',lineHeight:1.7}},
+            React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',marginBottom:4}},'📱 '+tx('Verificação por SMS','SMS Verification','Vérification par SMS')),
+            tx('Precisamos verificar o teu número de telemóvel. Vais receber um SMS com um código de 6 dígitos.',
+               'We need to verify your phone number. You will receive an SMS with a 6-digit code.',
+               'Nous devons vérifier ton numéro de téléphone. Tu recevras un SMS avec un code à 6 chiffres.')
+          ),
+          !phoneVerified&&React.createElement('div',null,
+            React.createElement('div',{className:'ff'},
+              React.createElement('label',{className:'fl'},tx('Número de telemóvel','Phone number','Numéro de téléphone'),'*'),
+              React.createElement('input',{className:'fi',type:'tel',value:f.wa,onChange:e=>s('wa',e.target.value),placeholder:'+351 912 345 678',autoFocus:true,style:{fontSize:16}}),
+              React.createElement('div',{style:{fontSize:11,color:'var(--text4)',marginTop:4}},tx('Inclui o indicativo do país (ex: +351, +244)','Include country code (e.g. +351, +244)','Inclus l\'indicatif pays (ex: +351, +244)'))
+            ),
+            !otpSent&&React.createElement('button',{className:'btn-auth',onClick:sendOtp,disabled:loading},
+              loading?'…':'📱 '+tx('Enviar Código SMS','Send SMS Code','Envoyer le code SMS')
+            ),
+            otpSent&&React.createElement('div',{style:{background:'var(--gpale)',border:'1px solid var(--gborder)',borderRadius:12,padding:14,marginTop:12}},
+              React.createElement('div',{style:{fontSize:13,color:'var(--text2)',marginBottom:10}},
+                '✉️ '+tx('Código enviado para ','Code sent to ','Code envoyé au ')+React.createElement('strong',null,f.wa)
+              ),
+              React.createElement('input',{className:'fi',type:'text',inputMode:'numeric',maxLength:6,value:otpCode,onChange:e=>setOtpCode(e.target.value.replace(/\D/g,'')),placeholder:'000000',style:{fontSize:24,textAlign:'center',letterSpacing:8,fontWeight:700},autoFocus:true,onKeyDown:e=>e.key==='Enter'&&verifyOtp()}),
+              otpError&&React.createElement('div',{className:'ferr',style:{marginTop:6}},'⚠ ',otpError),
+              React.createElement('button',{onClick:verifyOtp,disabled:loading||otpCode.length<6,style:{width:'100%',marginTop:10,background:'var(--green)',color:'#fff',border:'none',padding:13,borderRadius:10,fontWeight:700,fontSize:14,cursor:'pointer',opacity:(loading||otpCode.length<6)?.6:1}},
+                loading?'…':'✅ '+tx('Verificar Código','Verify Code','Vérifier le code')
+              ),
+              React.createElement('button',{onClick:()=>{setOtpSent(false);setOtpCode('');setOtpError('');},style:{width:'100%',marginTop:8,background:'none',border:'none',color:'var(--green)',fontWeight:600,fontSize:13,cursor:'pointer'}},
+                tx('← Mudar número','← Change number','← Changer de numéro')
+              )
+            )
+          ),
+          phoneVerified&&React.createElement('div',{style:{background:'rgba(16,185,129,.1)',border:'1px solid rgba(16,185,129,.3)',borderRadius:12,padding:'14px 16px',textAlign:'center'}},
+            React.createElement('div',{style:{fontSize:32,marginBottom:6}},'✅'),
+            React.createElement('div',{style:{fontWeight:700,color:'var(--succ)',fontSize:15}},tx('Número verificado!','Phone verified!','Numéro vérifié !')),
+            React.createElement('div',{style:{fontSize:12,color:'var(--text3)',marginTop:2}},f.wa)
+          ),
+          React.createElement('div',{style:{display:'flex',gap:10,marginTop:16}},
+            React.createElement('button',{onClick:()=>{setStep(1);setOtpSent(false);setPhoneVerified(false);},style:{flex:1,padding:'12px',borderRadius:10,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}},
+              '← '+tx('Voltar','Back','Retour')
+            ),
+            React.createElement('button',{onClick:()=>setStep(3),disabled:!phoneVerified,style:{flex:2,padding:'12px',borderRadius:10,border:'none',background:phoneVerified?'var(--green)':'var(--bord2)',color:'#fff',fontWeight:700,fontSize:14,cursor:phoneVerified?'pointer':'default',opacity:phoneVerified?1:.6,fontFamily:"'Sora',sans-serif"}},
+              tx('Continuar →','Continue →','Continuer →')
+            )
+          )
+        ),
+
+        // ════ SIGNUP STEP 3: ID + Selfie ════
+        mode==='signup'&&step===3&&React.createElement('div',null,
+          React.createElement('div',{style:{background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.25)',borderRadius:12,padding:'12px 14px',marginBottom:16,fontSize:13,color:'#92400e',lineHeight:1.7}},
+            React.createElement('div',{style:{fontWeight:700,marginBottom:4}},'🪪 '+tx('Verificação de Identidade','Identity Verification','Vérification d\'identité')),
+            tx('Para garantir a segurança da plataforma, precisamos de uma foto do teu documento de identificação e uma selfie.',
+               'To ensure platform safety, we need a photo of your ID document and a selfie.',
+               'Pour garantir la sécurité de la plateforme, nous avons besoin d\'une photo de ta pièce d\'identité et d\'un selfie.')
+          ),
+
+          // ID Document upload
+          React.createElement('div',{style:{marginBottom:16}},
+            React.createElement('div',{style:{fontWeight:700,fontSize:14,color:'var(--navy)',marginBottom:8}},'🪪 '+tx('Documento de Identificação','ID Document','Pièce d\'identité')),
+            React.createElement('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:10}},tx('BI, Passaporte ou Carta de Condução','National ID, Passport or Driver\'s License','Carte d\'identité, Passeport ou Permis de conduire')),
+            !idPreview
+            ?React.createElement('label',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',border:'2px dashed var(--bord2)',borderRadius:12,padding:'24px 16px',cursor:'pointer',background:'var(--surf2)',gap:8}},
+              React.createElement('span',{style:{fontSize:32}},'📷'),
+              React.createElement('span',{style:{fontSize:13,fontWeight:600,color:'var(--text2)'}},'+ '+tx('Adicionar foto do documento','Add document photo','Ajouter photo du document')),
+              React.createElement('input',{type:'file',accept:'image/*',capture:'environment',style:{display:'none'},onChange:capturePhoto(setIdPhoto,setIdPreview)})
+            )
+            :React.createElement('div',{style:{position:'relative'}},
+              React.createElement('img',{src:idPreview,style:{width:'100%',borderRadius:10,maxHeight:160,objectFit:'cover',border:'1px solid var(--bord)'}}),
+              React.createElement('button',{onClick:()=>{setIdPhoto(null);setIdPreview(null);},style:{position:'absolute',top:6,right:6,background:'rgba(0,0,0,.6)',color:'#fff',border:'none',borderRadius:'50%',width:24,height:24,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}},'×')
+            )
+          ),
+
+          // Selfie upload
+          React.createElement('div',{style:{marginBottom:16}},
+            React.createElement('div',{style:{fontWeight:700,fontSize:14,color:'var(--navy)',marginBottom:8}},'🤳 Selfie'),
+            React.createElement('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:10}},tx('Uma foto do teu rosto (câmara frontal)','A photo of your face (front camera)','Une photo de ton visage (caméra frontale)')),
+            !selfiePreview
+            ?React.createElement('label',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',border:'2px dashed var(--bord2)',borderRadius:12,padding:'24px 16px',cursor:'pointer',background:'var(--surf2)',gap:8}},
+              React.createElement('span',{style:{fontSize:32}},'🤳'),
+              React.createElement('span',{style:{fontSize:13,fontWeight:600,color:'var(--text2)'}},'+ '+tx('Tirar selfie','Take selfie','Prendre un selfie')),
+              React.createElement('input',{type:'file',accept:'image/*',capture:'user',style:{display:'none'},onChange:capturePhoto(setSelfiePhoto,setSelfiePreview)})
+            )
+            :React.createElement('div',{style:{position:'relative'}},
+              React.createElement('img',{src:selfiePreview,style:{width:'100%',borderRadius:10,maxHeight:160,objectFit:'cover',border:'1px solid var(--bord)'}}),
+              React.createElement('button',{onClick:()=>{setSelfiePhoto(null);setSelfiePreview(null);},style:{position:'absolute',top:6,right:6,background:'rgba(0,0,0,.6)',color:'#fff',border:'none',borderRadius:'50%',width:24,height:24,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}},'×')
+            )
+          ),
+
+          React.createElement('div',{style:{display:'flex',gap:10,marginTop:4}},
+            React.createElement('button',{onClick:()=>setStep(2),style:{flex:1,padding:'12px',borderRadius:10,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}},
+              '← '+tx('Voltar','Back','Retour')
+            ),
+            React.createElement('button',{
+              onClick:()=>{
+                if(!idPhoto){alert(tx('Por favor adiciona uma foto do teu documento.','Please add a photo of your ID.','Ajoute une photo de ta pièce d\'identité.'));return;}
+                if(!selfiePhoto){alert(tx('Por favor tira uma selfie.','Please take a selfie.','Prends un selfie.'));return;}
+                setStep(4);
+              },
+              style:{flex:2,padding:'12px',borderRadius:10,border:'none',background:'var(--green)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif"}
+            },tx('Continuar →','Continue →','Continuer →'))
+          )
+        ),
+
+        // ════ SIGNUP STEP 4: Terms + submit ════
+        mode==='signup'&&step===4&&React.createElement('div',null,
+          React.createElement('div',{style:{background:'var(--surf2)',borderRadius:12,border:'1px solid var(--bord)',padding:'14px 16px',marginBottom:16,fontSize:13,color:'var(--text2)',lineHeight:1.7}},
+            React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',marginBottom:8,fontSize:14}},'📋 '+tx('Resumo da conta','Account summary','Résumé du compte')),
+            React.createElement('div',{style:{display:'grid',gap:6}},
+              React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('span',{style:{color:'var(--text3)'}},tx('Nome:','Name:','Nom:')),React.createElement('strong',null,f.name)),
+              React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('span',{style:{color:'var(--text3)'}},tx('Email:','Email:','Email:')),React.createElement('strong',null,f.email)),
+              React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('span',{style:{color:'var(--text3)'}},tx('País:','Country:','Pays:')),React.createElement('strong',null,f.country)),
+              React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('span',{style:{color:'var(--text3)'}},tx('Telemóvel:','Phone:','Téléphone:')),React.createElement('strong',{style:{color:'var(--succ)'}},'✅ '+f.wa)),
+              React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('span',{style:{color:'var(--text3)'}},tx('Documento:','ID:','Pièce d\'identité:')),React.createElement('strong',{style:{color:'var(--succ)'}},idPhoto?'✅ '+tx('Carregado','Uploaded','Téléchargé'):'⚠ '+tx('Em falta','Missing','Manquant'))),
+              React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('span',{style:{color:'var(--text3)'}},tx('Selfie:','Selfie:','Selfie:')),React.createElement('strong',{style:{color:'var(--succ)'}},selfiePhoto?'✅ '+tx('Carregada','Uploaded','Téléchargée'):'⚠ '+tx('Em falta','Missing','Manquant')))
+            )
+          ),
+          React.createElement('div',{style:{display:'flex',alignItems:'flex-start',gap:10,marginBottom:12,padding:'12px 14px',background:f.agreed?'rgba(26,188,156,.05)':'#fff',border:'1.5px solid',borderColor:f.agreed?'var(--green)':'var(--bord)',borderRadius:12,cursor:'pointer'},onClick:()=>s('agreed',!f.agreed)},
+            React.createElement('div',{style:{width:22,height:22,borderRadius:6,border:'2px solid',borderColor:f.agreed?'var(--green)':'var(--bord2)',background:f.agreed?'var(--green)':'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}},
+              f.agreed&&React.createElement('svg',{width:12,height:12,viewBox:'0 0 12 12',fill:'none'},React.createElement('polyline',{points:'2,6 5,9 10,3',stroke:'white',strokeWidth:'2',strokeLinecap:'round',strokeLinejoin:'round'}))
+            ),
+            React.createElement('div',{style:{fontSize:13,color:'var(--text2)',lineHeight:1.6}},
+              tx('Li e aceito os ','I have read and accept the ','J\'ai lu et j\'accepte les '),
+              React.createElement('button',{onClick:(e)=>{e.stopPropagation();go('terms');},style:{color:'var(--green)',fontWeight:700,background:'none',border:'none',padding:0,cursor:'pointer',fontSize:'inherit',fontFamily:'inherit'}},tx('Termos de Serviço','Terms of Service','Conditions d\'utilisation')),
+              tx(' e a ',' and the ',' et la '),
+              React.createElement('button',{onClick:(e)=>{e.stopPropagation();go('privacy');},style:{color:'var(--green)',fontWeight:700,background:'none',border:'none',padding:0,cursor:'pointer',fontSize:'inherit',fontFamily:'inherit'}},tx('Política de Privacidade','Privacy Policy','Politique de confidentialité'))
+            )
+          ),
+          errors.agreed&&React.createElement('div',{className:'ferr'},'⚠ ',errors.agreed),
+          errors.submit&&React.createElement('div',{className:'ferr',style:{marginBottom:10}},'⚠ ',errors.submit),
+          React.createElement('div',{style:{display:'flex',gap:10}},
+            React.createElement('button',{onClick:()=>setStep(3),style:{flex:1,padding:'12px',borderRadius:10,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}},
+              '← '+tx('Voltar','Back','Retour')
+            ),
+            React.createElement('button',{className:'btn-auth',style:{flex:2},onClick:submitSignup,disabled:loading||!f.agreed},
+              loading?'…':'🚀 '+tx('Criar Conta','Create Account','Créer un compte')
+            )
           )
         )
-        , mode==='signup'&&(
-          React.createElement('div', { className: "ff",}
-            , React.createElement('label', { className: "fl",}, "WhatsApp")
-            , React.createElement('input', { className: "fi", type: "tel", value: f.wa, onChange: e=>s('wa',e.target.value), placeholder: "+351 9xx xxx xxx"   ,})
-          )
-        )
-        , mode==='signup'&&(
-          React.createElement('div', { style: {display:'flex',alignItems:'flex-start',gap:10,background:'var(--surf2)',borderRadius:10,padding:12,cursor:'pointer'}, onClick: ()=>s('agreed',!f.agreed),}
-            , React.createElement('input', { type: "checkbox", checked: f.agreed, onChange: ()=>s('agreed',!f.agreed), style: {width:18,height:18,flexShrink:0,marginTop:1,accentColor:'var(--green)',cursor:'pointer'},})
-            , React.createElement('span', { style: {fontSize:12,color:'var(--text2)',lineHeight:1.6},}, "Aceito os "  , React.createElement('button', { onClick:(e)=>{e.stopPropagation();go('terms');}, style:{color:'var(--green)',fontWeight:700,background:'none',border:'none',padding:0,cursor:'pointer',fontSize:'inherit',fontFamily:'inherit'},}, "Termos de Serviço"  ), " e a "   , React.createElement('button', { onClick:(e)=>{e.stopPropagation();go('privacy');}, style:{color:'var(--green)',fontWeight:700,background:'none',border:'none',padding:0,cursor:'pointer',fontSize:'inherit',fontFamily:'inherit'},}, "Política de Privacidade"  ))
-          )
-        )
-        , errors.agreed&&React.createElement('div', { className: "ferr",}, "⚠ " , errors.agreed)
-        , mode==='login'&&otpSent&&(
-          React.createElement('div', { style: {background:'var(--gpale)',border:'1px solid var(--gborder)',borderRadius:12,padding:14},}
-            , React.createElement('div', { style: {fontSize:13,color:'var(--text2)',marginBottom:10},}, "✉️ Código enviado para "    , React.createElement('strong', null, f.email))
-            , React.createElement('input', { className: "fi", type: "text", inputMode: "numeric", maxLength: 6, value: otpCode, onChange: e=>setOtpCode(e.target.value.replace(/\D/g,'')), placeholder: "000000", style: {fontSize:20,textAlign:'center',letterSpacing:6,fontWeight:700}, autoFocus: true, onKeyDown: e=>e.key==='Enter'&&verifyOtp(),})
-            , otpError&&React.createElement('div', { className: "ferr", style: {marginTop:6},}, "⚠ " , otpError)
-            , React.createElement('button', { onClick: verifyOtp, disabled: loading||otpCode.length<6, style: {width:'100%',marginTop:10,background:'var(--green)',color:'#fff',border:'none',padding:13,borderRadius:10,fontWeight:700,fontSize:14,cursor:'pointer',opacity:(loading||otpCode.length<6)?.6:1},}, loading?'…':'Verificar Código')
-          )
-        )
-        , !(mode==='login'&&otpSent)&&(
-          React.createElement('button', { className: "btn-auth", onClick: submit, disabled: loading,}, loading?'…':mode==='login'?(t.login_btn||'Entrar'):(t.signup_btn||'Criar Conta'))
-        )
-        , mode==='login'&&!otpSent&&(
-          React.createElement(React.Fragment, null
-            , React.createElement('div', { className: "auth-div",}, "ou")
-            , React.createElement('button', { onClick: sendOtp, style: {width:'100%',background:'var(--surf2)',border:'1.5px solid var(--bord)',borderRadius:11,padding:13,fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)',display:'flex',alignItems:'center',justifyContent:'center',gap:8},}, "✉️ Entrar com código"   )
-            , otpError&&React.createElement('div', { className: "ferr",}, "⚠ " , otpError)
-          )
-        )
-      )
-      , React.createElement('p', { className: "auth-sw", style: {marginTop:12},}
-        , mode==='login'?(React.createElement(React.Fragment, null, t.no_acc||'Ainda não tens conta?', " " , React.createElement('a', { style: {color:'var(--green)',fontWeight:700,cursor:'pointer'}, onClick: ()=>{setMode('signup');setE({});setOtpSent(false);},}, "Criar conta" ))):(React.createElement(React.Fragment, null, t.have_acc||'Já tens conta?', " " , React.createElement('a', { style: {color:'var(--green)',fontWeight:700,cursor:'pointer'}, onClick: ()=>{setMode('login');setE({});},}, "Entrar")))
+
       )
     )
   );
@@ -3397,11 +3637,12 @@ const handleLogin=async(formData)=>{
             name:formData.name,
             country:formData.country,
             whatsapp:formData.wa,
+            phone_verified:!!formData.phoneVerified,
             id_type:formData.idType||null,
-            verification_status:formData.personaInquiryId ? 'verified' : 'pending',
+            verification_status:(formData.idImageData||formData.selfieData)?'pending_review':'pending',
             persona_inquiry_id: formData.personaInquiryId || null,
             persona_status: formData.personaStatus || null,
-            is_verified_traveler: !!formData.personaInquiryId,
+            is_verified_traveler: false,
           });
         }catch(profileErr){
           console.log('Profile upsert error (non-fatal):', profileErr.message);
@@ -4089,6 +4330,8 @@ function ContactPage({go, showToast, lang}) {
 
 
 ReactDOM.createRoot(document.getElementById('app')).render(React.createElement(App, null));
+
+
 
 
 
