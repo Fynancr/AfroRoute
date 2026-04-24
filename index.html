@@ -1093,6 +1093,25 @@ background:rgba(255,255,255,.18);
 .agr-uploading{font-size:12px;color:var(–green);font-weight:600;display:flex;align-items:center;gap:6px;margin-top:6px}
 
 @keyframes splash-bar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}
+
+/* ── Message bubbles ─────────────────────────────── */
+.msg-row{display:flex;margin-bottom:6px}
+.msg-row.me{justify-content:flex-end}
+.msg-row.them{justify-content:flex-start}
+.msg-row.system{justify-content:center}
+.msg-b{max-width:75%;padding:10px 13px;border-radius:16px;font-size:14px;line-height:1.5;word-break:break-word}
+.msg-b.me{background:linear-gradient(135deg,var(–navy),#1a4a7a);color:#fff;border-bottom-right-radius:4px}
+.msg-b.them{background:#fff;border:1px solid var(–bord);color:var(–text);border-bottom-left-radius:4px}
+.msg-time{font-size:10px;margin-top:3px;opacity:.6;text-align:right}
+.msg-time.them{text-align:left}
+
+/* ── Contact/form input ──────────────────────────── */
+.fin{border:1.5px solid var(–bord);border-radius:10px;padding:12px 14px;font-size:15px;width:100%;outline:none;background:#fff;color:var(–text);transition:border .18s;font-family:‘DM Sans’,-apple-system,sans-serif}
+.fin:focus{border-color:var(–green)}
+.fin.err{border-color:var(–danger)}
+
+/* ── Settings / profile fixes ────────────────────── */
+.mrow-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 </style>
 
 <script>
@@ -1142,6 +1161,7 @@ const LOGO_1="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQcAAABQCAYAAAAUV7Bc
 </script>
 
 <script>
+
 
 
  function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }
@@ -1840,7 +1860,7 @@ function MyListingsPage({t,items,type,go,sb,user,showToast,loadListings}){
   );
 }
 
-function ProfilePage({t,user,subscribed,savedIds,trips=[],ships=[],onLogout,onSubscribe,go,onSaveProfile,setUser,showToast,sb}){
+function ProfilePage({t,user,subscribed,savedIds,trips=[],ships=[],onLogout,onSubscribe,go,onSaveProfile,setUser,showToast,sb,phoneVerified,setPhoneModal}){
 const[editing,setEditing]=useState(false);const[ef,setEF]=useState({name:_optionalChain([user, 'optionalAccess', _10 => _10.name])||'',country:_optionalChain([user, 'optionalAccess', _11 => _11.country])||'',bio:'',wa:_optionalChain([user, 'optionalAccess', _12 => _12.wa])||''});
 React.useEffect(()=>{if(user){setEF(prev=>({...prev,name:user.name||prev.name,country:user.country||prev.country,wa:user.wa||prev.wa}));}},[user]);
 const handleAvatarChange=(e)=>{
@@ -3704,7 +3724,7 @@ case 'messages':return React.createElement('div', { className: "page", style: {p
   React.createElement('textarea', { className: "chat-inp", placeholder: t.type_msg, value: chatIn, onChange: e=>setChatIn(e.target.value), onKeyDown: e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}, rows: 1,}), React.createElement('button', { className: "btn-send", onClick: sendMsg,}, React.createElement('svg', { width: "14", height: "14", viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "2.5",}, React.createElement('line', { x1: "22", y1: "2", x2: "11", y2: "13",}), React.createElement('polygon', { points: "22 2 15 22 11 13 2 9 22 2"         ,})), t.send_btn))):React.createElement(Empty, { icon: "💬", title: t.inbox_empty, sub: t.inbox_empty_sub,}))));
 case 'pricing':return React.createElement(PricingPage, { go: go, lang: lang, onSubscribe: handleSubscribe,});
 case 'auth':return React.createElement('div', { className: "page", style: {display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:20},}, React.createElement(AuthPage, { t: t, onLogin: handleLogin, go: go,}));
-case 'profile':return !loggedIn?React.createElement('div', { className: "page", style: {padding:'16px'},}, React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),})):React.createElement('div', { className: "page",}, React.createElement(ProfilePage, { t: t, user: user, subscribed: subscribed, savedIds: savedIds, trips: trips, ships: ships, onLogout: handleLogout, onSubscribe: ()=>go('pricing'), go: go, onSaveProfile: handleSaveProfile, setUser: setUser, showToast: showToast, sb: sb,}));
+case 'profile':return !loggedIn?React.createElement('div', { className: "page", style: {padding:'16px'},}, React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),})):React.createElement('div', { className: "page",}, React.createElement(ProfilePage, { t: t, user: user, subscribed: subscribed, savedIds: savedIds, trips: trips, ships: ships, onLogout: handleLogout, onSubscribe: ()=>go('pricing'), go: go, onSaveProfile: handleSaveProfile, setUser: setUser, showToast: showToast, sb: sb, phoneVerified: phoneVerified, setPhoneModal: setPhoneModal,}));
 case 'my-trips':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "✈️"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, "My Trips" ), React.createElement('div', { className: "phd-sub",}, trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _106 => _106.id])).length, " trips posted"  ))), React.createElement(MyListingsPage, { t: t, items: trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _107 => _107.id])), type: "trip", go: go, sb: sb, user: user, showToast: showToast, loadListings: loadListings,}));
 case 'my-requests':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "📦"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, "My Requests" ), React.createElement('div', { className: "phd-sub",}, ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _108 => _108.id])).length, " requests posted"  ))), React.createElement(MyListingsPage, { t: t, items: ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _109 => _109.id])), type: "ship", go: go, sb: sb, user: user, showToast: showToast, loadListings: loadListings,}));
 case 'settings':return React.createElement('div', { className: "page",}, React.createElement(SettingsPage, { t: t, user: user, subscribed: subscribed, go: go, showToast: showToast, sb: sb, setSub: setSub,}));
@@ -4069,6 +4089,7 @@ function ContactPage({go, showToast, lang}) {
 
 
 ReactDOM.createRoot(document.getElementById('app')).render(React.createElement(App, null));
+
 
 
 
