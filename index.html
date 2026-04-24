@@ -1366,6 +1366,8 @@ const LOGO_1="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQcAAABQCAYAAAAUV7Bc
 
 
 
+
+
  function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }
 
 
@@ -2630,8 +2632,8 @@ const sb = {
 // ══════════════════════════════════════════════════════════
 // STRIPE HELPER
 // ══════════════════════════════════════════════════════════
-const STRIPE_PUB_KEY="YOUR_STRIPE_PUBLISHABLE_KEY_HERE";
-const STRIPE_PRICE_ID="price_1TMXnlDqJlJqJcVU45Qn8BOk";
+// Stripe publishable key not needed - all Stripe operations are server-side
+// STRIPE_PRICE_ID is server-side only via env vars
 
 async function startStripeCheckout(userEmail,userId,plan='premium'){
   const r=await fetch('/api/create-checkout-session',{
@@ -4092,9 +4094,9 @@ useEffect(()=>{
           const profile=await sb.getProfile(u.id);
           const savedAvatar=localStorage.getItem('ar_av_'+u.id)||null;
           // Check subscription from Supabase OR localStorage fallback
-          const isSub=_optionalChain([profile, 'optionalAccess', _71 => _71.is_subscribed])||localStorage.getItem('ar_sub')==='1'||false;
+          const isSub=_optionalChain([profile,'optionalAccess',_71=>_71.is_subscribed])||false; // Never trust localStorage for subscription
           // If localStorage says subscribed but Supabase doesn't, sync it
-          if(localStorage.getItem('ar_sub')==='1'&&!_optionalChain([profile, 'optionalAccess', _72 => _72.is_subscribed])){
+          if(false&&!_optionalChain([profile,'optionalAccess',_72=>_72.is_subscribed])){
             sb.update('profiles',{is_subscribed:true},`id=eq.${u.id}`).catch(()=>{});
           }
           setUser({id:u.id,email:u.email,name:_optionalChain([profile, 'optionalAccess', _73 => _73.name])||_optionalChain([u, 'access', _74 => _74.user_metadata, 'optionalAccess', _75 => _75.name])||u.email.split('@')[0],country:_optionalChain([profile, 'optionalAccess', _76 => _76.country])||'',wa:_optionalChain([profile, 'optionalAccess', _77 => _77.whatsapp])||'',isSubscribed:isSub,avatarUrl:(_optionalChain([profile,'optionalAccess',_=>_.avatar_url])||savedAvatar)});
@@ -4176,7 +4178,7 @@ const handleLogin=async(formData)=>{
       const loginAvatar=localStorage.getItem('ar_av_'+(formData.id||''))||null;
       try{
         const profile=await sb.getProfile(formData.id);
-        const isSub=_optionalChain([profile, 'optionalAccess', _86 => _86.is_subscribed])||localStorage.getItem('ar_sub')==='1'||false;
+        const isSub=_optionalChain([profile,'optionalAccess',_86=>_86.is_subscribed])||false; // Never trust localStorage for subscription
         setUser({id:formData.id,email:formData.email,name:_optionalChain([profile, 'optionalAccess', _87 => _87.name])||formData.name||formData.email.split('@')[0],country:_optionalChain([profile, 'optionalAccess', _88 => _88.country])||'',wa:_optionalChain([profile, 'optionalAccess', _89 => _89.whatsapp])||'',isSubscribed:isSub,avatarUrl:(_optionalChain([profile,'optionalAccess',_=>_.avatar_url])||loginAvatar),isVerifiedTraveler:_optionalChain([profile,'optionalAccess',_=>_.is_verified_traveler])||_optionalChain([profile,'optionalAccess',_=>_.is_traveler_verified])||false,
         isTravelerVerified:_optionalChain([profile,'optionalAccess',_=>_.is_traveler_verified])||false,
         isSenderVerified:_optionalChain([profile,'optionalAccess',_=>_.is_sender_verified])||false,
@@ -4192,8 +4194,8 @@ const handleLogin=async(formData)=>{
       const data=await sb.signIn((formData.email||'').trim().toLowerCase(),formData.password);
       const profile=await sb.getProfile(data.user.id);
       const loginAvatar=localStorage.getItem('ar_av_'+data.user.id)||null;
-      const isSubLogin=_optionalChain([profile, 'optionalAccess', _93 => _93.is_subscribed])||localStorage.getItem('ar_sub')==='1'||false;
-      if(localStorage.getItem('ar_sub')==='1'&&!_optionalChain([profile, 'optionalAccess', _94 => _94.is_subscribed])){
+      const isSubLogin=_optionalChain([profile,'optionalAccess',_93=>_93.is_subscribed])||false;
+      if(false&&!_optionalChain([profile,'optionalAccess',_94=>_94.is_subscribed])){
         sb.update('profiles',{is_subscribed:true},`id=eq.${data.user.id}`).catch(()=>{});
       }
       setUser({id:data.user.id,email:formData.email,name:_optionalChain([profile, 'optionalAccess', _95 => _95.name])||formData.email.split('@')[0],country:_optionalChain([profile, 'optionalAccess', _96 => _96.country])||'',wa:_optionalChain([profile, 'optionalAccess', _97 => _97.whatsapp])||'',isSubscribed:isSubLogin,avatarUrl:(_optionalChain([profile,'optionalAccess',_=>_.avatar_url])||loginAvatar),isVerifiedTraveler:_optionalChain([profile,'optionalAccess',_=>_.is_verified_traveler])||_optionalChain([profile,'optionalAccess',_=>_.is_traveler_verified])||false,
@@ -5097,6 +5099,8 @@ function ContactPage({go, showToast, lang}) {
 
 
 ReactDOM.createRoot(document.getElementById('app')).render(React.createElement(App, null));
+
+
 
 
 
