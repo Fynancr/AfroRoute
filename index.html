@@ -636,7 +636,38 @@ button{cursor:pointer}
 /* ── MODAL ── */
 .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease}
 @media(min-width:600px){.modal-ov{align-items:center}}
-.modal{background:#fff;border-radius:var(--rl) var(--rl) 0 0;width:100%;max-width:480px;padding:24px 20px;animation:slideUp .3s ease;max-height:90vh;overflow-y:auto}
+.modal{
+  background:#fff;
+  border-radius:var(--rl) var(--rl) 0 0;
+  width:100%;
+  max-width:480px;
+  animation:slideUp .3s ease;
+  max-height:90dvh;
+  max-height:90vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  padding:0;
+}
+.modal-body{
+  flex:1;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  padding:20px 16px;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));
+}
+.modal-footer{
+  flex-shrink:0;
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));
+  border-top:1px solid var(--bord);
+  background:#fff;
+}
+@media(min-width:600px){
+  .modal{border-radius:var(--rl);max-height:88vh}
+  .modal-body{padding-bottom:20px}
+  .modal-footer{padding-bottom:12px}
+}
 @media(min-width:600px){.modal{border-radius:var(--rl);animation:popIn .25s ease}}
 .modal-hd{width:40px;height:4px;background:var(--bord2);border-radius:2px;margin:0 auto 20px}
 .modal-title{font-family:'Sora',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-weight:700;font-size:20px;color:var(--navy);margin-bottom:6px}
@@ -1302,6 +1333,10 @@ const LOGO_1="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQcAAABQCAYAAAAUV7Bc
 
 </script>
 <script>
+
+
+
+
 
 
 
@@ -3059,7 +3094,7 @@ function AdminPage({t,user,sb,showToast}){
 function TravelerToolsPage({t,go}){
   const isEN=_optionalChain([t, 'optionalAccess', _37 => _37.lang])==='English';
   const isFR=_optionalChain([t, 'optionalAccess', _38 => _38.lang])==='Français';
-  const routes=[{flag:'🇵🇹→🇦🇴',from:'Lisboa (LIS)',to:'Luanda (LAD)',dur:'~6h'},{flag:'🇦🇴→🇵🇹',from:'Luanda (LAD)',to:'Lisboa (LIS)',dur:'~6h'},{flag:'🇵🇹→🇦🇴',from:'Porto (OPO)',to:'Luanda (LAD)',dur:'~8h'},{flag:'🇦🇴→🇵🇹',from:'Luanda (LAD)',to:'Porto (OPO)',dur:'~8h'}];
+  const routes=[{flag:'🇵🇹→🇦🇴',from:'Lisboa (LIS)',to:'Luanda (LAD)',dur:'6h'},{flag:'🇦🇴→🇵🇹',from:'Luanda (LAD)',to:'Lisboa (LIS)',dur:'6h'},{flag:'🇵🇹→🇦🇴',from:'Porto (OPO)',to:'Luanda (LAD)',dur:'8h'},{flag:'🇦🇴→🇵🇹',from:'Luanda (LAD)',to:'Porto (OPO)',dur:'8h'}];
   return(
     React.createElement('div', { className: "page",}, React.createElement('div', { style: {padding:'0 16px 72px'},}
       , React.createElement('div', { style: {padding:'24px 0 14px'},}
@@ -3423,7 +3458,7 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
-          amount:Math.round(parseFloat(amount)*100), // cents
+          amount:Math.round(parseFloat(amount)*100),
           description:desc||('AfroRoute: '+(convo&&convo.listing||'Shipment')),
           conversationId:convo&&convo.id,
           senderId:_optionalChain([user,'optionalAccess',_=>_.id]),
@@ -3435,7 +3470,6 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
       const d=await r.json();
       if(!r.ok)throw new Error(d.error||'Failed to create payment link');
       setLink(d.url);
-      // Save transaction to Supabase
       await sb.insert('transactions',{
         conversation_id:convo&&convo.id,
         sender_id:_optionalChain([user,'optionalAccess',_=>_.id]),
@@ -3467,9 +3501,10 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
   };
 
   return React.createElement('div',{className:'modal-ov',onClick:onClose},
-    React.createElement('div',{className:'modal',onClick:e=>e.stopPropagation(),style:{padding:0,overflow:'hidden',borderRadius:20}},
-      // Header
-      React.createElement('div',{style:{background:'linear-gradient(135deg,#0A2540,#0d6e5b)',padding:'20px 20px 18px'}},
+    React.createElement('div',{className:'modal',onClick:e=>e.stopPropagation()},
+
+      // ── Fixed header ──
+      React.createElement('div',{style:{background:'linear-gradient(135deg,#0A2540,#0d6e5b)',padding:'20px 20px 18px',flexShrink:0}},
         React.createElement('div',{style:{width:40,height:4,background:'rgba(255,255,255,.3)',borderRadius:4,margin:'0 auto 16px'}}),
         React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10}},
           React.createElement('div',{style:{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}},'💳'),
@@ -3483,19 +3518,18 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
           )
         )
       ),
-      // Body
-      React.createElement('div',{style:{padding:'20px 16px 16px'}},
+
+      // ── Scrollable body ──
+      React.createElement('div',{className:'modal-body'},
         !link?React.createElement('div',null,
           // Fee info box
           React.createElement('div',{style:{background:'linear-gradient(135deg,rgba(10,37,64,.04),rgba(26,188,156,.06))',border:'1.5px solid rgba(26,188,156,.25)',borderRadius:14,padding:'14px 16px',marginBottom:16}},
-            // Title
             React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:10}},
               React.createElement('span',{style:{fontSize:18}},'🛡️'),
               React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:14,color:'var(--navy)'}},
                 isEN?'Payment Protection':isFR?'Protection du paiement':'Proteção do Pagamento'
               )
             ),
-            // Steps
             [
               [isEN?'💳 Sender pays securely':isFR?'💳 L\'expéditeur paie en sécurité':'💳 Remetente paga com segurança',
                isEN?'Payment is processed by Stripe. Funds are held safely until delivery is confirmed.':
@@ -3536,12 +3570,10 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
           ),
           // Fee breakdown
           amount&&!isNaN(parseFloat(amount))&&parseFloat(amount)>0&&React.createElement('div',{style:{background:'#fff',border:'1px solid var(--bord)',borderRadius:12,overflow:'hidden',marginBottom:14}},
-            // Header
             React.createElement('div',{style:{background:'var(--surf2)',padding:'8px 14px',borderBottom:'1px solid var(--bord)',fontSize:11,fontWeight:700,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px'}},
               isEN?'Payment Breakdown':isFR?'Détail du paiement':'Resumo do Pagamento'
             ),
             React.createElement('div',{style:{padding:'12px 14px'}},
-              // Sender pays
               React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,paddingBottom:8,borderBottom:'1px solid var(--surf2)'}},
                 React.createElement('div',null,
                   React.createElement('div',{style:{fontSize:13,fontWeight:600,color:'var(--navy)'}},'💳 '+(isEN?'Sender pays':isFR?'L\'expéditeur paie':'Remetente paga')),
@@ -3549,7 +3581,6 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
                 ),
                 React.createElement('span',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:16,color:'var(--navy)'}},'€'+parseFloat(amount).toFixed(2))
               ),
-              // AfroRoute fee
               React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,paddingBottom:8,borderBottom:'1px solid var(--surf2)'}},
                 React.createElement('div',null,
                   React.createElement('div',{style:{fontSize:13,fontWeight:600,color:'var(--text2)'}},'🏷️ '+(isEN?'AfroRoute platform fee':isFR?'Frais de plateforme AfroRoute':'Taxa de plataforma AfroRoute')),
@@ -3557,15 +3588,13 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
                 ),
                 React.createElement('span',{style:{fontWeight:700,color:'var(--text3)',fontSize:13}},'-€'+(parseFloat(amount)*0.10).toFixed(2)+' (10%)')
               ),
-              // Stripe processing fee info
               React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10,paddingBottom:10,borderBottom:'1px solid var(--bord)'}},
                 React.createElement('div',null,
                   React.createElement('div',{style:{fontSize:13,fontWeight:600,color:'var(--text2)'}},'🔒 '+(isEN?'Stripe processing':isFR?'Traitement Stripe':'Processamento Stripe')),
                   React.createElement('div',{style:{fontSize:11,color:'var(--text4)',marginTop:1}},isEN?'Secure card processing by Stripe':isFR?'Traitement sécurisé par Stripe':'Processamento seguro pela Stripe')
                 ),
-                React.createElement('span',{style:{fontWeight:600,color:'var(--text4)',fontSize:12}},'~1.5%')
+                React.createElement('span',{style:{fontWeight:600,color:'var(--text4)',fontSize:12}},'1.5%')
               ),
-              // Traveler receives
               React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',background:'var(--gpale)',borderRadius:10,padding:'10px 12px',border:'1px solid var(--gborder)'}},
                 React.createElement('div',null,
                   React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:14,color:'var(--navy)'}},'✈️ '+(isEN?'Traveler receives':isFR?'Le voyageur reçoit':'Viajante recebe')),
@@ -3575,8 +3604,8 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
               )
             )
           ),
-          // Description
-          React.createElement('div',{className:'ff',style:{marginBottom:16}},
+          // Description input
+          React.createElement('div',{className:'ff'},
             React.createElement('label',{className:'fl'},
               isEN?'Description (optional)':isFR?'Description (optionnel)':'Descrição (opcional)'
             ),
@@ -3586,18 +3615,10 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
               onChange:e=>setDesc(e.target.value),
               placeholder:isEN?'e.g. 10kg clothing Lisbon-Luanda':isFR?'ex. 10kg vêtements Lisbonne-Luanda':'ex. 10kg roupa Lisboa-Luanda'
             })
-          ),
-          // Buttons
-          React.createElement('div',{style:{display:'flex',gap:10}},
-            React.createElement('button',{onClick:onClose,style:{flex:1,padding:'13px',borderRadius:11,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}},
-              isEN?'Cancel':isFR?'Annuler':'Cancelar'
-            ),
-            React.createElement('button',{onClick:generate,disabled:loading||!amount,style:{flex:2,padding:'13px',borderRadius:11,border:'none',background:'var(--green)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif",opacity:(loading||!amount)?0.6:1}},
-              loading?'...':(isEN?'Generate Link 💳':isFR?'Générer →':'Gerar Link 💳')
-            )
           )
-        ):React.createElement('div',null,
-          // Success - show link
+        )
+        // Success state
+        :React.createElement('div',null,
           React.createElement('div',{style:{textAlign:'center',marginBottom:20}},
             React.createElement('div',{style:{fontSize:48,marginBottom:8}},'✅'),
             React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:16,color:'var(--navy)',marginBottom:4}},
@@ -3608,15 +3629,27 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
             ),
             React.createElement('div',{style:{background:'var(--gpale)',border:'1px solid var(--gborder)',borderRadius:10,padding:'10px 12px',marginTop:12,fontSize:12,color:'var(--text2)',lineHeight:1.6,textAlign:'left'}},
               React.createElement('div',{style:{fontWeight:700,marginBottom:4,color:'var(--navy)'}},isEN?'What happens next:':isFR?'Que se passe-t-il ensuite :':'O que acontece a seguir:'),
-              React.createElement('div',null,'1. '+( isEN?'Sender pays via Stripe secure checkout':isFR?'L\'expéditeur paie via Stripe':'Remetente paga via Stripe')),
+              React.createElement('div',null,'1. '+(isEN?'Sender pays via Stripe secure checkout':isFR?'L\'expéditeur paie via Stripe':'Remetente paga via Stripe')),
               React.createElement('div',null,'2. '+(isEN?'Funds held safely until delivery confirmed':isFR?'Fonds retenus jusqu\'à confirmation':'Valor retido até confirmação')),
               React.createElement('div',null,'3. '+(isEN?'AfroRoute transfers your 90% after confirmation':isFR?'AfroRoute transfère vos 90% après confirmation':'AfroRoute transfere os teus 90% após confirmação'))
             )
           ),
-          // Link display
-          React.createElement('div',{style:{background:'var(--surf2)',border:'1px solid var(--bord)',borderRadius:12,padding:'12px 14px',marginBottom:16,wordBreak:'break-all',fontSize:12,color:'var(--green)',fontWeight:600}},link),
-          // Action buttons
-          React.createElement('div',{style:{display:'flex',gap:10,marginBottom:10}},
+          React.createElement('div',{style:{background:'var(--surf2)',border:'1px solid var(--bord)',borderRadius:12,padding:'12px 14px',wordBreak:'break-all',fontSize:12,color:'var(--green)',fontWeight:600}},link)
+        )
+      ),
+
+      // ── Sticky footer with CTA buttons ──
+      React.createElement('div',{className:'modal-footer'},
+        !link?React.createElement('div',{style:{display:'flex',gap:10}},
+          React.createElement('button',{onClick:onClose,style:{flex:1,padding:'13px',borderRadius:11,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}},
+            isEN?'Cancel':isFR?'Annuler':'Cancelar'
+          ),
+          React.createElement('button',{onClick:generate,disabled:loading||!amount,style:{flex:2,padding:'13px',borderRadius:11,border:'none',background:'var(--green)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif",opacity:(loading||!amount)?0.6:1}},
+            loading?'...':(isEN?'Generate Link 💳':isFR?'Générer →':'Gerar Link 💳')
+          )
+        )
+        :React.createElement('div',null,
+          React.createElement('div',{style:{display:'flex',gap:10,marginBottom:8}},
             React.createElement('button',{onClick:copyLink,style:{flex:1,padding:'12px',borderRadius:10,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:13,cursor:'pointer',color:'var(--text2)',display:'flex',alignItems:'center',justifyContent:'center',gap:6}},
               '📋 '+(isEN?'Copy':isFR?'Copier':'Copiar')
             ),
@@ -3632,7 +3665,6 @@ function PaymentLinkModal({convo,user,sb,showToast,onClose,onSent,t}){
     )
   );
 }
-
 function ReviewModal({reviewer,reviewee,agreementId,sb,showToast,onClose,onSubmit,t}){
   const[rating,setRating]=React.useState(0);
   const[hovered,setHovered]=React.useState(0);
@@ -4655,7 +4687,7 @@ case 'verify-device':return React.createElement('div',{className:'page'},
               React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',marginBottom:6}},'📋 What you need:'),
               React.createElement('div',null,'• Valid photo ID (passport, national ID, or driving licence)'),
               React.createElement('div',null,'• A selfie for liveness check'),
-              React.createElement('div',null,'• Good lighting, ~2 minutes of your time')
+              React.createElement('div',null,'• Good lighting, 2 minutes of your time')
             ),
 
             // Main CTA
@@ -5058,6 +5090,10 @@ function ContactPage({go, showToast, lang}) {
 
 
 ReactDOM.createRoot(document.getElementById('app')).render(React.createElement(App, null));
+
+
+
+
 
 
 
