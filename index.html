@@ -1173,6 +1173,9 @@ const LOGO_1="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQcAAABQCAYAAAAUV7Bc
 
 
 
+
+
+
  function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }
 
 const loadPersona=(cb)=>{
@@ -3663,6 +3666,7 @@ const[appLoading,setAppLoading]=useState(true);
 const[toast,setToast]=useState(null);
 const[modal,setModal]=useState(null);
 const[phoneModal,setPhoneModal]=useState(false);
+const[liveStats,setLiveStats]=useState({users:0,trips:0});
 const[phoneVerified,setPhoneVerified]=useState(false);
 const[reviewModal,setReviewModal]=useState(null);
 const[paymentModal,setPaymentModal]=useState(false);
@@ -3701,6 +3705,19 @@ useEffect(()=>{
   })();
 },[]);
 
+const loadStats=async()=>{
+  try{
+    const r1=await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id`,{
+      headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':`Bearer ${SUPABASE_ANON_KEY}`,'Prefer':'count=exact','Range':'0-0'}
+    });
+    const userCount=parseInt((r1.headers.get('Content-Range')||'0/0').split('/')[1]||'0')||0;
+    const r2=await fetch(`${SUPABASE_URL}/rest/v1/trips?status=eq.active&select=id`,{
+      headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':`Bearer ${SUPABASE_ANON_KEY}`,'Prefer':'count=exact','Range':'0-0'}
+    });
+    const tripCount=parseInt((r2.headers.get('Content-Range')||'0/0').split('/')[1]||'0')||0;
+    setLiveStats({users:userCount,trips:tripCount});
+  }catch(e){console.log('Stats:',e.message);}
+};
 const loadListings=async(isLoggedIn)=>{
   try{
     // Public read — use anon key only, no user token needed
@@ -3790,7 +3807,7 @@ useEffect(()=>{
           loadConversations(u.id);
           loadListings(true);
         } else {
-          loadListings(false); // no session = visitor, show demos
+          loadListings(false);loadStats(); // no session = visitor, show demos
         }
       }
     }catch(e){
@@ -4012,7 +4029,11 @@ const renderHome=()=>React.createElement('div', { className: "page",}, React.cre
   )
 )))
 , React.createElement('div', { className: "sec", style: {paddingTop:20},}, React.createElement('div', { className: "sec-hd",}, React.createElement('span', { className: "sec-title",}, t.trav_tools_title)), React.createElement('div', { style: {padding:'0 16px 8px',color:'#64748b',fontSize:14,lineHeight:1.6},}, t.trav_tools_sub), React.createElement('div', { style: {display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,padding:'0 16px 8px'},}, ['Lisbon → Luanda','Luanda → Lisbon','Porto → Luanda','Luanda → Porto'].map((route)=>React.createElement('div', { key: route, style: {background:'#fff',border:'1px solid #e2e8f0',borderRadius:14,padding:'14px 12px',boxShadow:'0 2px 8px rgba(0,0,0,.04)',opacity:.92},}, React.createElement('div', { style: {fontWeight:700,color:'#0A2540',fontSize:14,marginBottom:4},}, route), React.createElement('div', { style: {fontSize:12,color:'#1ABC9C',fontWeight:700},}, t.trav_tools_btn)))), React.createElement('div', { style: {padding:'0 16px 0',color:'#94a3b8',fontSize:12},}, t.trav_tools_note))
-, React.createElement('div', { className: "stats-row",}, [['180+',t.stat_routes],['3,200+',t.stat_users],['99%',t.stat_secure]].map(([n,l])=>React.createElement('div', { key: l, className: "stat-c",}, React.createElement('div', { className: "stat-n",}, n), React.createElement('div', { className: "stat-l",}, l))))
+, React.createElement('div', { className: "stats-row",}, [
+  [liveStats.trips>0?(liveStats.trips+(liveStats.trips>5?'+':'')):trips.filter(tr=>!tr.isDemo).length+'+'  ,t.stat_routes],
+  [liveStats.users>0?(liveStats.users>1000?(Math.floor(liveStats.users/100)/10)+'k+':liveStats.users+'+'):'—',t.stat_users],
+  ['99%',t.stat_secure]
+].map(([n,l])=>React.createElement('div', { key: l, className: "stat-c",}, React.createElement('div', { className: "stat-n",}, n), React.createElement('div', { className: "stat-l",}, l))))
 , React.createElement('div', { className: "sec", style: {paddingTop:36},}
 , React.createElement('div', { className: "sec-hd",}, React.createElement('span', { className: "sec-title",}, t.sec_trips), React.createElement('button', { className: "sec-link", onClick: ()=>go('browse-trips'),}, t.see_all))
 , appLoading?React.createElement('div', { className: "ldr",}, React.createElement('div', { className: "ldr-dots",}, React.createElement('div', { className: "ldr-dot",}), React.createElement('div', { className: "ldr-dot",}), React.createElement('div', { className: "ldr-dot",}))):trips.slice(0,3).map(trip=>React.createElement(TCard, { key: trip.id, trip: trip, t: t, onContact: handleContact, onSave: handleSave, saved: isSaved(trip.id,'trip'), onDetail: item=>setDetail({item,type:'trip'}),}))
@@ -4524,6 +4545,9 @@ function ContactPage({go, showToast, lang}) {
 
 
 ReactDOM.createRoot(document.getElementById('app')).render(React.createElement(App, null));
+
+
+
 
 
 
