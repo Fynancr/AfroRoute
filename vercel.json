@@ -1,38 +1,4 @@
 {
-  "functions": {
-    "api/stripe-webhook.js": {
-      "memory": 128,
-      "maxDuration": 10
-    },
-    "api/create-checkout-session.js": {
-      "memory": 128,
-      "maxDuration": 10
-    },
-    "api/create-payment-link.js": {
-      "memory": 128,
-      "maxDuration": 10
-    },
-    "api/create-portal-session.js": {
-      "memory": 128,
-      "maxDuration": 10
-    },
-    "api/create-verification-session.js": {
-      "memory": 128,
-      "maxDuration": 10
-    },
-    "api/identity-webhook.js": {
-      "memory": 128,
-      "maxDuration": 10
-    },
-    "api/send-device-verification.js": {
-      "memory": 128,
-      "maxDuration": 10
-    },
-    "api/verify-device-code.js": {
-      "memory": 128,
-      "maxDuration": 10
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",
