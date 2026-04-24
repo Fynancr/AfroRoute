@@ -6,6 +6,22 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+// ── CRITICAL: disable Vercel body parsing so Stripe receives raw buffer ──
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+// Read raw body from stream
+const getRawBody = (req) =>
+  new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+
 const mapStatus = (stripeStatus, lastError) => {
   if (stripeStatus === 'verified') return 'verified';
   if (stripeStatus === 'processing') return 'pending';
@@ -33,7 +49,7 @@ const updateUser = async (userId, sessionId, stripeStatus, role, lastError, veri
   if (isVerified) {
     update.stripe_verification_verified_at = verifiedAt || now;
     update.identity_verification_verified_at = verifiedAt || now;
-    update.is_verified_traveler = true; // legacy compatibility
+    update.is_verified_traveler = true;
     if (role === 'traveler' || role === 'both') update.is_traveler_verified = true;
     if (role === 'sender' || role === 'both') update.is_sender_verified = true;
   }
@@ -54,11 +70,18 @@ const updateUser = async (userId, sessionId, stripeStatus, role, lastError, veri
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
+
   const sig = req.headers['stripe-signature'];
   const secret = process.env.STRIPE_IDENTITY_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET;
+
   let event;
-  try { event = stripe.webhooks.constructEvent(req.body, sig, secret); }
-  catch (err) { return res.status(400).json({ error: `Webhook error: ${err.message}` }); }
+  try {
+    const rawBody = await getRawBody(req);
+    event = stripe.webhooks.constructEvent(rawBody, sig, secret);
+  } catch (err) {
+    console.error('Identity webhook signature error:', err.message);
+    return res.status(400).json({ error: `Webhook error: ${err.message}` });
+  }
 
   const s = event.data.object;
   const userId = s.metadata?.user_id;
@@ -71,7 +94,8 @@ module.exports = async (req, res) => {
         const vat = s.last_verification_report
           ? new Date(s.last_verification_report.created * 1000).toISOString()
           : new Date().toISOString();
-        await updateUser(userId, s.id, 'verified', role, null, vat);
+        const status = await updateUser(userId, s.id, 'verified', role, null, vat);
+        console.log(`User ${userId} verified (${role}) — status: ${status}`);
         break;
       }
       case 'identity.verification_session.requires_input':
