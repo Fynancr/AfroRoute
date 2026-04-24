@@ -1,81 +1,62 @@
 // api/create-verification-session.js
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
-
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://fzokrhosmthdiymdewuw.supabase.co';
-const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-const supabaseAuth = createClient(
-  SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabase = createClient(
+  process.env.SUPABASE_URL || 'https://fzokrhosmthdiymdewuw.supabase.co',
+  process.env.SUPABASE_SERVICE_KEY
 );
 
-const allowedOrigins = new Set([
+const ALLOWED_ORIGINS = [
   'https://www.afroroute.com',
-  'https://afroroute.com'
-]);
-
-function setCors(req, res) {
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.has(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Vary', 'Origin');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-}
-
-function getBearerToken(req) {
-  const header = req.headers.authorization || '';
-  if (!header.startsWith('Bearer ')) return null;
-  return header.slice('Bearer '.length).trim();
-}
+  'https://afroroute.com',
+  'https://project-5z3nd.vercel.app',
+];
 
 module.exports = async (req, res) => {
-  setCors(req, res);
-
+  // Strict CORS
+  const origin = req.headers.origin || '';
+  const allowed = ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.vercel.app');
+  res.setHeader('Access-Control-Allow-Origin', allowed ? origin : ALLOWED_ORIGINS[0]);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Vary', 'Origin');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { role = 'both' } = req.body || {};
-  if (!['sender', 'traveler', 'both'].includes(role)) {
-    return res.status(400).json({ error: 'Invalid role' });
-  }
+  const { userId, email, role } = req.body || {};
 
-  const token = getBearerToken(req);
-  if (!token) {
-    return res.status(401).json({ error: 'Login required before starting identity verification.' });
-  }
+  // Input validation
+  if (!userId || typeof userId !== 'string' || userId.length > 100)
+    return res.status(400).json({ error: 'Invalid userId' });
+  if (!role || !['sender', 'traveler', 'both'].includes(role))
+    return res.status(400).json({ error: 'Invalid role' });
+  if (email && typeof email !== 'string')
+    return res.status(400).json({ error: 'Invalid email' });
 
   try {
-    const { data: authData, error: authError } = await supabaseAuth.auth.getUser(token);
-    if (authError || !authData?.user) {
-      return res.status(401).json({ error: 'Invalid or expired session. Please log in again.' });
+    // Rate limit: max 3 verification sessions per user per hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: recentSessions, error: checkErr } = await supabase
+      .from('verification_logs')
+      .select('id')
+      .eq('user_id', userId)
+      .gte('created_at', oneHourAgo);
+
+    if (!checkErr && recentSessions && recentSessions.length >= 3) {
+      return res.status(429).json({
+        error: 'Too many verification attempts. Please wait before trying again.'
+      });
     }
 
-    const user = authData.user;
-    const userId = user.id;
-    const email = user.email || '';
-
-    const { data: profile, error: profileError } = await supabaseAdmin
+    // Check if user is already verified — don't create new session
+    const { data: profile } = await supabase
       .from('profiles')
-      .select('id, identity_verification_status, stripe_verification_status, is_verified_traveler, is_traveler_verified, is_sender_verified')
+      .select('is_traveler_verified, is_sender_verified, is_verified_traveler')
       .eq('id', userId)
       .single();
 
-    if (profileError && profileError.code !== 'PGRST116') {
-      console.error('Profile lookup failed:', profileError);
-      return res.status(500).json({ error: 'Could not check verification status.' });
-    }
-
-    const alreadyVerified =
-      profile?.identity_verification_status === 'verified' ||
-      profile?.stripe_verification_status === 'verified' ||
-      profile?.is_verified_traveler === true ||
-      profile?.is_traveler_verified === true ||
-      profile?.is_sender_verified === true;
-
-    if (alreadyVerified) {
-      return res.status(200).json({ already_verified: true, status: 'verified' });
+    if (profile?.is_traveler_verified || profile?.is_sender_verified || profile?.is_verified_traveler) {
+      return res.status(400).json({ error: 'User is already verified.' });
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.afroroute.com';
@@ -87,50 +68,48 @@ module.exports = async (req, res) => {
           allowed_types: ['passport', 'id_card', 'driving_license'],
           require_id_number: false,
           require_live_capture: true,
-          require_matching_selfie: true
-        }
+          require_matching_selfie: true,
+        },
       },
       metadata: {
         user_id: userId,
-        email,
+        email: email || '',
         role,
-        platform: 'afroroute'
+        platform: 'afroroute',
       },
-      return_url: `${siteUrl}?verification=complete`
+      return_url: `${siteUrl}?verification=complete`,
     });
 
-    const { error: updateError } = await supabaseAdmin
-      .from('profiles')
-      .update({
-        stripe_verification_session_id: session.id,
-        stripe_verification_status: session.status || 'pending',
-        identity_verification_role: role,
-        identity_verification_started_at: new Date().toISOString(),
-        identity_verification_status: 'pending',
-        stripe_verification_last_error: null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId);
+    // Persist immediately
+    const now = new Date().toISOString();
+    await supabase.from('profiles').update({
+      stripe_verification_session_id: session.id,
+      stripe_verification_status: 'pending',
+      identity_verification_role: role,
+      identity_verification_started_at: now,
+      identity_verification_status: 'pending',
+      stripe_verification_last_error: null,
+    }).eq('id', userId);
 
-    if (updateError) {
-      console.error('Failed to persist Stripe verification session:', {
-        message: updateError.message,
-        details: updateError.details,
-        hint: updateError.hint,
-        code: updateError.code,
-        userId,
-        sessionId: session.id
-      });
-      return res.status(500).json({ error: 'Could not save verification session. Please try again.' });
-    }
+    // Log the session creation
+    await supabase.from('verification_logs').insert({
+      user_id: userId,
+      session_id: session.id,
+      stripe_status: 'created',
+      afro_status: 'pending',
+      role,
+      created_at: now,
+    }).catch(() => {});
 
     return res.status(200).json({
       session_id: session.id,
       url: session.url,
-      status: session.status
+      status: session.status,
     });
   } catch (error) {
-    console.error('Stripe Identity create session error:', error.message);
-    return res.status(500).json({ error: 'Could not start verification. Please try again.' });
+    console.error('Stripe Identity session error:', error.message);
+    return res.status(500).json({
+      error: 'Could not start verification. Please try again.'
+    });
   }
 };
