@@ -1170,6 +1170,9 @@ const LOGO_1="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQcAAABQCAYAAAAUV7Bc
 
 
 
+
+
+
  function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }
 
 const loadPersona=(cb)=>{
@@ -1534,6 +1537,9 @@ function AuthPage({t,onLogin,go}){
   const[selfiePreview,setSelfiePreview]=React.useState(null);
   const[signupDone,setSignupDone]=React.useState(false);
   const[signupEmail,setSignupEmail]=React.useState('');
+  const[personaLoading,setPersonaLoading]=React.useState(false);
+  const[personaDone,setPersonaDone]=React.useState(false);
+  const[personaInquiryId,setPersonaInquiryId]=React.useState(null);
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
   const lang=_optionalChain([t,'optionalAccess',_=>_.lang])||'pt';
   const isEN=lang==='English';
@@ -1605,6 +1611,34 @@ function AuthPage({t,onLogin,go}){
   };
 
   // ── Photo capture helper ──
+  const startPersonaVerification=()=>{
+    setPersonaLoading(true);
+    loadPersona((err)=>{
+      setPersonaLoading(false);
+      if(err||!window.Persona){
+        // Persona not available - skip gracefully, use manual photos
+        console.log('Persona not available, using manual photo upload');
+        return;
+      }
+      const client=new window.Persona.Client({
+        templateId:PERSONA_TEMPLATE_ID,
+        environmentId:PERSONA_ENVIRONMENT_ID,
+        onReady:()=>client.open(),
+        onComplete:({inquiryId,status})=>{
+          console.log('Persona complete:',inquiryId,status);
+          setPersonaInquiryId(inquiryId);
+          setPersonaDone(true);
+        },
+        onCancel:()=>{
+          console.log('Persona cancelled');
+        },
+        onError:(err)=>{
+          console.error('Persona error:',err);
+        }
+      });
+    });
+  };
+
   const capturePhoto=(setter,previewSetter)=>(e)=>{
     const file=e.target.files[0];
     if(!file)return;
@@ -1624,6 +1658,8 @@ function AuthPage({t,onLogin,go}){
         phoneVerified,
         idImageData:idPhoto,
         selfieData:selfiePhoto,
+        personaInquiryId:personaInquiryId||null,
+        personaStatus:personaDone?'completed':null,
         _onConfirmNeeded: ()=>{
           setSignupEmail(f.email);
           setSignupDone(true);
@@ -1854,6 +1890,41 @@ function AuthPage({t,onLogin,go}){
                'Pour garantir la sécurité de la plateforme, nous avons besoin d\'une photo de ta pièce d\'identité et d\'un selfie.')
           ),
 
+          // Persona verification - primary method
+          !personaDone&&React.createElement('div',{style:{marginBottom:16,background:'linear-gradient(135deg,rgba(10,37,64,.04),rgba(26,188,156,.06))',border:'1px solid rgba(26,188,156,.3)',borderRadius:14,padding:'16px'}},
+            React.createElement('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:12}},
+              React.createElement('div',{style:{width:44,height:44,borderRadius:12,background:'linear-gradient(135deg,var(--navy),var(--green))',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0}},'🪪'),
+              React.createElement('div',null,
+                React.createElement('div',{style:{fontWeight:700,fontSize:15,color:'var(--navy)'}},'Persona ID Verification'),
+                React.createElement('div',{style:{fontSize:12,color:'var(--text3)',marginTop:2}},tx('Verificação automática e segura em 2 minutos','Automatic secure verification in 2 minutes','Vérification automatique et sécurisée en 2 minutes'))
+              )
+            ),
+            React.createElement('button',{
+              onClick:startPersonaVerification,
+              disabled:personaLoading,
+              style:{width:'100%',padding:'13px',borderRadius:11,border:'none',background:'linear-gradient(135deg,var(--navy),#1a4a7a)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif",opacity:personaLoading?.7:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8}
+            },
+              personaLoading
+              ?React.createElement(React.Fragment,null,'⏳ ',tx('A carregar...','Loading...','Chargement...'))
+              :React.createElement(React.Fragment,null,'🚀 ',tx('Verificar Identidade Agora','Verify Identity Now','Vérifier mon identité maintenant'))
+            ),
+            React.createElement('div',{style:{fontSize:11,color:'var(--text3)',textAlign:'center',marginTop:8}},
+              tx('Podes também fazer upload manual abaixo se preferires','You can also manually upload photos below','Tu peux aussi télécharger manuellement ci-dessous')
+            )
+          ),
+          personaDone&&React.createElement('div',{style:{background:'rgba(16,185,129,.1)',border:'1px solid rgba(16,185,129,.3)',borderRadius:12,padding:'14px 16px',marginBottom:16,textAlign:'center'}},
+            React.createElement('div',{style:{fontSize:32,marginBottom:4}},'✅'),
+            React.createElement('div',{style:{fontWeight:700,color:'var(--succ)',fontSize:15}},'Identity Verified via Persona!'),
+            React.createElement('div',{style:{fontSize:12,color:'var(--text3)',marginTop:2}},tx('A tua identidade foi verificada com sucesso','Your identity was successfully verified','Ton identité a été vérifiée avec succès'))
+          ),
+
+          // Manual photo upload (optional if Persona used)
+          React.createElement('div',{style:{marginBottom:4}},
+            React.createElement('div',{style:{fontSize:12,color:'var(--text3)',fontWeight:600,marginBottom:10,textAlign:'center'}},
+              personaDone?tx('(Opcional) Fotos adicionais','(Optional) Additional photos','(Optionnel) Photos supplémentaires'):tx('Ou faz upload manual:','Or upload manually:','Ou télécharge manuellement :')
+            )
+          ),
+
           // ID Document upload
           React.createElement('div',{style:{marginBottom:16}},
             React.createElement('div',{style:{fontWeight:700,fontSize:14,color:'var(--navy)',marginBottom:8}},'🪪 '+tx('Documento de Identificação','ID Document','Pièce d\'identité')),
@@ -1910,8 +1981,8 @@ function AuthPage({t,onLogin,go}){
             ),
             React.createElement('button',{
               onClick:()=>{
-                if(!idPhoto){alert(tx('Por favor adiciona uma foto do teu documento.','Please add a photo of your ID.','Ajoute une photo de ta pièce d\'identité.'));return;}
-                if(!selfiePhoto){alert(tx('Por favor tira uma selfie.','Please take a selfie.','Prends un selfie.'));return;}
+                if(!personaDone&&!idPhoto){alert(tx('Por favor verifica a identidade com Persona ou adiciona uma foto do documento.','Please verify with Persona or add a document photo.','Vérifie ton identité avec Persona ou ajoute une photo.'));return;}
+                if(!personaDone&&!selfiePhoto){alert(tx('Por favor tira uma selfie.','Please take a selfie.','Prends un selfie.'));return;}
                 setStep(4);
               },
               style:{flex:2,padding:'12px',borderRadius:10,border:'none',background:'var(--green)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif"}
@@ -2002,7 +2073,18 @@ return React.createElement('div', { className: "modal-ov", onClick: onClose,}, R
     )
   )
 ));}
-function SettingsPage({t,user,subscribed,go,showToast,sb,setSub}){
+function SettingsPage({t,user,subscribed,go,showToast,sb,setSub,onLogout}){
+  const[deleteConfirm,setDeleteConfirm]=React.useState(false);
+  const[deleting,setDeleting]=React.useState(false);
+  const doDeleteAccount=async()=>{
+    setDeleting(true);
+    try{
+      await sb.deleteAccount();
+      showToast('Account deleted');
+      if(onLogout)onLogout();
+    }catch(e){showToast(e.message,'error');}
+    setDeleting(false);setDeleteConfirm(false);
+  };
   const manageSubscription=async()=>{
     showToast('Opening billing portal...');
     try{
@@ -2082,7 +2164,34 @@ function SettingsPage({t,user,subscribed,go,showToast,sb,setSub}){
       , React.createElement('div', { style: {padding:'12px 16px',background:'rgba(239,68,68,.04)',borderBottom:'1px solid rgba(239,68,68,.1)',fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:12,color:'#ef4444',textTransform:'uppercase',letterSpacing:'.5px'},}, "Account Actions" )
       , React.createElement('div', { style: {padding:'16px',display:'flex',gap:10,flexWrap:'wrap'},}
         , React.createElement('button', { onClick: ()=>go('contact'), style: {flex:1,minWidth:120,padding:'11px',borderRadius:10,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:13,color:'var(--text2)',cursor:'pointer'},}, "Contact Support" )
-        , React.createElement('button', { onClick: ()=>showToast('To delete your account email hello@afroroute.com','warning'), style: {flex:1,minWidth:120,padding:'11px',borderRadius:10,border:'1.5px solid rgba(239,68,68,.2)',background:'rgba(239,68,68,.04)',fontWeight:600,fontSize:13,color:'#ef4444',cursor:'pointer'},}, "Delete Account" )
+        , React.createElement('button', { onClick: ()=>setDeleteConfirm(true), style: {flex:1,minWidth:120,padding:'11px',borderRadius:10,border:'1.5px solid rgba(239,68,68,.2)',background:'rgba(239,68,68,.04)',fontWeight:600,fontSize:13,color:'#ef4444',cursor:'pointer'},}, "Delete Account" )
+      )
+    )
+    /* Delete confirmation modal */
+    ,deleteConfirm&&React.createElement('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}},
+      React.createElement('div',{style:{background:'#fff',borderRadius:20,padding:24,maxWidth:360,width:'100%',boxShadow:'0 8px 32px rgba(0,0,0,.2)'}},
+        React.createElement('div',{style:{textAlign:'center',marginBottom:20}},
+          React.createElement('div',{style:{fontSize:48,marginBottom:8}},'⚠️'),
+          React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:18,color:'var(--navy)',marginBottom:8}},'Delete Account?'),
+          React.createElement('div',{style:{fontSize:14,color:'var(--text2)',lineHeight:1.6}},
+            'This will permanently delete your account, all your trips, shipment requests and messages. ',
+            React.createElement('strong',null,'This cannot be undone.')
+          )
+        ),
+        React.createElement('div',{style:{background:'rgba(239,68,68,.06)',border:'1px solid rgba(239,68,68,.2)',borderRadius:12,padding:'12px 14px',marginBottom:16,fontSize:13,color:'#b91c1c',lineHeight:1.6}},
+          '⚠ All your data will be permanently deleted including your profile, listings and messages.'
+        ),
+        React.createElement('div',{style:{display:'flex',gap:10}},
+          React.createElement('button',{
+            onClick:()=>setDeleteConfirm(false),
+            style:{flex:1,padding:'13px',borderRadius:11,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}
+          },'← Cancel'),
+          React.createElement('button',{
+            onClick:deleteAccount,
+            disabled:deleting,
+            style:{flex:1,padding:'13px',borderRadius:11,border:'none',background:'var(--danger)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer',opacity:deleting?.6:1,fontFamily:"'Sora',sans-serif"}
+          },deleting?'Deleting…':'🗑 Yes, Delete')
+        )
       )
     )
   );
@@ -2360,6 +2469,15 @@ const sb = {
     return fields;
   },
 
+  async deleteAccount(){
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/user`,{
+      method:'DELETE',
+      headers:{...sb._headers(),'Authorization':`Bearer ${sb._token}`}
+    });
+    if(!r.ok)throw new Error('Contact support@afroroute.com to delete your account');
+    localStorage.clear();sb._token=null;sb._user=null;
+    return true;
+  },
   async sendPhoneOTP(phone){
     const r=await fetch(`${SUPABASE_URL}/auth/v1/otp`,{
       method:'POST',
@@ -4044,7 +4162,7 @@ case 'auth':return React.createElement('div', { className: "page", style: {displ
 case 'profile':return !loggedIn?React.createElement('div', { className: "page", style: {padding:'16px'},}, React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),})):React.createElement('div', { className: "page",}, React.createElement(ProfilePage, { t: t, user: user, subscribed: subscribed, savedIds: savedIds, trips: trips, ships: ships, onLogout: handleLogout, onSubscribe: ()=>go('pricing'), go: go, onSaveProfile: handleSaveProfile, setUser: setUser, showToast: showToast, sb: sb, phoneVerified: phoneVerified, setPhoneModal: setPhoneModal,}));
 case 'my-trips':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "✈️"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, "My Trips" ), React.createElement('div', { className: "phd-sub",}, trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _106 => _106.id])).length, " trips posted"  ))), React.createElement(MyListingsPage, { t: t, items: trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _107 => _107.id])), type: "trip", go: go, sb: sb, user: user, showToast: showToast, loadListings: loadListings,}));
 case 'my-requests':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "📦"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, "My Requests" ), React.createElement('div', { className: "phd-sub",}, ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _108 => _108.id])).length, " requests posted"  ))), React.createElement(MyListingsPage, { t: t, items: ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _109 => _109.id])), type: "ship", go: go, sb: sb, user: user, showToast: showToast, loadListings: loadListings,}));
-case 'settings':return React.createElement('div', { className: "page",}, React.createElement(SettingsPage, { t: t, user: user, subscribed: subscribed, go: go, showToast: showToast, sb: sb, setSub: setSub,}));
+case 'settings':return React.createElement('div', { className: "page",}, React.createElement(SettingsPage, { t: t, user: user, subscribed: subscribed, go: go, showToast: showToast, sb: sb, setSub: setSub, onLogout: handleLogout,}));
 case 'saved':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "⭐"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.saved_listings))), React.createElement('div', { style: {padding:'0 16px 32px'},}, savedIds.size===0?React.createElement(Empty, { icon: "⭐", title: t.saved_listings, sub: "Items you save will appear here."     , cta: "Browse Trips" , onCta: ()=>go('browse-trips'),}):React.createElement(React.Fragment, null, trips.filter(tr=>savedIds.has(`trip-${tr.id}`)).map(trip=>React.createElement(TCard, { key: trip.id, trip: trip, t: t, onContact: handleContact, onSave: handleSave, saved: true, onDetail: item=>setDetail({item,type:'trip'}),})), ships.filter(sh=>savedIds.has(`ship-${sh.id}`)).map(ship=>React.createElement(SCard, { key: ship.id, ship: ship, t: t, onContact: handleContact, onSave: handleSave, saved: true, onDetail: item=>setDetail({item,type:'ship'}),})))));
 case 'admin':return _optionalChain([user, 'optionalAccess', _110 => _110.email])==='alcino.manuel86@gmail.com'?React.createElement(AdminPage, { t: t, user: user, sb: sb, showToast: showToast,}):React.createElement('div', { className: "page", style: {padding:'40px 24px',textAlign:'center'},}, React.createElement('div', { style: {fontSize:48,marginBottom:16},}, "🔒"), React.createElement('div', { style: {fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:20,color:'var(--navy)',marginBottom:8},}, "Access Restricted" ), React.createElement('div', { style: {color:'var(--text3)',fontSize:14},}, "This area is for authorised administrators only."      ));
 case 'terms':return React.createElement(TermsPage, { go: go, lang: lang,});
@@ -4406,6 +4524,9 @@ function ContactPage({go, showToast, lang}) {
 
 
 ReactDOM.createRoot(document.getElementById('app')).render(React.createElement(App, null));
+
+
+
 
 
 
