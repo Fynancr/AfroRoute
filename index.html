@@ -1411,319 +1411,6 @@ const CONVOS=[
 {from:"them",text:"My price is $4.5/kg",t:"07:01"},
 ]},
 ];
-
-// AfroRoute global text translator.
-// This catches remaining hardcoded text strings that were not connected to the T language dictionary.
-(function(){
-  if(!window.React || window.__AFROROUTE_I18N_PATCHED__) return;
-  window.__AFROROUTE_I18N_PATCHED__ = true;
-
-  function currentLang(){
-    try{
-      return window.__arLang || localStorage.getItem('ar_lang') || (document.querySelector('.lang-sel') && document.querySelector('.lang-sel').value) || 'pt';
-    }catch(e){ return window.__arLang || 'pt'; }
-  }
-
-  const PT = {
-    "Flights":"Voos",
-    "Browse Trips":"Ver Viagens",
-    "Browse Requests":"Ver Pedidos",
-    "Post a Trip":"Publicar Viagem",
-    "Pricing":"Preços",
-    "Messages":"Mensagens",
-    "Account":"Conta",
-    "Contact":"Contacto",
-    "Cancel":"Cancelar",
-    "Back":"Voltar",
-    "← Back":"← Voltar",
-    "← Home":"← Início",
-    "← Back to Home":"← Voltar ao Início",
-    "Home":"Início",
-    "Save":"Guardar",
-    "Saved":"Guardado",
-    "Report":"Denunciar",
-    "Active":"Ativo",
-    "Completed":"Concluído",
-    "Pending":"Pendente",
-    "Failed":"Falhado",
-    "Trip":"Viagem",
-    "Request":"Pedido",
-    "User":"Utilizador",
-    "Email":"Email",
-    "Email:":"Email:",
-    "Password":"Palavra-passe",
-    "Full name":"Nome completo",
-    "Sign In":"Entrar",
-    "Create Account":"Criar Conta",
-    "Terms of Service":"Termos de Serviço",
-    "Privacy Policy":"Política de Privacidade",
-    "Clothing & Textiles":"Roupa e Têxteis",
-    "Documents":"Documentos",
-    "Destination Country":"País de destino",
-    "Travel Date":"Data da viagem",
-    "Budget/KG":"Orçamento/KG",
-    "Open to offers":"Aberto a propostas",
-    "Urgent":"Urgente",
-    "Satisfaction":"Satisfação",
-    "Secure":"Seguro",
-    "Delivery Flow":"Entrega Segura",
-    "Launch Corridor":"Corredor de Lançamento",
-    "Traveler Tools":"Ferramentas para Viajantes",
-    "Plan your trip and earn while carrying packages.":"Planeie a sua viagem e ganhe dinheiro transportando encomendas.",
-    "Coming soon":"Em breve",
-    "We are preparing this feature. Soon you will be able to compare travel options directly through AfroRoute.":"Estamos a preparar esta funcionalidade. Em breve poderá comparar opções de viagem diretamente na AfroRoute.",
-    "Latest Trips":"Viagens Recentes",
-    "Latest Requests":"Pedidos Recentes",
-    "See all →":"Ver tudo →",
-    "Contact Support":"Contactar Suporte",
-    "Edit Profile":"Editar Perfil",
-    "Update your information":"Atualize as suas informações",
-    "My Trips":"As Minhas Viagens",
-    "My Requests":"Os Meus Pedidos",
-    "My Agreements":"Os Meus Acordos",
-    "View signed agreements":"Ver acordos assinados",
-    "Saved Listings":"Anúncios Guardados",
-    "Messages":"Mensagens",
-    "Your conversations":"As suas conversas",
-    "Subscription":"Subscrição",
-    "Manage Billing →":"Gerir Faturação →",
-    "Verify Phone Number":"Verificar Número de Telefone",
-    "ID Verification":"Verificação de Identidade",
-    "Identity Verification":"Verificação de Identidade",
-    "Identity Verified":"Identidade Verificada",
-    "Your identity has been verified. You can now post trips and submit shipment requests.":"A sua identidade foi verificada. Agora pode publicar viagens e enviar pedidos de envio.",
-    "Required for both senders and travelers to use AfroRoute.":"Obrigatória para remetentes e viajantes usarem a AfroRoute.",
-    "Start Identity Verification":"Iniciar Verificação de Identidade",
-    "🔒 Secure verification powered by Stripe Identity":"🔒 Verificação segura através da Stripe Identity",
-    "Verification in progress":"Verificação em curso",
-    "We are reviewing your documents. This usually takes a few minutes. You will be notified once complete.":"Estamos a analisar os seus documentos. Normalmente demora alguns minutos. Será notificado quando estiver concluído.",
-    "Verification needs attention":"A verificação precisa de atenção",
-    "Your verification could not be completed. This may be due to a blurry photo, expired document, or failed liveness check.":"A sua verificação não pôde ser concluída. Isto pode acontecer devido a uma foto desfocada, documento expirado ou falha na validação de presença.",
-    "If you need help, email us at ":"Se precisar de ajuda, envie-nos um email para ",
-    "🔄 Retry Verification":"🔄 Tentar verificação novamente",
-    "🔐 Why verify your identity?":"🔐 Porquê verificar a sua identidade?",
-    "✓ Post trips or shipment requests":"✓ Publicar viagens ou pedidos de envio",
-    "✓ Earn a verified badge on your profile":"✓ Receber um selo verificado no seu perfil",
-    "✓ Build trust with the other side":"✓ Criar confiança com a outra parte",
-    "✓ Required for all shipment transactions":"✓ Obrigatório para todas as transações de envio",
-    "📋 What you need:":"📋 O que precisa:",
-    "• Valid photo ID — passport, national ID, or driving licence":"• Documento de identificação válido — passaporte, cartão de cidadão/BI ou carta de condução",
-    "• A selfie for liveness check":"• Uma selfie para verificação de presença",
-    "• Good lighting, 2 minutes of your time":"• Boa iluminação e cerca de 2 minutos do seu tempo",
-    "⏳ Starting…":"⏳ A iniciar…",
-    "No agreements yet.":"Sem acordos ainda.",
-    "Your signed agreements will appear here once you create or accept a shipment agreement.":"Os seus acordos assinados aparecerão aqui quando criar ou aceitar um acordo de envio.",
-    "Agreements are created when you contact a traveler or sender.":"Os acordos são criados quando contacta um viajante ou remetente.",
-    "Leave a Review":"Deixar Avaliação",
-    "Submit Review ⭐":"Enviar Avaliação ⭐",
-    "No conversations yet":"Sem conversas",
-    "When you message a traveler or sender, conversations appear here.":"Quando enviar mensagem a um viajante ou remetente, as conversas aparecerão aqui.",
-    "Type a message...":"Escreva uma mensagem...",
-    "Send":"Enviar",
-    "Subscribe to Message":"Subscreva para Enviar Mensagem",
-    "Subscription Required":"Subscrição Necessária",
-    "Unlock Full Access →":"Desbloquear Acesso Total →",
-    "Report Listing":"Denunciar Anúncio",
-    "Help keep AfroRoute safe":"Ajude a manter a AfroRoute segura",
-    "Submit Report":"Enviar Denúncia",
-    "Report submitted. Thank you.":"Denúncia enviada. Obrigado.",
-    "No hidden fees":"Sem taxas escondidas",
-    "Verified users":"Utilizadores verificados",
-    "Documented handover":"Entrega documentada",
-    "How AfroRoute Works":"Como a AfroRoute Funciona",
-    "Post your shipment or trip":"Publique o seu envio ou viagem",
-    "Trusted shipping between Portugal and Angola.":"Envios de confiança entre Portugal e Angola.",
-    "Product":"Produto",
-    "Legal":"Legal",
-    "Security":"Segurança",
-    "Refunds":"Reembolsos",
-    "Disputes":"Disputas",
-    "AfroRoute Pro":"AfroRoute Pro",
-    "Get Verified":"Verificar Identidade",
-    "Traveler Tools":"Ferramentas para Viajantes",
-    "Install App":"Instalar App",
-    "Log Out":"Terminar Sessão",
-    "Settings":"Definições",
-    "Member since":"Membro desde",
-    "Requests Posted":"Pedidos Publicados",
-    "Trips Posted":"Viagens Publicadas",
-    "No ratings yet":"Ainda sem avaliações",
-    "Profile photo updated!":"Foto de perfil atualizada!",
-    "Image too large. Max 5MB.":"Imagem demasiado grande. Máximo 5MB.",
-    "Save Changes":"Guardar Alterações"
-  };
-
-  const FR = {
-    "Flights":"Vols",
-    "Browse Trips":"Voir les voyages",
-    "Browse Requests":"Voir les demandes",
-    "Post a Trip":"Publier un voyage",
-    "Pricing":"Tarifs",
-    "Messages":"Messages",
-    "Account":"Compte",
-    "Contact":"Contact",
-    "Cancel":"Annuler",
-    "Back":"Retour",
-    "← Back":"← Retour",
-    "← Home":"← Accueil",
-    "← Back to Home":"← Retour à l’accueil",
-    "Home":"Accueil",
-    "Save":"Enregistrer",
-    "Saved":"Enregistré",
-    "Report":"Signaler",
-    "Active":"Actif",
-    "Completed":"Terminé",
-    "Pending":"En attente",
-    "Failed":"Échoué",
-    "Trip":"Voyage",
-    "Request":"Demande",
-    "User":"Utilisateur",
-    "Email":"Email",
-    "Email:":"Email :",
-    "Password":"Mot de passe",
-    "Full name":"Nom complet",
-    "Sign In":"Se connecter",
-    "Create Account":"Créer un compte",
-    "Terms of Service":"Conditions d’utilisation",
-    "Privacy Policy":"Politique de confidentialité",
-    "Clothing & Textiles":"Vêtements et textiles",
-    "Documents":"Documents",
-    "Destination Country":"Pays de destination",
-    "Travel Date":"Date du voyage",
-    "Budget/KG":"Budget/KG",
-    "Open to offers":"Ouvert aux offres",
-    "Urgent":"Urgent",
-    "Satisfaction":"Satisfaction",
-    "Secure":"Sécurisé",
-    "Delivery Flow":"Livraison sécurisée",
-    "Launch Corridor":"Couloir de lancement",
-    "Traveler Tools":"Outils voyageurs",
-    "Plan your trip and earn while carrying packages.":"Planifiez votre voyage et gagnez de l’argent en transportant des colis.",
-    "Coming soon":"Bientôt disponible",
-    "We are preparing this feature. Soon you will be able to compare travel options directly through AfroRoute.":"Nous préparons cette fonctionnalité. Bientôt, vous pourrez comparer les options de voyage directement sur AfroRoute.",
-    "Latest Trips":"Derniers voyages",
-    "Latest Requests":"Dernières demandes",
-    "See all →":"Voir tout →",
-    "Contact Support":"Contacter le support",
-    "Edit Profile":"Modifier le profil",
-    "Update your information":"Mettez à jour vos informations",
-    "My Trips":"Mes voyages",
-    "My Requests":"Mes demandes",
-    "My Agreements":"Mes accords",
-    "View signed agreements":"Voir les accords signés",
-    "Saved Listings":"Annonces enregistrées",
-    "Your conversations":"Vos conversations",
-    "Subscription":"Abonnement",
-    "Manage Billing →":"Gérer la facturation →",
-    "Verify Phone Number":"Vérifier le numéro de téléphone",
-    "ID Verification":"Vérification d’identité",
-    "Identity Verification":"Vérification d’identité",
-    "Identity Verified":"Identité vérifiée",
-    "Your identity has been verified. You can now post trips and submit shipment requests.":"Votre identité a été vérifiée. Vous pouvez maintenant publier des voyages et envoyer des demandes d’expédition.",
-    "Required for both senders and travelers to use AfroRoute.":"Obligatoire pour les expéditeurs et les voyageurs afin d’utiliser AfroRoute.",
-    "Start Identity Verification":"Démarrer la vérification d’identité",
-    "🔒 Secure verification powered by Stripe Identity":"🔒 Vérification sécurisée par Stripe Identity",
-    "Verification in progress":"Vérification en cours",
-    "We are reviewing your documents. This usually takes a few minutes. You will be notified once complete.":"Nous examinons vos documents. Cela prend généralement quelques minutes. Vous serez notifié une fois terminé.",
-    "Verification needs attention":"La vérification nécessite une attention",
-    "Your verification could not be completed. This may be due to a blurry photo, expired document, or failed liveness check.":"Votre vérification n’a pas pu être terminée. Cela peut être dû à une photo floue, un document expiré ou un échec du contrôle de présence.",
-    "If you need help, email us at ":"Si vous avez besoin d’aide, envoyez-nous un email à ",
-    "🔄 Retry Verification":"🔄 Réessayer la vérification",
-    "🔐 Why verify your identity?":"🔐 Pourquoi vérifier votre identité ?",
-    "✓ Post trips or shipment requests":"✓ Publier des voyages ou des demandes d’expédition",
-    "✓ Earn a verified badge on your profile":"✓ Recevoir un badge vérifié sur votre profil",
-    "✓ Build trust with the other side":"✓ Renforcer la confiance avec l’autre partie",
-    "✓ Required for all shipment transactions":"✓ Obligatoire pour toutes les transactions d’expédition",
-    "📋 What you need:":"📋 Ce dont vous avez besoin :",
-    "• Valid photo ID — passport, national ID, or driving licence":"• Pièce d’identité valide — passeport, carte d’identité ou permis de conduire",
-    "• A selfie for liveness check":"• Un selfie pour la vérification de présence",
-    "• Good lighting, 2 minutes of your time":"• Bonne lumière et environ 2 minutes de votre temps",
-    "⏳ Starting…":"⏳ Démarrage…",
-    "No agreements yet.":"Aucun accord pour l’instant.",
-    "Your signed agreements will appear here once you create or accept a shipment agreement.":"Vos accords signés apparaîtront ici lorsque vous créerez ou accepterez un accord d’expédition.",
-    "Agreements are created when you contact a traveler or sender.":"Les accords sont créés lorsque vous contactez un voyageur ou un expéditeur.",
-    "Leave a Review":"Laisser un avis",
-    "Submit Review ⭐":"Envoyer ⭐",
-    "No conversations yet":"Aucune conversation",
-    "When you message a traveler or sender, conversations appear here.":"Lorsque vous envoyez un message à un voyageur ou à un expéditeur, les conversations apparaissent ici.",
-    "Type a message...":"Écrivez un message...",
-    "Send":"Envoyer",
-    "Subscribe to Message":"Abonnez-vous pour envoyer un message",
-    "Subscription Required":"Abonnement requis",
-    "Unlock Full Access →":"Débloquer l’accès complet →",
-    "Report Listing":"Signaler l’annonce",
-    "Help keep AfroRoute safe":"Aidez à garder AfroRoute sûr",
-    "Submit Report":"Envoyer le signalement",
-    "Report submitted. Thank you.":"Signalement envoyé. Merci.",
-    "No hidden fees":"Aucun frais caché",
-    "Verified users":"Utilisateurs vérifiés",
-    "Documented handover":"Remise documentée",
-    "How AfroRoute Works":"Comment fonctionne AfroRoute",
-    "Post your shipment or trip":"Publiez votre envoi ou votre voyage",
-    "Trusted shipping between Portugal and Angola.":"Livraison de confiance entre le Portugal et l’Angola.",
-    "Product":"Produit",
-    "Legal":"Légal",
-    "Security":"Sécurité",
-    "Refunds":"Remboursements",
-    "Disputes":"Litiges",
-    "AfroRoute Pro":"AfroRoute Pro",
-    "Get Verified":"Se faire vérifier",
-    "Install App":"Installer l’app",
-    "Log Out":"Se déconnecter",
-    "Settings":"Paramètres",
-    "Member since":"Membre depuis",
-    "Requests Posted":"Demandes publiées",
-    "Trips Posted":"Voyages publiés",
-    "No ratings yet":"Aucune évaluation pour l’instant",
-    "Profile photo updated!":"Photo de profil mise à jour !",
-    "Image too large. Max 5MB.":"Image trop grande. Maximum 5 Mo.",
-    "Save Changes":"Enregistrer les modifications"
-  };
-
-  const MAP = { pt: PT, en: {}, fr: FR };
-
-  function translateString(value){
-    if(typeof value !== 'string') return value;
-    const lang = currentLang();
-    if(lang === 'en') return value;
-
-    const dict = MAP[lang] || {};
-    const leading = value.match(/^\s*/)[0];
-    const trailing = value.match(/\s*$/)[0];
-    const core = value.trim();
-
-    if(dict[core]) return leading + dict[core] + trailing;
-
-    // Dynamic simple patterns
-    if(lang === 'pt'){
-      let m = core.match(/^(\d+) posted$/);
-      if(m) return leading + m[1] + ' publicado' + (m[1]==='1'?'':'s') + trailing;
-      m = core.match(/^Active — €(.+)\/mo$/);
-      if(m) return leading + 'Ativo — €' + m[1] + '/mês' + trailing;
-    }
-    if(lang === 'fr'){
-      let m = core.match(/^(\d+) posted$/);
-      if(m) return leading + m[1] + ' publié' + (m[1]==='1'?'':'s') + trailing;
-      m = core.match(/^Active — €(.+)\/mo$/);
-      if(m) return leading + 'Actif — €' + m[1] + '/mois' + trailing;
-    }
-
-    return value;
-  }
-
-  function translateChild(child){
-    if(typeof child === 'string') return translateString(child);
-    if(Array.isArray(child)) return child.map(translateChild);
-    return child;
-  }
-
-  const originalCreateElement = React.createElement;
-  React.createElement = function(type, props){
-    const children = Array.prototype.slice.call(arguments, 2).map(translateChild);
-    return originalCreateElement.apply(React, [type, props].concat(children));
-  };
-})();
-
 const ini=(n)=>n?n.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase():'U';
 function Av({name,size=42,url}){if(url)return React.createElement('div', { className: "avatar", style: {width:size,height:size,padding:0,overflow:'hidden'},}, React.createElement('img', { src: url, alt: name, style: {width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'},}));return React.createElement('div', { className: "avatar", style: {width:size,height:size,fontSize:size*.33},}, ini(name));}
 function Stars({r,c}){const f=Math.floor(r);return React.createElement('span', null, React.createElement('span', { className: "stars",}, '★'.repeat(f), '☆'.repeat(5-f)), React.createElement('span', { className: "stars-c",}, r, c!==undefined&&` (${c})`));}
@@ -4097,7 +3784,7 @@ function ReviewModal({reviewer,reviewee,agreementId,sb,showToast,onClose,onSubmi
 }
 
 function App(){
-const[lang,setLang]=useState(()=>{try{return localStorage.getItem('ar_lang')||'pt'}catch(e){return 'pt'}}); React.useEffect(()=>{window.__arLang=lang;try{localStorage.setItem('ar_lang',lang)}catch(e){}},[lang]);
+const[lang,setLang]=useState(()=>{try{return localStorage.getItem('ar_lang')||'pt'}catch(e){return 'pt'}}); React.useEffect(()=>{try{localStorage.setItem('ar_lang',lang)}catch(e){}},[lang]);
 const[page,setPage]=useState('home');
 const[loggedIn,setLI]=useState(false);
 const[subscribed,setSub]=useState(false);
@@ -4156,14 +3843,10 @@ const startStripeVerification=async(role)=>{
   if(!loggedIn||!user){goAfterLogin('verify-identity');return;}
   setVerifyLoading(true);
   try{
-    const accessToken = localStorage.getItem('ar_tok') || '';
     const r=await fetch('/api/create-verification-session',{
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        ...(accessToken ? { Authorization:'Bearer '+accessToken } : {})
-      },
-      body:JSON.stringify({role:role||'both'})
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({userId:user.id,email:user.email,role:role||'both'})
     });
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||'Could not start verification');
@@ -4642,7 +4325,7 @@ if(appLoading)return React.createElement('div', { style: {display:'flex',alignIt
     )
   );
 
-const NavBar=({loggedIn,user,go,t,lang,setPage,setLang})=>React.createElement('nav', { className: "nav",}, React.createElement('div', { className: "nav-logo", onClick: ()=>go('home'),}, React.createElement('img', { src: LOGO_1, alt: "AfroRoute", style: {height:'44px',width:'auto',maxWidth:'160px',objectFit:'contain'},})), React.createElement('div', { className: "nav-right",}, React.createElement('button', { className: "nav-link", onClick: ()=>go('browse-trips'),}, t.nav_trips), React.createElement('button', { className: "nav-link", onClick: ()=>go('browse-ships'),}, t.nav_ships), React.createElement('button', { className: "nav-link", onClick: ()=>go('pricing'),}, t.nav_pricing), React.createElement('a', { href: 'https://kiwi.tpk.lu/kZAD9nWa', target: '_self', rel: 'sponsored noopener noreferrer', onClick: (e)=>{try{e.preventDefault();window.location.assign('https://kiwi.tpk.lu/kZAD9nWa');}catch(err){window.location.href='https://kiwi.tpk.lu/kZAD9nWa';}}, className: "nav-link", style: {background:'linear-gradient(135deg,#e8f4fd,#dbeafe)',color:'#1d4ed8',borderRadius:8,padding:'5px 10px',fontWeight:700,fontSize:12,textDecoration:'none',display:'flex',alignItems:'center',gap:4,border:'1px solid rgba(29,78,216,.2)'},}, '✈️ ', lang==='fr'?'Vols':lang==='en'?'Flights':'Voos'), React.createElement('select', { className: "lang-sel", value: lang, onChange: e=>{window.__arLang=e.target.value;try{localStorage.setItem('ar_lang',e.target.value)}catch(_e){}setLang(e.target.value)},}, ['pt','en','fr'].map(k=>React.createElement('option', { key: k, value: k,}, T[k].flag, " " , k.toUpperCase()))), loggedIn?React.createElement(React.Fragment, null, React.createElement('button', { className: "nav-icn", onClick: ()=>go('messages'),}, React.createElement('svg', { viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "1.8", width: "22", height: "22",}, React.createElement('path', { d: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"                  ,})), totalUnread>0&&React.createElement('span', { className: "ndot",})), React.createElement('div', { className: "uchip", onClick: ()=>go('profile'), style: {overflow:'hidden',padding:_optionalChain([user, 'optionalAccess', _101 => _101.avatarUrl])?0:undefined},}
+const NavBar=({loggedIn,user,go,t,lang,setPage,setLang})=>React.createElement('nav', { className: "nav",}, React.createElement('div', { className: "nav-logo", onClick: ()=>go('home'),}, React.createElement('img', { src: LOGO_1, alt: "AfroRoute", style: {height:'44px',width:'auto',maxWidth:'160px',objectFit:'contain'},})), React.createElement('div', { className: "nav-right",}, React.createElement('button', { className: "nav-link", onClick: ()=>go('browse-trips'),}, t.nav_trips), React.createElement('button', { className: "nav-link", onClick: ()=>go('browse-ships'),}, t.nav_ships), React.createElement('button', { className: "nav-link", onClick: ()=>go('pricing'),}, t.nav_pricing), React.createElement('a', { href: 'https://kiwi.tpk.lu/kZAD9nWa', target: '_self', rel: 'sponsored noopener noreferrer', onClick: (e)=>{try{e.preventDefault();window.location.assign('https://kiwi.tpk.lu/kZAD9nWa');}catch(err){window.location.href='https://kiwi.tpk.lu/kZAD9nWa';}}, className: "nav-link", style: {background:'linear-gradient(135deg,#e8f4fd,#dbeafe)',color:'#1d4ed8',borderRadius:8,padding:'5px 10px',fontWeight:700,fontSize:12,textDecoration:'none',display:'flex',alignItems:'center',gap:4,border:'1px solid rgba(29,78,216,.2)'},}, '✈️ ', lang==='fr'?'Vols':lang==='en'?'Flights':'Voos'), React.createElement('select', { className: "lang-sel", value: lang, onChange: e=>{try{localStorage.setItem('ar_lang',e.target.value)}catch(_e){}setLang(e.target.value)},}, ['pt','en','fr'].map(k=>React.createElement('option', { key: k, value: k,}, T[k].flag, " " , k.toUpperCase()))), loggedIn?React.createElement(React.Fragment, null, React.createElement('button', { className: "nav-icn", onClick: ()=>go('messages'),}, React.createElement('svg', { viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "1.8", width: "22", height: "22",}, React.createElement('path', { d: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"                  ,})), totalUnread>0&&React.createElement('span', { className: "ndot",})), React.createElement('div', { className: "uchip", onClick: ()=>go('profile'), style: {overflow:'hidden',padding:_optionalChain([user, 'optionalAccess', _101 => _101.avatarUrl])?0:undefined},}
   , _optionalChain([user, 'optionalAccess', _102 => _102.avatarUrl])
     ? React.createElement('img', { src: user.avatarUrl, style: {width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}, alt: "avatar",})
     : ini(_optionalChain([user, 'optionalAccess', _103 => _103.name])||'You')
@@ -5498,6 +5181,34 @@ window.addEventListener('error', function(event) {
 window.addEventListener('unhandledrejection', function(event) {
   console.error('AfroRoute unhandled promise rejection:', event.reason);
 });
+</script>
+
+
+<script>
+(function(){
+  function showFatalError(message){
+    var root = document.getElementById('app');
+    if(!root) return;
+    if(root.innerHTML && root.innerHTML.trim().length > 0) return;
+    root.innerHTML = '<div style="padding:24px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:#f8fafc;min-height:100vh;color:#0f172a;">'
+      + '<div style="max-width:520px;margin:40px auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px;box-shadow:0 4px 18px rgba(0,0,0,.08);">'
+      + '<div style="font-size:26px;margin-bottom:8px;">⚠️</div>'
+      + '<h2 style="margin:0 0 8px;color:#0A2540;font-size:20px;">AfroRoute could not load</h2>'
+      + '<p style="color:#64748b;line-height:1.6;font-size:14px;">A frontend error blocked the app. Send this error to your developer:</p>'
+      + '<pre style="white-space:pre-wrap;background:#0f172a;color:#fff;padding:12px;border-radius:10px;font-size:12px;overflow:auto;">' 
+      + String(message).replace(/[<>&]/g,function(c){return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c];}) 
+      + '</pre>'
+      + '</div></div>';
+  }
+  window.addEventListener('error', function(e){ setTimeout(function(){showFatalError(e.message || 'Unknown JavaScript error');}, 50); });
+  window.addEventListener('unhandledrejection', function(e){ setTimeout(function(){showFatalError((e.reason && (e.reason.message || e.reason.toString())) || 'Unhandled promise rejection');}, 50); });
+  setTimeout(function(){
+    var root = document.getElementById('app');
+    if(root && (!root.innerHTML || root.innerHTML.trim().length === 0)){
+      showFatalError('The app root stayed empty after loading. This usually means React did not load, a CDN script was blocked, or a runtime error happened before render.');
+    }
+  }, 7000);
+})();
 </script>
 
 </body>
