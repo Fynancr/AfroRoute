@@ -1169,6 +1169,7 @@ const LOGO_1="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQcAAABQCAYAAAAUV7Bc
 
 
 
+
  function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }
 
 const loadPersona=(cb)=>{
@@ -1531,6 +1532,8 @@ function AuthPage({t,onLogin,go}){
   const[selfiePhoto,setSelfiePhoto]=React.useState(null); // base64
   const[idPreview,setIdPreview]=React.useState(null);
   const[selfiePreview,setSelfiePreview]=React.useState(null);
+  const[signupDone,setSignupDone]=React.useState(false);
+  const[signupEmail,setSignupEmail]=React.useState('');
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
   const lang=_optionalChain([t,'optionalAccess',_=>_.lang])||'pt';
   const isEN=lang==='English';
@@ -1615,12 +1618,16 @@ function AuthPage({t,onLogin,go}){
     if(!f.agreed){setE({agreed:tx('Aceita os termos para continuar','Accept terms to continue','Accepte les conditions pour continuer')});return;}
     setL(true);setE({});
     try{
-      await onLogin({
+      const result = await onLogin({
         ...f,
         isNew:true,
         phoneVerified,
         idImageData:idPhoto,
         selfieData:selfiePhoto,
+        _onConfirmNeeded: ()=>{
+          setSignupEmail(f.email);
+          setSignupDone(true);
+        }
       });
     }catch(ex){setE({submit:ex.message||tx('Erro ao criar conta','Error creating account','Erreur de création de compte')});}
     finally{setL(false);}
@@ -1659,6 +1666,45 @@ function AuthPage({t,onLogin,go}){
     tx('Documentos','Documents','Documents'),
     tx('Termos','Terms','Conditions'),
   ];
+
+  // ── Email confirmation screen ──
+  if(signupDone){
+    return React.createElement('div',{style:{width:'100%',maxWidth:460,margin:'0 auto',background:'#fff',borderRadius:20,overflow:'hidden',boxShadow:'0 4px 24px rgba(0,0,0,.10)',marginBottom:40}},
+      React.createElement('div',{style:{background:'linear-gradient(135deg,#0A2540,#0d6e5b)',padding:'28px 20px',textAlign:'center'}},
+        React.createElement('div',{style:{fontSize:52,marginBottom:12}},'📧'),
+        React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:20,color:'#fff',marginBottom:6}},
+          tx('Confirma o teu email!','Confirm your email!','Confirme ton email !')
+        ),
+        React.createElement('div',{style:{fontSize:13,color:'rgba(255,255,255,.7)',lineHeight:1.6}},
+          tx('Enviámos um email de confirmação para','We sent a confirmation email to','Nous avons envoyé un email de confirmation à')
+        ),
+        React.createElement('div',{style:{fontWeight:700,color:'#1ABC9C',fontSize:14,marginTop:6}},signupEmail)
+      ),
+      React.createElement('div',{style:{padding:'20px 16px'}},
+        React.createElement('div',{style:{background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.25)',borderRadius:12,padding:'14px 16px',marginBottom:16,fontSize:13,color:'#92400e',lineHeight:1.8}},
+          React.createElement('div',{style:{fontWeight:700,marginBottom:6}},'⚠️ '+tx('Antes de continuares:','Before continuing:','Avant de continuer :')),
+          React.createElement('div',null,'1. '+tx('Vai à tua caixa de email','Open your email inbox','Va dans ta boîte mail')),
+          React.createElement('div',null,'2. '+tx('Procura um email da AfroRoute','Look for an email from AfroRoute','Cherche un email d\'AfroRoute')),
+          React.createElement('div',null,'3. '+tx('Verifica também a pasta de SPAM','Also check your SPAM folder','Vérifie aussi le dossier SPAM')),
+          React.createElement('div',null,'4. '+tx('Clica no link de confirmação','Click the confirmation link','Clique sur le lien de confirmation'))
+        ),
+        React.createElement('div',{style:{background:'var(--gpale)',border:'1px solid var(--gborder)',borderRadius:12,padding:'14px 16px',marginBottom:16,fontSize:13,color:'var(--text2)',lineHeight:1.6}},
+          React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',marginBottom:4}},'💡 '+tx('Não recebeste o email?','Didn\'t receive the email?','Tu n\'as pas reçu l\'email ?')),
+          tx('Alguns emails demoram até 5 minutos. Se não encontrares, tenta criar conta com outro email ou contacta o suporte.',
+             'Some emails take up to 5 minutes. If you can\'t find it, try signing up with another email or contact support.',
+             'Certains emails prennent jusqu\'à 5 minutes. Si tu ne le trouves pas, essaie avec un autre email ou contacte le support.')
+        ),
+        React.createElement('button',{
+          onClick:()=>{setMode('login');setSignupDone(false);setStep(1);},
+          className:'btn-auth'
+        },'✅ '+tx('Já confirmei, entrar','I confirmed, sign in','J\'ai confirmé, se connecter')),
+        React.createElement('button',{
+          onClick:()=>setSignupDone(false),
+          style:{width:'100%',marginTop:8,background:'none',border:'none',color:'var(--text3)',fontSize:13,cursor:'pointer',padding:'8px'}
+        },tx('← Voltar ao registo','← Back to signup','← Retour à l\'inscription'))
+      )
+    );
+  }
 
   return React.createElement('div',{style:{width:'100%',maxWidth:460,margin:'0 auto',background:'#fff',borderRadius:20,overflow:'hidden',boxShadow:'0 4px 24px rgba(0,0,0,.10)',marginBottom:40}},
 
@@ -1813,10 +1859,19 @@ function AuthPage({t,onLogin,go}){
             React.createElement('div',{style:{fontWeight:700,fontSize:14,color:'var(--navy)',marginBottom:8}},'🪪 '+tx('Documento de Identificação','ID Document','Pièce d\'identité')),
             React.createElement('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:10}},tx('BI, Passaporte ou Carta de Condução','National ID, Passport or Driver\'s License','Carte d\'identité, Passeport ou Permis de conduire')),
             !idPreview
-            ?React.createElement('label',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',border:'2px dashed var(--bord2)',borderRadius:12,padding:'24px 16px',cursor:'pointer',background:'var(--surf2)',gap:8}},
-              React.createElement('span',{style:{fontSize:32}},'📷'),
-              React.createElement('span',{style:{fontSize:13,fontWeight:600,color:'var(--text2)'}},'+ '+tx('Adicionar foto do documento','Add document photo','Ajouter photo du document')),
-              React.createElement('input',{type:'file',accept:'image/*',capture:'environment',style:{display:'none'},onChange:capturePhoto(setIdPhoto,setIdPreview)})
+            ?React.createElement('div',{style:{position:'relative',border:'2px dashed var(--bord2)',borderRadius:12,overflow:'hidden'}},
+              React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'28px 16px',background:'var(--surf2)',gap:8,pointerEvents:'none'}},
+                React.createElement('span',{style:{fontSize:40}},'📷'),
+                React.createElement('span',{style:{fontSize:14,fontWeight:700,color:'var(--navy)'}},'+ '+tx('Tirar foto do documento','Take photo of document','Prendre photo du document')),
+                React.createElement('span',{style:{fontSize:12,color:'var(--text3)'}},tx('Toca para abrir a câmara','Tap to open camera','Appuyer pour ouvrir la caméra'))
+              ),
+              React.createElement('input',{
+                type:'file',
+                accept:'image/*',
+                capture:'environment',
+                style:{position:'absolute',inset:0,width:'100%',height:'100%',opacity:0,cursor:'pointer'},
+                onChange:capturePhoto(setIdPhoto,setIdPreview)
+              })
             )
             :React.createElement('div',{style:{position:'relative'}},
               React.createElement('img',{src:idPreview,style:{width:'100%',borderRadius:10,maxHeight:160,objectFit:'cover',border:'1px solid var(--bord)'}}),
@@ -1829,10 +1884,19 @@ function AuthPage({t,onLogin,go}){
             React.createElement('div',{style:{fontWeight:700,fontSize:14,color:'var(--navy)',marginBottom:8}},'🤳 Selfie'),
             React.createElement('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:10}},tx('Uma foto do teu rosto (câmara frontal)','A photo of your face (front camera)','Une photo de ton visage (caméra frontale)')),
             !selfiePreview
-            ?React.createElement('label',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',border:'2px dashed var(--bord2)',borderRadius:12,padding:'24px 16px',cursor:'pointer',background:'var(--surf2)',gap:8}},
-              React.createElement('span',{style:{fontSize:32}},'🤳'),
-              React.createElement('span',{style:{fontSize:13,fontWeight:600,color:'var(--text2)'}},'+ '+tx('Tirar selfie','Take selfie','Prendre un selfie')),
-              React.createElement('input',{type:'file',accept:'image/*',capture:'user',style:{display:'none'},onChange:capturePhoto(setSelfiePhoto,setSelfiePreview)})
+            ?React.createElement('div',{style:{position:'relative',border:'2px dashed var(--bord2)',borderRadius:12,overflow:'hidden'}},
+              React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'28px 16px',background:'var(--surf2)',gap:8,pointerEvents:'none'}},
+                React.createElement('span',{style:{fontSize:40}},'🤳'),
+                React.createElement('span',{style:{fontSize:14,fontWeight:700,color:'var(--navy)'}},'+ '+tx('Tirar selfie','Take selfie','Prendre un selfie')),
+                React.createElement('span',{style:{fontSize:12,color:'var(--text3)'}},tx('Câmara frontal','Front camera','Caméra frontale'))
+              ),
+              React.createElement('input',{
+                type:'file',
+                accept:'image/*',
+                capture:'user',
+                style:{position:'absolute',inset:0,width:'100%',height:'100%',opacity:0,cursor:'pointer'},
+                onChange:capturePhoto(setSelfiePhoto,setSelfiePreview)
+              })
             )
             :React.createElement('div',{style:{position:'relative'}},
               React.createElement('img',{src:selfiePreview,style:{width:'100%',borderRadius:10,maxHeight:160,objectFit:'cover',border:'1px solid var(--bord)'}}),
@@ -3674,9 +3738,9 @@ const handleLogin=async(formData)=>{
         setLI(true);setSub(false);loadListings(true);
         showToast('Welcome to AfroRoute, '+formData.name.split(' ')[0]+'! 🎉');go('home');
       }else{
-        // Email confirmation required — still navigate home and show message
-        showToast('Account created! Check your email to confirm then log in.');
-        go('home');
+        // Email confirmation required — show confirmation screen
+        if(formData._onConfirmNeeded) formData._onConfirmNeeded();
+        else showToast(tx?tx('Verifica o teu email para confirmar a conta.','Check your email to confirm your account.','Vérifie ton email pour confirmer ton compte.'):'Check your email to confirm your account.');
       }
     }else if(formData._direct){
       const loginAvatar=localStorage.getItem('ar_av_'+(formData.id||''))||null;
@@ -4342,6 +4406,7 @@ function ContactPage({go, showToast, lang}) {
 
 
 ReactDOM.createRoot(document.getElementById('app')).render(React.createElement(App, null));
+
 
 
 
