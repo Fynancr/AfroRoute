@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "AfroRoute Global Shipping Marketplace",
   "dependencies": {
-    "stripe": "^14.0.0"
+    "stripe": "^14.0.0",
+    "@supabase/supabase-js": "^2.39.0"
   }
 }
