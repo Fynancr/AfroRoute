@@ -8,12 +8,10 @@ const supabase = createClient(
 
 // ── CRITICAL: disable Vercel body parsing so Stripe receives raw buffer ──
 export const config = {
-  api: {
-    bodyParser: false,
-  },
+  api: { bodyParser: false },
 };
 
-// Read raw body from stream
+// ── Read raw body from stream ──
 const getRawBody = (req) =>
   new Promise((resolve, reject) => {
     const chunks = [];
@@ -22,16 +20,32 @@ const getRawBody = (req) =>
     req.on('error', reject);
   });
 
+// ── Safe date helpers ──
+// Stripe timestamps are Unix SECONDS — multiply by 1000 for JS
+const fromStripeTimestamp = (ts) => {
+  if (!ts || typeof ts !== 'number') return null;
+  const d = new Date(ts * 1000);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+};
+
+// Safe ISO string from any value
+const safeISO = (val) => {
+  if (!val) return null;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+};
+
+// ── Map Stripe status → AfroRoute status ──
 const mapStatus = (stripeStatus, lastError) => {
   if (stripeStatus === 'verified') return 'verified';
   if (stripeStatus === 'processing') return 'pending';
-  if (stripeStatus === 'requires_input') {
+  if (stripeStatus === 'requires_input')
     return lastError?.code === 'consent_declined' ? 'failed' : 'requires_review';
-  }
   if (stripeStatus === 'canceled') return 'failed';
   return 'pending';
 };
 
+// ── Update user profile in Supabase ──
 const updateUser = async (userId, sessionId, stripeStatus, role, lastError, verifiedAt) => {
   const status = mapStatus(stripeStatus, lastError);
   const isVerified = status === 'verified';
@@ -44,30 +58,37 @@ const updateUser = async (userId, sessionId, stripeStatus, role, lastError, veri
     stripe_verification_last_error: lastError ? JSON.stringify(lastError) : null,
     stripe_verification_requires_review: status === 'requires_review',
     identity_verification_last_error: lastError?.reason || lastError?.code || null,
+    updated_at: now,
   };
 
   if (isVerified) {
-    update.stripe_verification_verified_at = verifiedAt || now;
-    update.identity_verification_verified_at = verifiedAt || now;
+    const ts = safeISO(verifiedAt) || now;
+    update.stripe_verification_verified_at = ts;
+    update.identity_verification_verified_at = ts;
     update.is_verified_traveler = true;
     if (role === 'traveler' || role === 'both') update.is_traveler_verified = true;
     if (role === 'sender' || role === 'both') update.is_sender_verified = true;
   }
 
-  const { error } = await supabase.from('profiles')
-    .update(update).eq('stripe_verification_session_id', sessionId);
+  const { error } = await supabase
+    .from('profiles')
+    .update(update)
+    .eq('stripe_verification_session_id', sessionId);
+
   if (error) throw error;
 
-  // Audit log
   await supabase.from('verification_logs').insert({
     user_id: userId, session_id: sessionId, stripe_status: stripeStatus,
-    afro_status: status, role, error_code: lastError?.code || null,
-    error_reason: lastError?.reason || null, created_at: now,
-  }).catch(e => console.error('Log error (non-fatal):', e.message));
+    afro_status: status, role,
+    error_code: lastError?.code || null,
+    error_reason: lastError?.reason || null,
+    created_at: now,
+  }).catch(e => console.error('Log insert (non-fatal):', e.message));
 
   return status;
 };
 
+// ── Main handler ──
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
 
@@ -79,40 +100,64 @@ module.exports = async (req, res) => {
     const rawBody = await getRawBody(req);
     event = stripe.webhooks.constructEvent(rawBody, sig, secret);
   } catch (err) {
-    console.error('Identity webhook signature error:', err.message);
+    console.error('Signature verification failed:', err.message);
     return res.status(400).json({ error: `Webhook error: ${err.message}` });
   }
 
   const s = event.data.object;
   const userId = s.metadata?.user_id;
   const role = s.metadata?.role || 'both';
-  if (!userId) return res.status(200).json({ received: true });
+
+  // Log for debugging — no secrets logged
+  console.log('Identity webhook:', {
+    event_id: event.id,
+    event_type: event.type,
+    session_id: s.id,
+    session_status: s.status,
+    user_id: userId,
+    // last_verification_report is a string ID on the session object, not an object
+    report_id: typeof s.last_verification_report === 'string'
+      ? s.last_verification_report
+      : (s.last_verification_report?.id || null),
+  });
+
+  if (!userId) {
+    console.warn('No user_id in session metadata:', s.id);
+    return res.status(200).json({ received: true, warning: 'no user_id' });
+  }
 
   try {
     switch (event.type) {
+
       case 'identity.verification_session.verified': {
-        const vat = s.last_verification_report
-          ? new Date(s.last_verification_report.created * 1000).toISOString()
-          : new Date().toISOString();
-        const status = await updateUser(userId, s.id, 'verified', role, null, vat);
+        // Use event.created (Stripe Unix seconds) for the verified timestamp
+        const verifiedAt = fromStripeTimestamp(event.created) || new Date().toISOString();
+        const status = await updateUser(userId, s.id, 'verified', role, null, verifiedAt);
         console.log(`User ${userId} verified (${role}) — status: ${status}`);
         break;
       }
+
       case 'identity.verification_session.requires_input':
         await updateUser(userId, s.id, 'requires_input', role, s.last_error || null, null);
         break;
+
       case 'identity.verification_session.processing':
         await updateUser(userId, s.id, 'processing', role, null, null);
         break;
+
       case 'identity.verification_session.canceled':
         await updateUser(userId, s.id, 'canceled', role, s.last_error || null, null);
         break;
+
       default:
-        console.log('Unhandled Identity event:', event.type);
+        console.log('Ignored Identity event:', event.type);
+        return res.status(200).json({ received: true, ignored: true });
     }
+
     return res.status(200).json({ received: true });
+
   } catch (error) {
-    console.error('Identity webhook error:', error.message);
+    console.error('Identity webhook handler error:', error.message);
     return res.status(500).json({ error: error.message });
   }
 };
