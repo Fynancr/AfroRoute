@@ -7,7 +7,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// IMPORTANT: disable body parsing so Stripe can verify the raw signature
+// REQUIRED: disable body parsing so Stripe can verify signature
 module.exports.config = {
   api: { bodyParser: false },
 };
@@ -43,7 +43,8 @@ module.exports = async (req, res) => {
         const session = event.data.object;
         const userId = session.metadata?.supabase_user_id || session.client_reference_id;
         if (userId) {
-          const { error } = await supabase.from('profiles')
+          const { error } = await supabase
+            .from('profiles')
             .update({
               is_subscribed: true,
               subscription_updated_at: new Date().toISOString(),
@@ -71,7 +72,8 @@ module.exports = async (req, res) => {
           if (fetchErr) {
             console.error('DB fetch error (subscription):', fetchErr.message);
           } else if (profiles && profiles[0]) {
-            const { error } = await supabase.from('profiles')
+            const { error } = await supabase
+              .from('profiles')
               .update({ is_subscribed: isActive })
               .eq('id', profiles[0].id);
             if (error) console.error('DB update error (subscription):', error.message);
@@ -84,16 +86,17 @@ module.exports = async (req, res) => {
         const pi = event.data.object;
         const conversationId = pi.metadata?.conversation_id;
         if (conversationId) {
-          await supabase.from('transactions')
+          await supabase
+            .from('transactions')
             .update({ status: 'paid', paid_at: new Date().toISOString() })
             .eq('payment_intent_id', pi.id)
-            .catch(e => console.error('Transaction update error:', e.message));
+            .catch((e) => console.error('Transaction update error:', e.message));
         }
         break;
       }
 
       default:
-        console.log('Stripe webhook ignored:', event.type);
+        console.log('Stripe webhook ignored (unhandled type):', event.type);
         return res.status(200).json({ received: true, ignored: true });
     }
 
