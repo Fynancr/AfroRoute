@@ -5,7 +5,8 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const stripe = new Str
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
   const { userId, email, role = 'both' } = req.body;
 
   if (!userId || !email) {
