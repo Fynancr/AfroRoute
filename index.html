@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.withpersona.com https://*.supabase.co;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://js.stripe.com https://checkout.stripe.com https://accounts.google.com https://appleid.cdn-apple.com https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://*.supabase.co https://lh3.googleusercontent.com https://*.stripe.com https://*.kiwi.com https://kiwi.tpk.lu; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://checkout.stripe.com https://accounts.google.com https://api.resend.com https://*.kiwi.com https://kiwi.tpk.lu; frame-src 'self' https://js.stripe.com https://checkout.stripe.com https://accounts.google.com; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; upgrade-insecure-requests;">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1494,7 +1494,7 @@ React.createElement('div', null
   ))
 )
 );}
-function Footer({t,go}){return(
+function Footer({t,go,lang='pt'}){return(
 React.createElement('footer', { className: "footer",}
   , React.createElement('div', { className: "footer-brand",}
     , React.createElement('div', { style: {display:'flex',alignItems:'center',gap:0},}
@@ -2249,7 +2249,7 @@ return React.createElement('div', { className: "modal-ov", onClick: onClose,}, R
     )
   )
 ));}
-function SettingsPage({t,user,subscribed,go,showToast,sb,setSub,onLogout}){
+function SettingsPage({t,user,subscribed,go,showToast,sb,setSub,onLogout,lang='pt'}){
   const[deleteConfirm,setDeleteConfirm]=React.useState(false);
   const[deleting,setDeleting]=React.useState(false);
   const doDeleteAccount=async()=>{
@@ -2459,7 +2459,7 @@ function MyListingsPage({t,items,type,go,sb,user,showToast,loadListings}){
   );
 }
 
-function ProfilePage({t,user,subscribed,savedIds,trips=[],ships=[],onLogout,onSubscribe,go,goAfterLogin,onSaveProfile,setUser,showToast,sb,phoneVerified,setPhoneModal}){
+function ProfilePage({t,user,subscribed,savedIds,trips=[],ships=[],onLogout,onSubscribe,go,goAfterLogin,onSaveProfile,setUser,showToast,sb,phoneVerified,setPhoneModal,lang='pt'}){
 const[editing,setEditing]=useState(false);const[ef,setEF]=useState({name:_optionalChain([user, 'optionalAccess', _10 => _10.name])||'',country:_optionalChain([user, 'optionalAccess', _11 => _11.country])||'',bio:'',wa:_optionalChain([user, 'optionalAccess', _12 => _12.wa])||''});
 React.useEffect(()=>{if(user){setEF(prev=>({...prev,name:user.name||prev.name,country:user.country||prev.country,wa:user.wa||prev.wa}));}},[user]);
 const handleAvatarChange=(e)=>{
@@ -3885,9 +3885,13 @@ const startStripeVerification=async(role)=>{
   if(!loggedIn||!user){goAfterLogin('verify-identity');return;}
   setVerifyLoading(true);
   try{
+    const accessToken = localStorage.getItem('ar_tok') || '';
     const r=await fetch('/api/create-verification-session',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{
+        'Content-Type':'application/json',
+        ...(accessToken ? { Authorization:'Bearer '+accessToken } : {})
+      },
       body:JSON.stringify({userId:user.id,email:user.email,role:role||'both'})
     });
     const d=await r.json();
@@ -4407,7 +4411,7 @@ const renderHome=()=>React.createElement('div', { className: "page",}, React.cre
 , React.createElement('div', { className: "sec",}, React.createElement('div', { className: "sec-hd",}, React.createElement('span', { className: "sec-title",}, t.trust_title)), React.createElement('div', { className: "trust-grid",}, [['🔒',t.tr1_t,t.tr1_d],['🚨',t.tr2_t,t.tr2_d],['⚠️',t.tr3_t,t.tr3_d],['⭐',t.tr4_t,t.tr4_d]].map(([i,tt,td])=>React.createElement('div', { key: tt, className: "trust-item",}, React.createElement('div', { className: "trust-icon",}, i), React.createElement('div', { className: "trust-t",}, tt), React.createElement('div', { className: "trust-d",}, td)))))
 , !subscribed&&React.createElement('div', { className: "sec",}, React.createElement('div', { className: "sub-ban",}, React.createElement('div', { style: {position:'relative',zIndex:1,textAlign:'center'},}, React.createElement('div', { style: {fontSize:32,marginBottom:12},}, "🚀"), React.createElement('div', { style: {fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:20,color:'#fff',marginBottom:8},}, "AfroRoute Pro" ), React.createElement('div', { style: {color:'rgba(255,255,255,.65)',fontSize:13,marginBottom:20,lineHeight:1.6,maxWidth:340,margin:'0 auto 20px'},}, t.sub_headline), React.createElement('button', { className: "btn-h1", style: {animation:'pulse 2.5s infinite'}, onClick: ()=>go('pricing'),}, t.sub_cta))))
 , React.createElement('div', { className: "sec", style: {paddingTop:8},}, React.createElement('div', { className: "sec-hd",}, React.createElement('span', { className: "sec-title",}, t.faq_title)), React.createElement(FaqSec, { t: t,}))
-, React.createElement(Footer, { t: t, go: go,}));
+, React.createElement(Footer, { t: t, go: go, lang: lang,}));
 const renderDetail=()=>{if(!detail)return null;const{item,type}=detail;const isT=type==='trip';return React.createElement('div', { className: "page",}, React.createElement('div', { className: "det-hero",}, React.createElement('button', { onClick: ()=>setDetail(null), style: {background:'rgba(255,255,255,.12)',border:'none',color:'#fff',padding:'7px 12px',borderRadius:8,fontSize:13,fontWeight:600,marginBottom:16,display:'flex',alignItems:'center',gap:6},}, "← Back" ), React.createElement('div', { className: "det-route",}, React.createElement('div', null, React.createElement('div', { className: "det-city",}, item.from), item.fc&&React.createElement('div', { style: {fontSize:12,color:'rgba(255,255,255,.5)',marginTop:2},}, item.fc)), React.createElement('div', { className: "det-arr",}, "→"), React.createElement('div', { style: {textAlign:'right'},}, React.createElement('div', { className: "det-city",}, item.to), item.tc&&React.createElement('div', { style: {fontSize:12,color:'rgba(255,255,255,.5)',marginTop:2},}, item.tc))), React.createElement('div', { style: {display:'flex',gap:8,flexWrap:'wrap'},}, item.verified&&React.createElement(VBadge, { t: t,}), React.createElement(SBadge, { status: item.status, t: t,}), !isT&&item.urgent&&React.createElement('span', { className: "chip ch-r" ,}, t.urgent), React.createElement('span', { className: "bpro",}, isT?'✈️ Trip':'📦 Request')))
 , React.createElement('div', { className: "det-body",}
 , React.createElement('div', { className: "det-card",}, React.createElement('div', { className: "det-ct",}, "👤 Posted by"  ), React.createElement('div', { style: {display:'flex',alignItems:'center',gap:12},}, React.createElement(Av, { name: item.user, size: 48,}), React.createElement('div', null, React.createElement('div', { style: {fontWeight:700,fontSize:15,color:'#0A2540'},}, item.user), React.createElement(Stars, { r: item.rating, c: item.reviews,}), React.createElement('div', { style: {fontSize:12,color:'#64748b',marginTop:2},}, item.country))))
@@ -4716,10 +4720,10 @@ case 'verify-device':return React.createElement('div',{className:'page'},
       :React.createElement('div',{className:'page'},go('auth'),null);
     }
     case 'auth':return React.createElement('div', { className: "page", style: {display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:20},}, React.createElement(AuthPage, { t: t, onLogin: handleLogin, go: go,}));
-case 'profile':return !loggedIn?React.createElement('div', { className: "page", style: {padding:'16px'},}, React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),})):React.createElement('div', { className: "page",}, React.createElement(ProfilePage, { t: t, user: user, subscribed: subscribed, savedIds: savedIds, trips: trips, ships: ships, onLogout: handleLogout, onSubscribe: ()=>go('pricing'), go: go, goAfterLogin: goAfterLogin, onSaveProfile: handleSaveProfile, setUser: setUser, showToast: showToast, sb: sb, phoneVerified: phoneVerified, setPhoneModal: setPhoneModal,}));
+case 'profile':return !loggedIn?React.createElement('div', { className: "page", style: {padding:'16px'},}, React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),})):React.createElement('div', { className: "page",}, React.createElement(ProfilePage, { t: t, user: user, subscribed: subscribed, savedIds: savedIds, trips: trips, ships: ships, onLogout: handleLogout, onSubscribe: ()=>go('pricing'), go: go, goAfterLogin: goAfterLogin, onSaveProfile: handleSaveProfile, setUser: setUser, showToast: showToast, sb: sb, phoneVerified: phoneVerified, setPhoneModal: setPhoneModal, lang: lang,}));
 case 'my-trips':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "✈️"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, "My Trips" ), React.createElement('div', { className: "phd-sub",}, trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _106 => _106.id])).length, " trips posted"  ))), React.createElement(MyListingsPage, { t: t, items: trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _107 => _107.id])), type: "trip", go: go, sb: sb, user: user, showToast: showToast, loadListings: loadListings,}));
 case 'my-requests':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "📦"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, "My Requests" ), React.createElement('div', { className: "phd-sub",}, ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _108 => _108.id])).length, " requests posted"  ))), React.createElement(MyListingsPage, { t: t, items: ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _109 => _109.id])), type: "ship", go: go, sb: sb, user: user, showToast: showToast, loadListings: loadListings,}));
-case 'settings':return React.createElement('div', { className: "page",}, React.createElement(SettingsPage, { t: t, user: user, subscribed: subscribed, go: go, showToast: showToast, sb: sb, setSub: setSub, onLogout: handleLogout,}));
+case 'settings':return React.createElement('div', { className: "page",}, React.createElement(SettingsPage, { t: t, user: user, subscribed: subscribed, go: go, showToast: showToast, sb: sb, setSub: setSub, onLogout: handleLogout, lang: lang,}));
 case 'saved':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "⭐"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.saved_listings))), React.createElement('div', { style: {padding:'0 16px 32px'},}, savedIds.size===0?React.createElement(Empty, { icon: "⭐", title: t.saved_listings, sub: "Items you save will appear here."     , cta: "Browse Trips" , onCta: ()=>go('browse-trips'),}):React.createElement(React.Fragment, null, trips.filter(tr=>savedIds.has(`trip-${tr.id}`)).map(trip=>React.createElement(TCard, { key: trip.id, trip: trip, t: t, onContact: handleContact, onSave: handleSave, saved: true, onDetail: item=>setDetail({item,type:'trip'}),})), ships.filter(sh=>savedIds.has(`ship-${sh.id}`)).map(ship=>React.createElement(SCard, { key: ship.id, ship: ship, t: t, onContact: handleContact, onSave: handleSave, saved: true, onDetail: item=>setDetail({item,type:'ship'}),})))));
 case 'admin':return _optionalChain([user, 'optionalAccess', _110 => _110.email])==='alcino.manuel86@gmail.com'?React.createElement(AdminPage, { t: t, user: user, sb: sb, showToast: showToast,}):React.createElement('div', { className: "page", style: {padding:'40px 24px',textAlign:'center'},}, React.createElement('div', { style: {fontSize:48,marginBottom:16},}, "🔒"), React.createElement('div', { style: {fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:20,color:'var(--navy)',marginBottom:8},}, "Access Restricted" ), React.createElement('div', { style: {color:'var(--text3)',fontSize:14},}, "This area is for authorised administrators only."      ));
 case 'terms':return React.createElement(TermsPage, { go: go, lang: lang,});
