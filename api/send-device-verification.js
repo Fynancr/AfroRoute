@@ -1,8 +1,5 @@
 // api/send-device-verification.js
-const crypto = require('crypto');
-const { createClient } = require('@supabase/supabase-js');
-
-const supabase = createClient(
+const crypto = re
   process.env.SUPABASE_URL || 'https://fzokrhosmthdiymdewuw.supabase.co',
   process.env.SUPABASE_SERVICE_KEY
 );
