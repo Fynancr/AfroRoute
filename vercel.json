@@ -31,6 +31,10 @@
     "api/verify-device-code.js": {
       "memory": 128,
       "maxDuration": 10
+    },
+    "api/notify-payout-ready.js": {
+      "memory": 128,
+      "maxDuration": 10
     }
   },
   "headers": [
