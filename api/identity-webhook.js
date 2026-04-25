@@ -7,7 +7,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// IMPORTANT: disable body parsing so Stripe can verify the raw signature
+// REQUIRED: disable body parsing so Stripe can verify signature
 module.exports.config = {
   api: { bodyParser: false },
 };
@@ -20,6 +20,7 @@ const getRawBody = (req) =>
     req.on('error', reject);
   });
 
+// Stripe timestamps are Unix seconds — convert to ISO
 const fromStripeTimestamp = (ts) => {
   if (!ts || typeof ts !== 'number') return null;
   const d = new Date(ts * 1000);
@@ -81,7 +82,7 @@ const updateUser = async (userId, sessionId, stripeStatus, role, lastError, veri
     error_code: lastError?.code || null,
     error_reason: lastError?.reason || null,
     created_at: now,
-  }).catch(e => console.error('Log insert (non-fatal):', e.message));
+  }).catch((e) => console.error('Log insert (non-fatal):', e.message));
 
   return status;
 };
