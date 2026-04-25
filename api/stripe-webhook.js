@@ -7,7 +7,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// REQUIRED: disable body parsing so Stripe can verify signature
 module.exports.config = {
   api: { bodyParser: false },
 };
@@ -19,6 +18,13 @@ const getRawBody = (req) =>
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+
+// Map Stripe price ID to subscription plan name
+const getPlanFromPriceId = (priceId) => {
+  if (priceId === process.env.STRIPE_BUSINESS_PRICE_ID) return 'business';
+  if (priceId === process.env.STRIPE_PREMIUM_PRICE_ID) return 'pro';
+  return 'pro'; // default paid plan
+};
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
@@ -34,49 +40,103 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Webhook signature verification failed.' });
   }
 
-  console.log('Stripe webhook received:', event.id, event.type);
+  console.log('Stripe webhook:', event.id, event.type);
 
   try {
     switch (event.type) {
 
       case 'checkout.session.completed': {
         const session = event.data.object;
-        const userId = session.metadata?.supabase_user_id || session.client_reference_id;
+        const userId = session.metadata?.supabase_user_id || session.client_reference_id || session.metadata?.userId;
+        const priceId = session.metadata?.price_id || null;
+        const plan = getPlanFromPriceId(priceId);
+
         if (userId) {
-          const { error } = await supabase
-            .from('profiles')
-            .update({
-              is_subscribed: true,
-              subscription_updated_at: new Date().toISOString(),
-            })
-            .eq('id', userId);
+          const { error } = await supabase.from('profiles').update({
+            is_subscribed: true,
+            subscription_plan: plan,
+            subscription_status: 'active',
+            stripe_customer_id: session.customer || null,
+            subscription_updated_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq('id', userId);
           if (error) console.error('DB update error (checkout.completed):', error.message);
-          else console.log('Subscription activated for user:', userId);
+          else console.log(`Subscription activated: userId=${userId} plan=${plan}`);
         } else {
           console.warn('checkout.session.completed: no user ID in metadata');
         }
         break;
       }
 
-      case 'customer.subscription.deleted':
+      case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const sub = event.data.object;
         const customerId = sub.customer;
+        const status = sub.status; // active, trialing, past_due, canceled, etc.
+        const priceId = sub.items?.data?.[0]?.price?.id || null;
+        const plan = getPlanFromPriceId(priceId);
+        const isActive = status === 'active' || status === 'trialing';
+        const periodEnd = sub.current_period_end
+          ? new Date(sub.current_period_end * 1000).toISOString()
+          : null;
+
         if (customerId) {
-          const isActive = sub.status === 'active' || sub.status === 'trialing';
           const { data: profiles, error: fetchErr } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('stripe_customer_id', customerId)
-            .limit(1);
+            .from('profiles').select('id').eq('stripe_customer_id', customerId).limit(1);
+
           if (fetchErr) {
             console.error('DB fetch error (subscription):', fetchErr.message);
           } else if (profiles && profiles[0]) {
-            const { error } = await supabase
-              .from('profiles')
-              .update({ is_subscribed: isActive })
-              .eq('id', profiles[0].id);
+            const { error } = await supabase.from('profiles').update({
+              is_subscribed: isActive,
+              subscription_plan: isActive ? plan : 'free',
+              subscription_status: status,
+              stripe_subscription_id: sub.id,
+              stripe_price_id: priceId,
+              subscription_current_period_end: periodEnd,
+              updated_at: new Date().toISOString(),
+            }).eq('id', profiles[0].id);
             if (error) console.error('DB update error (subscription):', error.message);
+            else console.log(`Subscription updated: plan=${plan} status=${status}`);
+          }
+        }
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object;
+        const customerId = sub.customer;
+
+        if (customerId) {
+          const { data: profiles } = await supabase
+            .from('profiles').select('id').eq('stripe_customer_id', customerId).limit(1);
+
+          if (profiles && profiles[0]) {
+            await supabase.from('profiles').update({
+              is_subscribed: false,
+              subscription_plan: 'free',
+              subscription_status: 'canceled',
+              updated_at: new Date().toISOString(),
+            }).eq('id', profiles[0].id);
+            console.log(`Subscription canceled for customer ${customerId}`);
+          }
+        }
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object;
+        const customerId = invoice.customer;
+
+        if (customerId) {
+          const { data: profiles } = await supabase
+            .from('profiles').select('id').eq('stripe_customer_id', customerId).limit(1);
+
+          if (profiles && profiles[0]) {
+            await supabase.from('profiles').update({
+              subscription_status: 'past_due',
+              updated_at: new Date().toISOString(),
+            }).eq('id', profiles[0].id);
           }
         }
         break;
@@ -84,19 +144,17 @@ module.exports = async (req, res) => {
 
       case 'payment_intent.succeeded': {
         const pi = event.data.object;
-        const conversationId = pi.metadata?.conversation_id;
-        if (conversationId) {
-          await supabase
-            .from('transactions')
+        if (pi.metadata?.conversation_id) {
+          await supabase.from('transactions')
             .update({ status: 'paid', paid_at: new Date().toISOString() })
             .eq('payment_intent_id', pi.id)
-            .catch((e) => console.error('Transaction update error:', e.message));
+            .catch(e => console.error('Transaction update error:', e.message));
         }
         break;
       }
 
       default:
-        console.log('Stripe webhook ignored (unhandled type):', event.type);
+        console.log('Stripe webhook ignored:', event.type);
         return res.status(200).json({ received: true, ignored: true });
     }
 
