@@ -1,15 +1,19 @@
 // api/send-device-verification.js
 const crypto = require('crypto');
+const { createClient } = require('@supabase/supabase-js');
 
-// Generate a deterministic but time-limited 6-digit code
-// Same algorithm must be mirrored exactly in verify-device-code.js
-function generateCode(userId, deviceId, salt) {
-  const window = Math.floor(Date.now() / (10 * 60 * 1000)); // 10-minute window
-  const raw = `${userId}:${deviceId}:${window}:${salt}`;
-  const hash = crypto.createHmac('sha256', salt).update(raw).digest('hex');
-  const num = parseInt(hash.substring(0, 8), 16);
-  return String(num % 1000000).padStart(6, '0');
-}
+const supabase = createClient(
+  process.env.SUPABASE_URL || 'https://fzokrhosmthdiymdewuw.supabase.co',
+  process.env.SUPABASE_SERVICE_KEY
+);
+
+const generateCode = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
+
+const hashCode = (code) => {
+  const salt = process.env.DEVICE_VERIFY_SALT || 'afroroute-device-salt';
+  return crypto.createHmac('sha256', salt).update(code).digest('hex');
+};
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -19,15 +23,53 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { email, userId, deviceId } = req.body;
-
   if (!email || !userId || !deviceId) {
     return res.status(400).json({ error: 'Missing email, userId, or deviceId' });
   }
 
-  const salt = process.env.DEVICE_VERIFY_SALT || 'afroroute-device-salt';
-  const code = generateCode(userId, deviceId, salt);
-
   try {
+    // Rate limit: max 3 sends per 10 minutes per user
+    const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: recent } = await supabase
+      .from('login_verification_tokens')
+      .select('id')
+      .eq('user_id', userId)
+      .gte('created_at', tenMinsAgo);
+
+    if (recent && recent.length >= 3) {
+      return res.status(429).json({ error: 'Too many attempts. Please wait 10 minutes.' });
+    }
+
+    const code = generateCode();
+    const tokenHash = hashCode(code);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    // Store hashed token in DB
+    const { error: insertError } = await supabase
+      .from('login_verification_tokens')
+      .insert({
+        user_id: userId,
+        token_hash: tokenHash,
+        device_id_hash: deviceId,
+        expires_at: expiresAt,
+        attempts: 0,
+        created_at: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      console.error('Token insert error:', insertError.message);
+      return res.status(500).json({ error: 'Could not create verification token' });
+    }
+
+    // Log security event (non-fatal)
+    await supabase.from('security_events').insert({
+      user_id: userId,
+      event_type: 'verification_email_sent',
+      metadata: JSON.stringify({ device_id: deviceId }),
+      created_at: new Date().toISOString(),
+    }).catch(() => {});
+
+    // Send email via Resend
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -68,6 +110,7 @@ module.exports = async (req, res) => {
     }
 
     return res.status(200).json({ sent: true });
+
   } catch (err) {
     console.error('Send device verification error:', err.message);
     return res.status(500).json({ error: err.message || 'Failed to send email' });
