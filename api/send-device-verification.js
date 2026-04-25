@@ -10,10 +10,11 @@ const supabase = createClient(
 const generateCode = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
 
-const hashCode = (code) => {
-  const salt = process.env.DEVICE_VERIFY_SALT || 'afroroute-device-salt';
-  return crypto.createHmac('sha256', salt).update(code).digest('hex');
-};
+const hashCode = (code) =>
+  crypto
+    .createHmac('sha256', process.env.DEVICE_VERIFY_SALT || 'afroroute-device-salt')
+    .update(code)
+    .digest('hex');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -43,21 +44,22 @@ module.exports = async (req, res) => {
     const code = generateCode();
     const tokenHash = hashCode(code);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const now = new Date().toISOString();
 
     // Store hashed token in DB
-    const { error: insertError } = await supabase
+    const { error: insertErr } = await supabase
       .from('login_verification_tokens')
       .insert({
         user_id: userId,
         token_hash: tokenHash,
-        device_id_hash: deviceId,
+        device_id_hash: hashCode(deviceId),
         expires_at: expiresAt,
         attempts: 0,
-        created_at: new Date().toISOString(),
+        created_at: now,
       });
 
-    if (insertError) {
-      console.error('Token insert error:', insertError.message);
+    if (insertErr) {
+      console.error('Token insert error:', insertErr.message);
       return res.status(500).json({ error: 'Could not create verification token' });
     }
 
@@ -66,7 +68,7 @@ module.exports = async (req, res) => {
       user_id: userId,
       event_type: 'verification_email_sent',
       metadata: JSON.stringify({ device_id: deviceId }),
-      created_at: new Date().toISOString(),
+      created_at: now,
     }).catch(() => {});
 
     // Send email via Resend
