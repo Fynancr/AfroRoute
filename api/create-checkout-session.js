@@ -2,7 +2,8 @@ const Stripe = require('stripe');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error:
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
