@@ -1,9 +1,6 @@
 // api/stripe-webhook.js
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const { createClient } = require('@supabase/supabase-js');
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
+const { createCli
   process.env.SUPABASE_SERVICE_KEY
 );
 
