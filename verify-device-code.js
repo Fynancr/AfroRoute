@@ -7,10 +7,11 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-const hashCode = (code) => {
-  const salt = process.env.DEVICE_VERIFY_SALT || 'afroroute-device-salt';
-  return crypto.createHmac('sha256', salt).update(code).digest('hex');
-};
+const hashCode = (value) =>
+  crypto
+    .createHmac('sha256', process.env.DEVICE_VERIFY_SALT || 'afroroute-device-salt')
+    .update(value)
+    .digest('hex');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -30,18 +31,19 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const now = new Date().toISOString();
     const tokenHash = hashCode(code);
+    const deviceIdHash = hashCode(deviceId);
+    const now = new Date().toISOString();
 
-    // Find a valid, unexpired, unverified token for this user
+    // Find a valid, unexpired, unexhausted token for this user
     const { data: tokens, error: fetchErr } = await supabase
       .from('login_verification_tokens')
       .select('id, attempts, expires_at')
       .eq('user_id', userId)
       .eq('token_hash', tokenHash)
-      .eq('device_id_hash', deviceId)
-      .eq('used', false)
+      .eq('device_id_hash', deviceIdHash)
       .gt('expires_at', now)
+      .lt('attempts', 5)
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -51,14 +53,11 @@ module.exports = async (req, res) => {
     }
 
     if (!tokens || tokens.length === 0) {
-      // Increment attempts on any matching unexpired token
+      // Increment attempts on any matching token (even expired) to track brute force
       await supabase
         .from('login_verification_tokens')
         .update({ attempts: supabase.rpc('increment', { x: 1 }) })
         .eq('user_id', userId)
-        .eq('device_id_hash', deviceId)
-        .eq('used', false)
-        .gt('expires_at', now)
         .catch(() => {});
 
       return res.status(401).json({
@@ -67,27 +66,29 @@ module.exports = async (req, res) => {
       });
     }
 
-    const token = tokens[0];
-
-    // Mark token as used
+    // Valid — delete the token (one-time use)
     await supabase
       .from('login_verification_tokens')
-      .update({ used: true, used_at: now })
-      .eq('id', token.id);
+      .delete()
+      .eq('id', tokens[0].id)
+      .catch(() => {});
 
-    // Log trusted device
-    await supabase.from('trusted_devices').upsert({
-      user_id: userId,
-      device_id_hash: deviceId,
-      trusted_at: now,
-      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-    }, { onConflict: 'user_id,device_id_hash' }).catch(() => {});
+    // Record trusted device
+    await supabase
+      .from('trusted_devices')
+      .upsert({
+        user_id: userId,
+        device_id_hash: deviceIdHash,
+        trusted_at: now,
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+      }, { onConflict: 'user_id,device_id_hash' })
+      .catch(() => {});
 
-    // Log security event
+    // Log security event (non-fatal)
     await supabase.from('security_events').insert({
       user_id: userId,
       event_type: 'device_verified',
-      metadata: JSON.stringify({ device_id: deviceId }),
+      metadata: JSON.stringify({ device_id_hash: deviceIdHash }),
       created_at: now,
     }).catch(() => {});
 
