@@ -3883,6 +3883,8 @@ const sendDeviceVerificationEmail=async(email,userId)=>{
   }catch(e){return false;}
 };
 const[pendingRedirect,setPendingRedirect]=useState(null);
+const[upgradeReason,setUpgradeReason]=useState(null);
+const goUpgrade=(reason)=>{setUpgradeReason(reason||'free_limit_reached');go('pricing');};
 const[verifyLoading,setVerifyLoading]=useState(false);
 const[msgView,setMsgView]=useState('list'); // mobile: 'list' or 'chat'
 // goAfterLogin: go somewhere, but redirect through login if not authenticated
@@ -4184,7 +4186,7 @@ useEffect(()=>{_optionalChain([chatEnd, 'access', _78 => _78.current, 'optionalA
 useEffect(()=>{window.scrollTo(0,0);},[page]);
 
 const showToast=useCallback((msg,type='success')=>{setToast({msg,type,key:Date.now()});setTimeout(()=>setToast(null),3200);},[]);
-const go=(p)=>{setDetail(null);setPage(p);};
+const go=(p)=>{setDetail(null);setPage(p);if(p!=='pricing'){setUpgradeReason(null);}};
 
 const handleLogin=async(formData)=>{
   try{
@@ -4311,11 +4313,11 @@ const handlePostTrip=async(form)=>{
     // Server-side limit check via Supabase RPC
     const {data:canPost,error:rpcErr}=await sb.client.rpc('can_create_trip',{p_user_id:user.id});
     if(rpcErr){console.error('RPC error:',rpcErr.message);}
-    if(canPost===false){go('pricing');showToast(t.lang==='English'?'Upgrade to post more trips':t.lang==='Français'?'Passez à Premium pour plus de voyages':'Faça upgrade para publicar mais viagens','warning');return;}
+    if(canPost===false){goUpgrade('free_limit_reached');return;}
     await sb.insert('trips',{user_id:user.id,from_country:form.from,from_city:form.fc,to_country:form.to,to_city:form.tc,travel_date:form.date,airline:form.airline,kg_available:parseFloat(form.kg),price_per_kg:form.open?null:parseFloat(form.price),open_to_offers:form.open,categories:form.cats,notes:form.notes,status:form.status});
     showToast(t.toast_trip_posted);loadListings();go('profile');
   }catch(e){
-    if(e.message&&e.message.includes('FREE_TRIP_LIMIT_REACHED')){go('pricing');showToast(t.lang==='English'?'Upgrade to post more trips':'Faça upgrade para mais viagens','warning');}
+    if(e.message&&e.message.includes('FREE_TRIP_LIMIT_REACHED')){goUpgrade('free_limit_reached');return;}
     else{showToast('Failed: '+e.message,'error');}
   }
 };
@@ -4325,11 +4327,11 @@ const handlePostShip=async(form)=>{
     // Server-side limit check via Supabase RPC
     const {data:canPost,error:rpcErr}=await sb.client.rpc('can_create_shipment',{p_user_id:user.id});
     if(rpcErr){console.error('RPC error:',rpcErr.message);}
-    if(canPost===false){go('pricing');showToast(t.lang==='English'?'Upgrade to post more shipments':t.lang==='Français'?'Passez à Premium':'Faça upgrade para mais pedidos','warning');return;}
+    if(canPost===false){goUpgrade('free_limit_reached');return;}
     await sb.insert('shipments',{user_id:user.id,from_country:form.from,from_city:form.fc,to_country:form.to,to_city:form.tc,preferred_date:form.pref_date,category:form.category,weight_kg:parseFloat(form.kg),budget_per_kg:parseFloat(form.budget),description:form.desc,is_urgent:form.urgent,status:form.status});
     showToast(t.toast_ship_posted);loadListings();go('profile');
   }catch(e){
-    if(e.message&&e.message.includes('FREE_SHIPMENT_LIMIT_REACHED')){go('pricing');showToast(t.lang==='English'?'Upgrade to post more shipments':'Faça upgrade para mais pedidos','warning');}
+    if(e.message&&e.message.includes('FREE_SHIPMENT_LIMIT_REACHED')){goUpgrade('free_limit_reached');return;}
     else{showToast('Failed: '+e.message,'error');}
   }
 };
@@ -4525,20 +4527,25 @@ case 'post-trip':return React.createElement('div', { className: "page",}, React.
   return React.createElement('div',{style:{background:'linear-gradient(145deg,#0A2540,#0c3060)',borderRadius:16,padding:24,textAlign:'center',margin:'0 16px'}},
     React.createElement('div',{style:{fontSize:40,marginBottom:12}},'🔒'),
     React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:18,color:'#fff',marginBottom:10}},
-      isEN?'Upgrade to post more':isFR?'Passez à Premium':'Faça upgrade para publicar mais'
+      isEN?'Upgrade to continue':isFR?'Passez à un plan payant':'Upgrade para continuar'
     ),
-    React.createElement('p',{style:{fontSize:13,color:'rgba(255,255,255,.65)',lineHeight:1.65,margin:'0 0 20px',maxWidth:280,marginLeft:'auto',marginRight:'auto'}},
-      isEN?'Free accounts can post 1 trip and 1 shipment request. Upgrade to Premium for unlimited listings.':
-      isFR?'Les comptes gratuits peuvent publier 1 voyage et 1 demande. Passez à Premium pour illimité.':
-      'Contas gratuitas podem publicar 1 viagem e 1 pedido. Faça upgrade para ilimitado.'
+    React.createElement('p',{style:{fontSize:13,color:'rgba(255,255,255,.65)',lineHeight:1.65,margin:'0 0 20px',maxWidth:300,marginLeft:'auto',marginRight:'auto'}},
+      isEN?'Your free plan includes 1 trip post and 1 package request. You\'ve used your free posting limit. Upgrade to AfroRoute Pro or Business to keep posting.':
+      isFR?'Votre plan gratuit inclut 1 voyage et 1 demande. Vous avez atteint la limite. Passez à Pro ou Business pour continuer.':
+      'O teu plano gratuito inclui 1 viagem e 1 pedido. Já usaste o teu limite. Faz upgrade para Pro ou Business para continuar.'
     ),
     React.createElement('button',{
-      onClick:()=>go('pricing'),
-      style:{background:'var(--green)',color:'#fff',border:'none',padding:'13px 28px',borderRadius:12,fontWeight:700,fontSize:15,cursor:'pointer',fontFamily:"'Sora',sans-serif",display:'block',width:'100%',marginBottom:10}
-    }, isEN?'See Plans →':isFR?'Voir les plans →':'Ver Planos →'),
-    React.createElement('div',{style:{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:8}},
-      isEN?'Cancel anytime · No contract':isFR?'Annulez à tout moment':'Cancele quando quiser'
-    )
+      onClick:()=>goUpgrade('free_limit_reached'),
+      style:{background:'var(--green)',color:'#fff',border:'none',padding:'13px 28px',borderRadius:12,fontWeight:700,fontSize:15,cursor:'pointer',fontFamily:"'Sora',sans-serif",display:'block',width:'100%',marginBottom:8}
+    }, isEN?'Upgrade to Pro — $9.99/mo':isFR?'Passer à Pro — 9,99 €/mois':'Upgrade para Pro — €9,99/mês'),
+    React.createElement('button',{
+      onClick:()=>goUpgrade('free_limit_reached'),
+      style:{background:'rgba(255,255,255,.1)',color:'#fff',border:'1px solid rgba(255,255,255,.2)',padding:'11px 28px',borderRadius:12,fontWeight:600,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif",display:'block',width:'100%',marginBottom:8}
+    }, isEN?'View Business — $29.99/mo':isFR?'Voir Business — 29,99 €/mois':'Ver Business — €29,99/mês'),
+    React.createElement('button',{
+      onClick:()=>go('home'),
+      style:{background:'none',color:'rgba(255,255,255,.4)',border:'none',fontSize:12,cursor:'pointer',padding:'6px',fontFamily:"'Sora',sans-serif"}
+    }, isEN?'Maybe later':isFR?'Plus tard':'Talvez mais tarde')
   );
 })():!(_optionalChain([user,'optionalAccess',_=>_.isVerifiedTraveler])||_optionalChain([user,'optionalAccess',_=>_.isTravelerVerified])||_optionalChain([user,'optionalAccess',_=>_.isSenderVerified]))?React.createElement('div', { style: {background:'#fff',borderRadius:14,border:'1.5px solid rgba(26,188,156,.2)',padding:20,textAlign:'center'},}, React.createElement('div', { style: {fontSize:36,marginBottom:10},}, "🪪"), React.createElement('div', { style: {fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:16,color:'var(--navy)',marginBottom:8},}, t.verify_to_post||'Verificação obrigatória'), React.createElement('p', { style: {fontSize:13,color:'var(--text3)',lineHeight:1.6,margin:'0 0 14px'},}, t.verify_to_post_sub||'Para publicar uma viagem, verifica primeiro a tua identidade.'), React.createElement('button', { onClick: ()=>goAfterLogin('verify-identity'), style: {background:'var(--green)',color:'#fff',border:'none',padding:'12px 20px',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer'},}, "🪪 " , t.verify_identity||'Verificar Identidade')):React.createElement(PostTripForm, { t: t, onSubmit: handlePostTrip,})));
 case 'post-shipment':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "📦"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.post_ship_title), React.createElement('div', { className: "phd-sub",}, t.post_ship_sub))), React.createElement('div', { style: {padding:'0 16px 32px'},}, !loggedIn?React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),}):
@@ -4561,20 +4568,25 @@ case 'post-shipment':return React.createElement('div', { className: "page",}, Re
   return React.createElement('div',{style:{background:'linear-gradient(145deg,#0A2540,#0c3060)',borderRadius:16,padding:24,textAlign:'center',margin:'0 16px'}},
     React.createElement('div',{style:{fontSize:40,marginBottom:12}},'🔒'),
     React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:18,color:'#fff',marginBottom:10}},
-      isEN?'Upgrade to post more':isFR?'Passez à Premium':'Faça upgrade para publicar mais'
+      isEN?'Upgrade to continue':isFR?'Passez à un plan payant':'Upgrade para continuar'
     ),
-    React.createElement('p',{style:{fontSize:13,color:'rgba(255,255,255,.65)',lineHeight:1.65,margin:'0 0 20px',maxWidth:280,marginLeft:'auto',marginRight:'auto'}},
-      isEN?'Free accounts can post 1 trip and 1 shipment request. Upgrade to Premium for unlimited listings.':
-      isFR?'Les comptes gratuits peuvent publier 1 voyage et 1 demande. Passez à Premium pour illimité.':
-      'Contas gratuitas podem publicar 1 viagem e 1 pedido. Faça upgrade para ilimitado.'
+    React.createElement('p',{style:{fontSize:13,color:'rgba(255,255,255,.65)',lineHeight:1.65,margin:'0 0 20px',maxWidth:300,marginLeft:'auto',marginRight:'auto'}},
+      isEN?'Your free plan includes 1 trip post and 1 package request. You\'ve used your free posting limit. Upgrade to AfroRoute Pro or Business to keep posting.':
+      isFR?'Votre plan gratuit inclut 1 voyage et 1 demande. Vous avez atteint la limite. Passez à Pro ou Business pour continuer.':
+      'O teu plano gratuito inclui 1 viagem e 1 pedido. Já usaste o teu limite. Faz upgrade para Pro ou Business para continuar.'
     ),
     React.createElement('button',{
-      onClick:()=>go('pricing'),
-      style:{background:'var(--green)',color:'#fff',border:'none',padding:'13px 28px',borderRadius:12,fontWeight:700,fontSize:15,cursor:'pointer',fontFamily:"'Sora',sans-serif",display:'block',width:'100%',marginBottom:10}
-    }, isEN?'See Plans →':isFR?'Voir les plans →':'Ver Planos →'),
-    React.createElement('div',{style:{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:8}},
-      isEN?'Cancel anytime · No contract':isFR?'Annulez à tout moment':'Cancele quando quiser'
-    )
+      onClick:()=>goUpgrade('free_limit_reached'),
+      style:{background:'var(--green)',color:'#fff',border:'none',padding:'13px 28px',borderRadius:12,fontWeight:700,fontSize:15,cursor:'pointer',fontFamily:"'Sora',sans-serif",display:'block',width:'100%',marginBottom:8}
+    }, isEN?'Upgrade to Pro — $9.99/mo':isFR?'Passer à Pro — 9,99 €/mois':'Upgrade para Pro — €9,99/mês'),
+    React.createElement('button',{
+      onClick:()=>goUpgrade('free_limit_reached'),
+      style:{background:'rgba(255,255,255,.1)',color:'#fff',border:'1px solid rgba(255,255,255,.2)',padding:'11px 28px',borderRadius:12,fontWeight:600,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif",display:'block',width:'100%',marginBottom:8}
+    }, isEN?'View Business — $29.99/mo':isFR?'Voir Business — 29,99 €/mois':'Ver Business — €29,99/mês'),
+    React.createElement('button',{
+      onClick:()=>go('home'),
+      style:{background:'none',color:'rgba(255,255,255,.4)',border:'none',fontSize:12,cursor:'pointer',padding:'6px',fontFamily:"'Sora',sans-serif"}
+    }, isEN?'Maybe later':isFR?'Plus tard':'Talvez mais tarde')
   );
 })():React.createElement(PostShipForm, { t: t, onSubmit: handlePostShip,})));
 case 'messages':return React.createElement('div', { className: "page", style: {padding:0,overflow:'hidden'},},
@@ -4701,7 +4713,7 @@ case 'messages':return React.createElement('div', { className: "page", style: {p
     )
   ));
 
-case 'pricing':return React.createElement(PricingPage, { go: go, lang: lang, onSubscribe: handleSubscribe, onLoggedIn: loggedIn, onNeedLogin: (dest)=>{setPendingRedirect(dest||'pricing');go('auth');},});
+case 'pricing':return React.createElement(PricingPage, { go: go, lang: lang, onSubscribe: handleSubscribe, onLoggedIn: loggedIn, upgradeReason: upgradeReason, user: user, trips: trips, ships: ships, onNeedLogin: (dest)=>{setPendingRedirect(dest||'pricing');go('auth');},});
 case 'verify-device':go('home');return null;
     
     case 'verify-identity':return loggedIn
@@ -4985,21 +4997,76 @@ const CONTACT_SUBJECTS = {
   fr:[['general','Question générale'],['verification','Problème de vérification d’identité'],['dispute','Litige / Signaler un utilisateur'],['billing','Facturation & abonnement'],['safety','Problème de sécurité'],['press','Presse & partenariats'],['bug','Bug technique / problème'],['legal','Demande légale / RGPD']]
 };
 
-function PricingPage({go, lang, onSubscribe,onLoggedIn,onNeedLogin}) {
+function PricingPage({go, lang, onSubscribe, onLoggedIn, onNeedLogin, upgradeReason, user, trips, ships}) {
   const c = PAGE_COPY[lang] || PAGE_COPY.pt;
-  return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "💎"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, c.pricing.title), React.createElement('div', { className: "phd-sub",}, c.pricing.sub))), React.createElement('div', { style: {padding:'0 16px 32px',maxWidth:900,margin:'0 auto'},}, React.createElement('div', { style: {display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:16},}, c.pricing.plans.map(pl=>React.createElement('div', { key: pl.n, style: {background:'#fff',border:`2px solid ${pl.pop?'var(--green)':'var(--bord)'}`,borderRadius:20,padding:20,boxShadow:pl.pop?'0 10px 30px rgba(26,188,156,.18)':'var(--sh)',position:'relative'},}, pl.pop&&React.createElement('div', { style: {position:'absolute',top:12,right:12,background:'var(--green)',color:'#fff',padding:'5px 10px',fontSize:11,fontWeight:700,borderRadius:999},}, c.pricing.popular), React.createElement('div', { style: {fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:'#0A2540',marginBottom:6},}, pl.n), React.createElement('div', { style: {fontFamily:"'Sora',sans-serif",fontWeight:900,fontSize:26,color:'#0A2540',marginBottom:6},}, pl.p), React.createElement('div', { style: {color:'#64748b',fontSize:14,marginBottom:18},}, pl.s), React.createElement('div', { style: {display:'grid',gap:10,marginBottom:18},}, pl.f.map(x=>React.createElement('div', { key: x, style: {display:'flex',gap:8,fontSize:14,color:'#334155'},}, React.createElement('span', { style: {color:'var(--green)'},}, "✓"), React.createElement('span', null, x)))), React.createElement('button', { style: {width:'100%',border:'none',background:pl.pop?'var(--green)':'var(--navy)',color:'#fff',padding:'14px 16px',borderRadius:14,fontWeight:800,cursor:'pointer',fontFamily:"'Sora',sans-serif"}, onClick: ()=>{
-  const isFree=pl.p.startsWith('€0')||pl.p.startsWith('0 ');
-  const isBusiness=pl.n==='Business'||pl.n==='Negócios'||pl.n==='Entreprise'||pl.n==='AfroRoute Business';
-  const isPremium=pl.n==='AfroRoute Pro'||pl.n==='Premium'||pl.n==='Prémio';
-  if(isFree){
-    // Free plan: if logged in just go home, if not go to signup
-    if(onLoggedIn){go('home');}else{go('auth');}
-  }else{
-    // Paid plans (Premium or Business): use Stripe checkout
-    const planKey=isBusiness?'business':'pro';
-    if(onSubscribe){onSubscribe(planKey);}else{onNeedLogin&&onNeedLogin('pricing');}
-  }
-}}, pl.cta))))));
+  const isLimitReached = upgradeReason === 'free_limit_reached';
+  // Compute whether free user has used allowance
+  const userId = user && user.id;
+  const tripsUsed = userId && trips ? trips.filter(tr=>!tr.isDemo&&tr.user_id===userId).length : 0;
+  const shipsUsed = userId && ships ? ships.filter(sh=>!sh.isDemo&&sh.user_id===userId).length : 0;
+  const freeLimitUsed = isLimitReached || (onLoggedIn && (tripsUsed>=1 || shipsUsed>=1));
+  const isEN = lang==='en'; const isFR = lang==='fr';
+
+  return React.createElement('div', {className:"page"},
+    isLimitReached&&React.createElement('div',{style:{background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.2)',borderRadius:12,margin:'0 16px 4px',padding:'12px 16px',fontSize:13,color:'#b91c1c',lineHeight:1.5,display:'flex',gap:8,alignItems:'flex-start'}},
+      React.createElement('span',null,'⚠'),
+      React.createElement('span',null,
+        isEN?'You\'ve used your free posting limit. Upgrade to continue posting without limits.':
+        isFR?'Vous avez atteint la limite gratuite. Passez à un plan payant pour continuer.':
+        'Já usaste o teu limite gratuito. Faz upgrade para continuar a publicar.'
+      )
+    ),
+    React.createElement('div', {className:"phd"}, React.createElement('div', {className:"phd-icon"}, "💎"), React.createElement('div', null, React.createElement('div', {className:"phd-title"}, c.pricing.title), React.createElement('div', {className:"phd-sub"}, c.pricing.sub))),
+    React.createElement('div', {style:{padding:'0 16px 32px',maxWidth:900,margin:'0 auto'}},
+      React.createElement('div', {style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:16}},
+        c.pricing.plans.map(pl=>{
+          const isFree=pl.p.startsWith('€0')||pl.p.startsWith('0 ');
+          const isBusiness=pl.n==='Business'||pl.n==='Negócios'||pl.n==='Entreprise'||pl.n==='AfroRoute Business';
+          const isPro=pl.n==='AfroRoute Pro'||pl.n==='Premium'||pl.n==='Prémio';
+
+          // Free plan status for this user
+          let freeBadge = null;
+          let freeCta = pl.cta;
+          let freeDisabled = false;
+          if(isFree){
+            if(freeLimitUsed){
+              freeBadge = React.createElement('div',{style:{background:'rgba(239,68,68,.1)',color:'#b91c1c',border:'1px solid rgba(239,68,68,.25)',borderRadius:8,padding:'6px 10px',fontSize:11,fontWeight:700,marginBottom:10,textAlign:'center'}},
+                isEN?'Current plan — Limit reached':isFR?'Plan actuel — Limite atteinte':'Plano atual — Limite atingido');
+              freeCta = isEN?'Current plan':isFR?'Plan actuel':'Plano atual';
+              freeDisabled = true;
+            } else if(onLoggedIn){
+              freeBadge = React.createElement('div',{style:{background:'rgba(26,188,156,.1)',color:'var(--succ)',border:'1px solid rgba(26,188,156,.25)',borderRadius:8,padding:'6px 10px',fontSize:11,fontWeight:700,marginBottom:10,textAlign:'center'}},
+                isEN?'Current plan':isFR?'Plan actuel':'Plano atual');
+              freeCta = isEN?'Current plan':isFR?'Plan actuel':'Plano atual';
+              freeDisabled = true;
+            }
+          }
+
+          return React.createElement('div', {key:pl.n, style:{background:'#fff',border:`2px solid ${(pl.pop&&!isFree)||(!isFree&&isLimitReached&&isPro)?'var(--green)':'var(--bord)'}`,borderRadius:20,padding:20,boxShadow:pl.pop?'0 10px 30px rgba(26,188,156,.18)':'var(--sh)',position:'relative',opacity:isFree&&freeLimitUsed?0.7:1}},
+            (pl.pop||(!isFree&&isLimitReached&&isPro))&&!isFree&&React.createElement('div', {style:{position:'absolute',top:12,right:12,background:'var(--green)',color:'#fff',padding:'5px 10px',fontSize:11,fontWeight:700,borderRadius:999}},
+              isLimitReached&&isPro?(isEN?'Recommended':isFR?'Recommandé':'Recomendado'):c.pricing.popular),
+            freeBadge,
+            React.createElement('div', {style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:22,color:'#0A2540',marginBottom:6}}, pl.n),
+            React.createElement('div', {style:{fontFamily:"'Sora',sans-serif",fontWeight:900,fontSize:26,color:'#0A2540',marginBottom:6}}, pl.p),
+            React.createElement('div', {style:{color:'#64748b',fontSize:14,marginBottom:18}}, pl.s),
+            React.createElement('div', {style:{display:'grid',gap:10,marginBottom:18}}, pl.f.map(x=>React.createElement('div', {key:x, style:{display:'flex',gap:8,fontSize:14,color:'#334155'}}, React.createElement('span', {style:{color:'var(--green)'}}, "✓"), React.createElement('span', null, x)))),
+            React.createElement('button', {
+              disabled: freeDisabled,
+              style:{width:'100%',border:'none',background:freeDisabled?'#e2e8f0':(pl.pop||isLimitReached&&isPro)?'var(--green)':'var(--navy)',color:freeDisabled?'#94a3b8':'#fff',padding:'14px 16px',borderRadius:14,fontWeight:800,cursor:freeDisabled?'default':'pointer',fontFamily:"'Sora',sans-serif"},
+              onClick: freeDisabled?undefined:()=>{
+                if(isFree){
+                  if(onLoggedIn){go('home');}else{go('auth');}
+                }else{
+                  const planKey=isBusiness?'business':'pro';
+                  if(onSubscribe){onSubscribe(planKey);}else{onNeedLogin&&onNeedLogin('pricing');}
+                }
+              }
+            }, freeCta)
+          );
+        })
+      )
+    )
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════
