@@ -1,18 +1,23 @@
+// api/verify-device-code.js
 const crypto = require('crypto');
+const { createClient } = require('@supabase/supabase-js');
 
-// Must match the generation logic in send-device-verification.js exactly
-function generateCode(userId, deviceId, salt, windowOffset = 0) {
-  const window = Math.floor(Date.now() / (10 * 60 * 1000)) + windowOffset;
-  const raw = `${userId}:${deviceId}:${window}:${salt}`;
-  const hash = crypto.createHmac('sha256', salt).update(raw).digest('hex');
-  const num = parseInt(hash.substring(0, 8), 16);
-  return String(num % 1000000).padStart(6, '0');
-}
+const supabase = createClient(
+  process.env.SUPABASE_URL || 'https://fzokrhosmthdiymdewuw.supabase.co',
+  process.env.SUPABASE_SERVICE_KEY
+);
+
+const hashCode = (code) => {
+  const salt = process.env.DEVICE_VERIFY_SALT || 'afroroute-device-salt';
+  return crypto.createHmac('sha256', salt).update(code).digest('hex');
+};
 
 module.exports = async (req, res) => {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { userId, code, deviceId } = req.body;
 
@@ -24,20 +29,72 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Invalid code format' });
   }
 
-  const salt = process.env.DEVICE_VERIFY_SALT || 'afroroute-device-salt';
+  try {
+    const now = new Date().toISOString();
+    const tokenHash = hashCode(code);
 
-  // Check current window and previous window (handles edge cases near window boundaries)
-  const validCodes = [
-    generateCode(userId, deviceId, salt, 0),   // current 10-min window
-    generateCode(userId, deviceId, salt, -1),  // previous 10-min window
-  ];
+    // Find a valid, unexpired, unverified token for this user
+    const { data: tokens, error: fetchErr } = await supabase
+      .from('login_verification_tokens')
+      .select('id, attempts, expires_at')
+      .eq('user_id', userId)
+      .eq('token_hash', tokenHash)
+      .eq('device_id_hash', deviceId)
+      .eq('used', false)
+      .gt('expires_at', now)
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-  if (validCodes.includes(code)) {
+    if (fetchErr) {
+      console.error('Token fetch error:', fetchErr.message);
+      return res.status(500).json({ error: 'Verification failed' });
+    }
+
+    if (!tokens || tokens.length === 0) {
+      // Increment attempts on any matching unexpired token
+      await supabase
+        .from('login_verification_tokens')
+        .update({ attempts: supabase.rpc('increment', { x: 1 }) })
+        .eq('user_id', userId)
+        .eq('device_id_hash', deviceId)
+        .eq('used', false)
+        .gt('expires_at', now)
+        .catch(() => {});
+
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired code. Please request a new one.',
+      });
+    }
+
+    const token = tokens[0];
+
+    // Mark token as used
+    await supabase
+      .from('login_verification_tokens')
+      .update({ used: true, used_at: now })
+      .eq('id', token.id);
+
+    // Log trusted device
+    await supabase.from('trusted_devices').upsert({
+      user_id: userId,
+      device_id_hash: deviceId,
+      trusted_at: now,
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+    }, { onConflict: 'user_id,device_id_hash' }).catch(() => {});
+
+    // Log security event
+    await supabase.from('security_events').insert({
+      user_id: userId,
+      event_type: 'device_verified',
+      metadata: JSON.stringify({ device_id: deviceId }),
+      created_at: now,
+    }).catch(() => {});
+
     return res.status(200).json({ success: true });
-  }
 
-  return res.status(401).json({
-    success: false,
-    error: 'Invalid or expired code. Please request a new one.',
-  });
+  } catch (err) {
+    console.error('Verify device code error:', err.message);
+    return res.status(500).json({ error: 'Verification failed' });
+  }
 };
