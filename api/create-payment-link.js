@@ -1,4 +1,5 @@
-const Stripe = require('stripe')
+const Stripe = require('stripe');
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
