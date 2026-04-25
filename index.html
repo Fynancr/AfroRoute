@@ -3978,6 +3978,10 @@ if(typeof window !== 'undefined'){
               isSenderVerified:profile.is_sender_verified||false,
               stripeVerificationStatus:profile.stripe_verification_status||'pending',
               identityVerificationStatus:profile.identity_verification_status||'pending',
+              subscription_plan:profile.subscription_plan||'free',
+              subscription_status:profile.subscription_status||'active',
+              stripe_customer_id:profile.stripe_customer_id||null,
+              stripe_subscription_id:profile.stripe_subscription_id||null,
             }));
             if(profile.identity_verification_status==='pending'){
               showToast('✅ Verification submitted! We will notify you once reviewed.','success');
@@ -4004,6 +4008,10 @@ if(typeof window!=='undefined'){
               isSenderVerified:profile.is_sender_verified||false,
               stripeVerificationStatus:profile.stripe_verification_status||'pending',
               identityVerificationStatus:profile.identity_verification_status||'pending',
+              subscription_plan:profile.subscription_plan||'free',
+              subscription_status:profile.subscription_status||'active',
+              stripe_customer_id:profile.stripe_customer_id||null,
+              stripe_subscription_id:profile.stripe_subscription_id||null,
             }));
             showToast('Verification submitted! We will notify you once complete.','success');
           }
@@ -4229,18 +4237,8 @@ const handleLogin=async(formData)=>{
       loadConversations(data.user.id);
       loadListings(true); // logged in — hide demos
       showToast('Welcome back, '+((_optionalChain([profile, 'optionalAccess', _100 => _100.name])||formData.email.split('@')[0]).split(' ')[0])+'! 👋');
-      // Device trust check
-      if(!isTrustedDevice(data.user.id)){
-        const _email=(formData.email||'').trim().toLowerCase();
-        const _uid=data.user.id;
-        const _rd=pendingRedirect;
-        sendDeviceVerificationEmail(_email,_uid).catch(()=>{});
-        setDeviceVerify({email:_email,userId:_uid,code:'',error:'',loading:false,sent:true,resendAt:Date.now()+60000,
-          onSuccess:()=>{setPendingRedirect(null);go(_rd||'home');}});
-        go('verify-device');
-      }else{
-        (function(){const _r=pendingRedirect;setPendingRedirect(null);go(_r||'home');})();
-      }
+      // Device verification DISABLED — proceed directly after login
+      (function(){const _r=pendingRedirect;setPendingRedirect(null);go(_r||'home');})();
     }
   }catch(e){showToast(e.message||'Authentication failed','error');}
 };
@@ -4261,16 +4259,30 @@ const handleSaveProfile=async(updated)=>{
 
 const handlePostTrip=async(form)=>{
   try{
+    // Server-side limit check via Supabase RPC
+    const {data:canPost,error:rpcErr}=await sb.client.rpc('can_create_trip',{p_user_id:user.id});
+    if(rpcErr){console.error('RPC error:',rpcErr.message);}
+    if(canPost===false){go('pricing');showToast(t.lang==='English'?'Upgrade to post more trips':t.lang==='Français'?'Passez à Premium pour plus de voyages':'Faça upgrade para publicar mais viagens','warning');return;}
     await sb.insert('trips',{user_id:user.id,from_country:form.from,from_city:form.fc,to_country:form.to,to_city:form.tc,travel_date:form.date,airline:form.airline,kg_available:parseFloat(form.kg),price_per_kg:form.open?null:parseFloat(form.price),open_to_offers:form.open,categories:form.cats,notes:form.notes,status:form.status});
     showToast(t.toast_trip_posted);loadListings();go('profile');
-  }catch(e){showToast('Failed: '+e.message,'error');}
+  }catch(e){
+    if(e.message&&e.message.includes('FREE_TRIP_LIMIT_REACHED')){go('pricing');showToast(t.lang==='English'?'Upgrade to post more trips':'Faça upgrade para mais viagens','warning');}
+    else{showToast('Failed: '+e.message,'error');}
+  }
 };
 
 const handlePostShip=async(form)=>{
   try{
+    // Server-side limit check via Supabase RPC
+    const {data:canPost,error:rpcErr}=await sb.client.rpc('can_create_shipment',{p_user_id:user.id});
+    if(rpcErr){console.error('RPC error:',rpcErr.message);}
+    if(canPost===false){go('pricing');showToast(t.lang==='English'?'Upgrade to post more shipments':t.lang==='Français'?'Passez à Premium':'Faça upgrade para mais pedidos','warning');return;}
     await sb.insert('shipments',{user_id:user.id,from_country:form.from,from_city:form.fc,to_country:form.to,to_city:form.tc,preferred_date:form.pref_date,category:form.category,weight_kg:parseFloat(form.kg),budget_per_kg:parseFloat(form.budget),description:form.desc,is_urgent:form.urgent,status:form.status});
     showToast(t.toast_ship_posted);loadListings();go('profile');
-  }catch(e){showToast('Failed: '+e.message,'error');}
+  }catch(e){
+    if(e.message&&e.message.includes('FREE_SHIPMENT_LIMIT_REACHED')){go('pricing');showToast(t.lang==='English'?'Upgrade to post more shipments':'Faça upgrade para mais pedidos','warning');}
+    else{showToast('Failed: '+e.message,'error');}
+  }
 };
 
 const openChat=(item,type)=>{
@@ -4434,7 +4446,7 @@ switch(page){
 case 'home':return renderHome();
 case 'browse-trips':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "✈️"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.nav_trips), React.createElement('div', { className: "phd-sub",}, trips.length, " listings" ))), React.createElement(BrowseTrips, { t: t, trips: trips, onContact: handleContact, onSave: handleSave, savedIds: savedIds, onDetail: item=>setDetail({item,type:'trip'}),}));
 case 'browse-ships':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "📦"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.nav_ships), React.createElement('div', { className: "phd-sub",}, ships.length, " requests" ))), React.createElement(BrowseShips, { t: t, ships: ships, onContact: handleContact, onSave: handleSave, savedIds: savedIds, onDetail: item=>setDetail({item,type:'ship'}),}));
-case 'post-trip':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "✈️"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.post_trip_title), React.createElement('div', { className: "phd-sub",}, t.post_trip_sub))), React.createElement('div', { style: {padding:'0 16px 32px'},}, !loggedIn?React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),}):(!subscribed&&trips.filter(tr=>!tr.isDemo&&tr.user_id===(user&&user.id)).length>=1)?(function(){
+case 'post-trip':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "✈️"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.post_trip_title), React.createElement('div', { className: "phd-sub",}, t.post_trip_sub))), React.createElement('div', { style: {padding:'0 16px 32px'},}, !loggedIn?React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),}):((!user||!['pro','business'].includes(user.subscription_plan))&&!(user&&user.subscription_status==='trialing')&&trips.filter(tr=>!tr.isDemo&&tr.user_id===(user&&user.id)).length>=1)?(function(){
   const isEN=t&&t.lang==='English';
   const isFR=t&&t.lang==='Français';
   return React.createElement('div',{style:{background:'linear-gradient(145deg,#0A2540,#0c3060)',borderRadius:16,padding:24,textAlign:'center',margin:'0 16px'}},
@@ -4470,7 +4482,7 @@ case 'post-shipment':return React.createElement('div', { className: "page",}, Re
         style:{background:'var(--green)',color:'#fff',border:'none',padding:'12px 24px',borderRadius:10,fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif"}
       },'🚀 Verify Identity')
     ):
-    (!subscribed&&ships.filter(sh=>!sh.isDemo&&sh.user_id===(user&&user.id)).length>=1)?(function(){
+    ((!user||!['pro','business'].includes(user.subscription_plan))&&!(user&&user.subscription_status==='trialing')&&ships.filter(sh=>!sh.isDemo&&sh.user_id===(user&&user.id)).length>=1)?(function(){
   const isEN=t&&t.lang==='English';
   const isFR=t&&t.lang==='Français';
   return React.createElement('div',{style:{background:'linear-gradient(145deg,#0A2540,#0c3060)',borderRadius:16,padding:24,textAlign:'center',margin:'0 16px'}},
@@ -4617,45 +4629,8 @@ case 'messages':return React.createElement('div', { className: "page", style: {p
   ));
 
 case 'pricing':return React.createElement(PricingPage, { go: go, lang: lang, onSubscribe: handleSubscribe, onLoggedIn: loggedIn, onNeedLogin: (dest)=>{setPendingRedirect(dest||'pricing');go('auth');},});
-case 'verify-device':return React.createElement('div',{className:'page'},
-      React.createElement('div',{style:{maxWidth:440,margin:'0 auto',padding:'24px 16px'}},
-        React.createElement('div',{style:{background:'linear-gradient(135deg,#0A2540,#0d6e5b)',borderRadius:16,padding:'24px 20px',marginBottom:20,textAlign:'center'}},
-          React.createElement('div',{style:{fontSize:44,marginBottom:8}},'🔐'),
-          React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:18,color:'#fff',marginBottom:6}},'Verify New Device'),
-          React.createElement('div',{style:{fontSize:13,color:'rgba(255,255,255,.7)',lineHeight:1.6}},
-            'We noticed a login from a new device. Enter the code we sent to your email.'
-          )
-        ),
-        deviceVerify&&React.createElement('div',null,
-          React.createElement('div',{style:{background:'var(--surf2)',borderRadius:12,padding:'14px 16px',marginBottom:16,fontSize:13,color:'var(--text2)'}},
-            '📧 Code sent to ',React.createElement('strong',null,deviceVerify.email)
-          ),
-          React.createElement('input',{
-            className:'fi',
-            type:'text',
-            inputMode:'numeric',
-            maxLength:6,
-            placeholder:'000000',
-            value:deviceVerify.code||'',
-            style:{fontSize:24,textAlign:'center',letterSpacing:8,fontWeight:700,marginBottom:12},
-            autoFocus:true,
-            onChange:e=>setDeviceVerify(prev=>({...prev,code:e.target.value.replace(/[^0-9]/g,'')})),
-            onKeyDown:e=>e.key==='Enter'&&verifyDeviceCode()
-          }),
-          deviceVerify.error&&React.createElement('div',{className:'ferr',style:{marginBottom:10}},'⚠ ',deviceVerify.error),
-          React.createElement('button',{
-            onClick:verifyDeviceCode,
-            disabled:deviceVerify.loading||!deviceVerify.code||deviceVerify.code.length<6,
-            style:{width:'100%',padding:'14px',borderRadius:11,border:'none',background:'var(--green)',color:'#fff',fontWeight:700,fontSize:15,cursor:'pointer',opacity:(deviceVerify.loading||!deviceVerify.code||deviceVerify.code.length<6)?.6:1,fontFamily:"'Sora',sans-serif",marginBottom:10}
-          },deviceVerify.loading?'⏳ Verifying…':'✅ Verify Device'),
-          React.createElement('button',{
-            onClick:resendDeviceCode,
-            disabled:deviceVerify.loading||Date.now()<(deviceVerify.resendAt||0),
-            style:{width:'100%',background:'none',border:'none',color:'var(--green)',fontSize:13,fontWeight:600,cursor:'pointer',padding:'8px'}
-          },Date.now()<(deviceVerify.resendAt||0)?'Resend available soon':'↩ Resend code')
-        )
-      )
-    );
+case 'verify-device':go('home');return null;
+    
     case 'verify-identity':return loggedIn
       ?React.createElement('div',{className:'page'},
         React.createElement('div',{style:{maxWidth:460,margin:'0 auto',padding:'20px 16px'}},
