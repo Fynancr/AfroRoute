@@ -1,19 +1,22 @@
+// api/send-device-verification.js
 const crypto = require('crypto');
 
 // Generate a deterministic but time-limited 6-digit code
+// Same algorithm must be mirrored exactly in verify-device-code.js
 function generateCode(userId, deviceId, salt) {
   const window = Math.floor(Date.now() / (10 * 60 * 1000)); // 10-minute window
   const raw = `${userId}:${deviceId}:${window}:${salt}`;
   const hash = crypto.createHmac('sha256', salt).update(raw).digest('hex');
-  // Take first 6 digits from hash
   const num = parseInt(hash.substring(0, 8), 16);
   return String(num % 1000000).padStart(6, '0');
 }
 
 module.exports = async (req, res) => {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { email, userId, deviceId } = req.body;
 
@@ -34,34 +37,32 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         from: 'AfroRoute Security <security@afroroute.com>',
         to: [email],
-        subject: 'Your AfroRoute device verification code',
+        subject: `${code} — Your AfroRoute security code`,
         html: `
-          <div style="font-family: 'DM Sans', sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
-            <div style="text-align: center; margin-bottom: 24px;">
-              <h1 style="color: #0A2540; font-size: 24px; margin: 0 0 8px;">New device login</h1>
-              <p style="color: #64748b; font-size: 15px; margin: 0;">
-                We noticed a login from a new device. Use the code below to verify it's you.
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 20px; background: #f0f4f8;">
+            <div style="background: #0A2540; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 20px;">
+              <div style="font-size: 24px; font-weight: 800; color: #fff;">✈️ AfroRoute</div>
+            </div>
+            <div style="background: #fff; border-radius: 12px; padding: 24px;">
+              <h2 style="color: #0A2540; margin: 0 0 12px;">New device login</h2>
+              <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+                We noticed a login from a new device. Use this code to verify it's you:
+              </p>
+              <div style="background: #f0f4f8; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0;">
+                <div style="font-size: 36px; font-weight: 800; color: #0A2540; letter-spacing: 8px;">${code}</div>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 8px;">Valid for 10 minutes</div>
+              </div>
+              <p style="color: #94a3b8; font-size: 12px; line-height: 1.6;">
+                If you didn't try to log in, please change your password immediately.
               </p>
             </div>
-            <div style="background: #f4f6f9; border-radius: 14px; padding: 32px; text-align: center; margin: 24px 0;">
-              <div style="font-size: 13px; color: #64748b; margin-bottom: 8px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">Verification code</div>
-              <div style="font-size: 40px; font-weight: 800; color: #0A2540; letter-spacing: 10px;">${code}</div>
-              <div style="font-size: 12px; color: #94a3b8; margin-top: 12px;">Valid for 10 minutes</div>
-            </div>
-            <p style="color: #64748b; font-size: 13px; line-height: 1.6; text-align: center;">
-              If you didn't try to log in, please ignore this email. Your account is safe.
-            </p>
-            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
-            <p style="color: #94a3b8; font-size: 12px; text-align: center;">
-              AfroRoute — Trusted shipping between Portugal and Angola
-            </p>
           </div>
         `,
       }),
     });
 
     if (!response.ok) {
-      const err = await response.json();
+      const err = await response.json().catch(() => ({}));
       console.error('Resend error:', err);
       return res.status(500).json({ error: 'Failed to send verification email' });
     }
