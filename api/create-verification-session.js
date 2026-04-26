@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
           require_matching_selfie: true,
         },
       },
-      return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/?verification=complete`,
+      return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/?verification=complete&signup_step=3`,
     });
 
     return res.status(200).json({
