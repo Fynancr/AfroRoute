@@ -1496,10 +1496,13 @@ React.createElement('footer', { className: "footer",}
     )
     , React.createElement('div', null
       , React.createElement('div', { className: "footer-ct",}, t.footer_legal)
-      , React.createElement('button', { className: "footer-link", onClick: ()=>go('terms'),}, t.footer_terms)
-      , React.createElement('button', { className: "footer-link", onClick: ()=>go('privacy'),}, t.footer_privacy)
+      , React.createElement('a', { className: "footer-link", href: '/terms', style:{textDecoration:'none',display:'block'}}, t.footer_terms||'Terms of Service')
+      , React.createElement('a', { className: "footer-link", href: '/privacy', style:{textDecoration:'none',display:'block'}}, t.footer_privacy||'Privacy Policy')
+      , React.createElement('a', { className: "footer-link", href: '/prohibited-items', style:{textDecoration:'none',display:'block'}}, 'Prohibited Items')
+      , React.createElement('a', { className: "footer-link", href: '/disputes', style:{textDecoration:'none',display:'block'}}, t.footer_disputes||'Disputes')
+      , React.createElement('a', { className: "footer-link", href: '/refunds-cancellations', style:{textDecoration:'none',display:'block'}}, 'Refunds')
+      , React.createElement('a', { className: "footer-link", href: '/payout-policy', style:{textDecoration:'none',display:'block'}}, 'Payout Policy')
       , React.createElement('button', { className: "footer-link", onClick: ()=>go('contact'),}, t.footer_contact)
-      , React.createElement('button', { className: "footer-link", onClick: ()=>go('dispute'),}, t.footer_disputes||'Disputas')
       , React.createElement('button', { className: "footer-link", onClick: ()=>go('refund'),}, t.footer_refunds||'Reembolsos')
       , React.createElement('button', { className: "footer-link", onClick: ()=>go('trust'),}, t.footer_trust||'Segurança')
     )
@@ -2284,9 +2287,9 @@ function AuthPage({t,onLogin,go,initialMode}){
             ),
             React.createElement('div',{style:{fontSize:13,color:'var(--text2)',lineHeight:1.6}},
               tx('Li e aceito os ','I have read and accept the ','J\'ai lu et j\'accepte les '),
-              React.createElement('button',{onClick:(e)=>{e.stopPropagation();go('terms');},style:{color:'var(--green)',fontWeight:700,background:'none',border:'none',padding:0,cursor:'pointer',fontSize:'inherit',fontFamily:'inherit'}},tx('Termos de Serviço','Terms of Service','Conditions d\'utilisation')),
+              React.createElement('a',{href:'/terms',target:'_blank',rel:'noopener',style:{color:'var(--green)',fontWeight:700,textDecoration:'none',fontSize:'inherit'}},tx('Termos de Serviço','Terms of Service','Conditions d\'utilisation')),
               tx(' e a ',' and the ',' et la '),
-              React.createElement('button',{onClick:(e)=>{e.stopPropagation();go('privacy');},style:{color:'var(--green)',fontWeight:700,background:'none',border:'none',padding:0,cursor:'pointer',fontSize:'inherit',fontFamily:'inherit'}},tx('Política de Privacidade','Privacy Policy','Politique de confidentialité'))
+              React.createElement('a',{href:'/privacy',target:'_blank',rel:'noopener',style:{color:'var(--green)',fontWeight:700,textDecoration:'none',fontSize:'inherit'}},tx('Política de Privacidade','Privacy Policy','Politique de confidentialité'))
             )
           ),
           errors.agreed&&React.createElement('div',{className:'ferr'},'⚠ ',errors.agreed),
