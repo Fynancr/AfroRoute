@@ -1737,10 +1737,7 @@ function AuthPage({t,onLogin,go}){
   const[otpCode,setOtpCode]=React.useState('');
   const[otpError,setOtpError]=React.useState('');
   const[phoneVerified,setPhoneVerified]=React.useState(false);
-  const[idPhoto,setIdPhoto]=React.useState(null); // base64
-  const[selfiePhoto,setSelfiePhoto]=React.useState(null); // base64
-  const[idPreview,setIdPreview]=React.useState(null);
-  const[selfiePreview,setSelfiePreview]=React.useState(null);
+  // Manual ID/selfie upload removed — Stripe Identity handles verification
   const[signupDone,setSignupDone]=React.useState(false);
   const[signupEmail,setSignupEmail]=React.useState('');
   
@@ -1818,31 +1815,46 @@ function AuthPage({t,onLogin,go}){
 
   // ── Photo capture helper ──
   
-  const capturePhoto=(setter,previewSetter)=>(e)=>{
-    const file=e.target.files[0];
-    if(!file)return;
-    const reader=new FileReader();
-    reader.onload=(ev)=>{setter(ev.target.result);previewSetter(ev.target.result);};
-    reader.readAsDataURL(file);
-  };
+
 
   // ── Final signup submit ──
   const submitSignup=async()=>{
     if(!f.agreed){setE({agreed:tx('Aceita os termos para continuar','Accept terms to continue','Accepte les conditions pour continuer')});return;}
     setL(true);setE({});
     try{
+      // Step 1: Create Supabase account and profile
       const result = await onLogin({
         ...f,
         isNew:true,
         phoneVerified,
-        idImageData:idPhoto,
-        selfieData:selfiePhoto,
-
+        // No idImageData or selfieData — Stripe Identity handles verification
         _onConfirmNeeded: ()=>{
           setSignupEmail(f.email);
           setSignupDone(true);
         }
       });
+
+      // Step 2: If account created, redirect to Stripe Identity verification
+      if(result&&result.id){
+        try{
+          const token = localStorage.getItem('ar_tok')||'';
+          const verRes = await fetch('/api/create-verification-session',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+            body:JSON.stringify({userId:result.id,email:result.email||f.email,role:'both'})
+          });
+          const verData = await verRes.json();
+          if(verData.url){
+            // Redirect to Stripe Identity — Stripe will redirect back after completion
+            window.location.href = verData.url;
+            return;
+          }
+          // If no URL (e.g. already verified), just continue to app
+        }catch(_ve){
+          // Non-fatal: verification can be done later from profile
+          console.log('Stripe Identity session error (non-fatal):',_ve.message);
+        }
+      }
     }catch(ex){
       const _m=ex.message||'';
       let _err=tx('Erro ao criar conta','Error creating account','Erreur de création de compte');
@@ -2068,82 +2080,38 @@ function AuthPage({t,onLogin,go}){
 
         // ════ SIGNUP STEP 3: ID + Selfie ════
         mode==='signup'&&step===3&&React.createElement('div',null,
-          React.createElement('div',{style:{background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.25)',borderRadius:12,padding:'12px 14px',marginBottom:16,fontSize:13,color:'#92400e',lineHeight:1.7}},
-            React.createElement('div',{style:{fontWeight:700,marginBottom:4}},'🪪 '+tx('Verificação de Identidade','Identity Verification','Vérification d\'identité')),
-            tx('Para garantir a segurança da plataforma, precisamos de uma foto do teu documento de identificação e uma selfie.',
-               'To ensure platform safety, we need a photo of your ID document and a selfie.',
-               'Pour garantir la sécurité de la plateforme, nous avons besoin d\'une photo de ta pièce d\'identité et d\'un selfie.')
-          ),
-
-          // Manual photo upload (optional if Persona used)
-          React.createElement('div',{style:{marginBottom:4}},
-            React.createElement('div',{style:{fontSize:12,color:'var(--text3)',fontWeight:600,marginBottom:10,textAlign:'center'}},
-              tx('Ou faz upload manual:','Or upload manually:','Ou télécharge manuellement :')
+          // ── Identity verification via Stripe Identity ──
+          React.createElement('div',{style:{textAlign:'center',padding:'8px 0 20px'}},
+            React.createElement('div',{style:{fontSize:52,marginBottom:12}},'🪪'),
+            React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:18,color:'var(--navy)',marginBottom:10}},
+              tx('Verificar identidade','Verify your identity','Vérifier votre identité')
+            ),
+            React.createElement('div',{style:{fontSize:13,color:'var(--text3)',lineHeight:1.7,marginBottom:20,maxWidth:320,margin:'0 auto 20px'}},
+              tx(
+                'A AfroRoute utiliza o Stripe Identity para verificar a tua identidade de forma segura. O teu documento é analisado pelo Stripe, não carregado manualmente para a AfroRoute.',
+                'AfroRoute uses Stripe Identity to securely verify your identity. Your document is reviewed by Stripe — not manually uploaded into AfroRoute.',
+                'AfroRoute utilise Stripe Identity pour vérifier votre identité de manière sécurisée. Votre document est examiné par Stripe, pas téléchargé manuellement dans AfroRoute.'
+              )
+            ),
+            React.createElement('div',{style:{background:'rgba(99,102,241,.06)',border:'1px solid rgba(99,102,241,.15)',borderRadius:10,padding:'10px 14px',marginBottom:20,fontSize:12,color:'#4338ca',display:'flex',gap:8,alignItems:'flex-start'}},
+              React.createElement('span',null,'🔒'),
+              React.createElement('span',null,
+                tx('A tua verificação é processada diretamente pelo Stripe. A AfroRoute nunca armazena imagens do teu documento.',
+                   'Your verification is processed directly by Stripe. AfroRoute never stores images of your document.',
+                   'Votre vérification est traitée directement par Stripe. AfroRoute ne stocke jamais les images de vos documents.')
+              )
             )
           ),
-
-          // ID Document upload
-          React.createElement('div',{style:{marginBottom:16}},
-            React.createElement('div',{style:{fontWeight:700,fontSize:14,color:'var(--navy)',marginBottom:8}},'🪪 '+tx('Documento de Identificação','ID Document','Pièce d\'identité')),
-            React.createElement('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:10}},tx('BI, Passaporte ou Carta de Condução','National ID, Passport or Driver\'s License','Carte d\'identité, Passeport ou Permis de conduire')),
-            !idPreview
-            ?React.createElement('div',{style:{position:'relative',border:'2px dashed var(--bord2)',borderRadius:12,overflow:'hidden'}},
-              React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'28px 16px',background:'var(--surf2)',gap:8,pointerEvents:'none'}},
-                React.createElement('span',{style:{fontSize:40}},'📷'),
-                React.createElement('span',{style:{fontSize:14,fontWeight:700,color:'var(--navy)'}},'+ '+tx('Tirar foto do documento','Take photo of document','Prendre photo du document')),
-                React.createElement('span',{style:{fontSize:12,color:'var(--text3)'}},tx('Toca para abrir a câmara','Tap to open camera','Appuyer pour ouvrir la caméra'))
-              ),
-              React.createElement('input',{
-                type:'file',
-                accept:'image/*',
-                capture:'environment',
-                style:{position:'absolute',inset:0,width:'100%',height:'100%',opacity:0,cursor:'pointer'},
-                onChange:capturePhoto(setIdPhoto,setIdPreview)
-              })
-            )
-            :React.createElement('div',{style:{position:'relative'}},
-              React.createElement('img',{src:idPreview,style:{width:'100%',borderRadius:10,maxHeight:160,objectFit:'cover',border:'1px solid var(--bord)'}}),
-              React.createElement('button',{onClick:()=>{setIdPhoto(null);setIdPreview(null);},style:{position:'absolute',top:6,right:6,background:'rgba(0,0,0,.6)',color:'#fff',border:'none',borderRadius:'50%',width:24,height:24,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}},'×')
-            )
-          ),
-
-          // Selfie upload
-          React.createElement('div',{style:{marginBottom:16}},
-            React.createElement('div',{style:{fontWeight:700,fontSize:14,color:'var(--navy)',marginBottom:8}},'🤳 Selfie'),
-            React.createElement('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:10}},tx('Uma foto do teu rosto (câmara frontal)','A photo of your face (front camera)','Une photo de ton visage (caméra frontale)')),
-            !selfiePreview
-            ?React.createElement('div',{style:{position:'relative',border:'2px dashed var(--bord2)',borderRadius:12,overflow:'hidden'}},
-              React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'28px 16px',background:'var(--surf2)',gap:8,pointerEvents:'none'}},
-                React.createElement('span',{style:{fontSize:40}},'🤳'),
-                React.createElement('span',{style:{fontSize:14,fontWeight:700,color:'var(--navy)'}},'+ '+tx('Tirar selfie','Take selfie','Prendre un selfie')),
-                React.createElement('span',{style:{fontSize:12,color:'var(--text3)'}},tx('Câmara frontal','Front camera','Caméra frontale'))
-              ),
-              React.createElement('input',{
-                type:'file',
-                accept:'image/*',
-                capture:'user',
-                style:{position:'absolute',inset:0,width:'100%',height:'100%',opacity:0,cursor:'pointer'},
-                onChange:capturePhoto(setSelfiePhoto,setSelfiePreview)
-              })
-            )
-            :React.createElement('div',{style:{position:'relative'}},
-              React.createElement('img',{src:selfiePreview,style:{width:'100%',borderRadius:10,maxHeight:160,objectFit:'cover',border:'1px solid var(--bord)'}}),
-              React.createElement('button',{onClick:()=>{setSelfiePhoto(null);setSelfiePreview(null);},style:{position:'absolute',top:6,right:6,background:'rgba(0,0,0,.6)',color:'#fff',border:'none',borderRadius:'50%',width:24,height:24,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}},'×')
-            )
-          ),
-
-          React.createElement('div',{style:{display:'flex',gap:10,marginTop:4}},
+          React.createElement('div',{style:{display:'flex',gap:10}},
             React.createElement('button',{onClick:()=>setStep(2),style:{flex:1,padding:'12px',borderRadius:10,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}},
               '← '+tx('Voltar','Back','Retour')
             ),
             React.createElement('button',{
-              onClick:()=>{
-                if(!idPhoto){alert(tx('Por favor adiciona uma foto do documento.','Please add a photo of your ID document.','Ajoute une photo de ton document.'));return;}
-                if(!selfiePhoto){alert(tx('Por favor tira uma selfie.','Please take a selfie.','Prends un selfie.'));return;}
-                setStep(4);
-              },
+              onClick:()=>setStep(4),
               style:{flex:2,padding:'12px',borderRadius:10,border:'none',background:'var(--green)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif"}
-            },tx('Continuar →','Continue →','Continuer →'))
+            },
+              tx('Continuar','Continue','Continuer')+' →'
+            )
           )
         ),
 
@@ -2156,8 +2124,12 @@ function AuthPage({t,onLogin,go}){
               React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('span',{style:{color:'var(--text3)'}},tx('Email:','Email:','Email:')),React.createElement('strong',null,f.email)),
               React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('span',{style:{color:'var(--text3)'}},tx('País:','Country:','Pays:')),React.createElement('strong',null,f.country)),
               React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('span',{style:{color:'var(--text3)'}},tx('Telemóvel:','Phone:','Téléphone:')),React.createElement('strong',{style:{color:'var(--succ)'}},'✅ '+f.wa)),
-              React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('span',{style:{color:'var(--text3)'}},tx('Documento:','ID:','Pièce d\'identité:')),React.createElement('strong',{style:{color:'#d97706'}},idPhoto?'📤 '+tx('Carregado (aguarda verificação)','Uploaded (pending review)','Téléchargé (en attente)'):'⚠ '+tx('Em falta','Missing','Manquant'))),
-              React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('span',{style:{color:'var(--text3)'}},tx('Selfie:','Selfie:','Selfie:')),React.createElement('strong',{style:{color:'#d97706'}},selfiePhoto?'📤 '+tx('Carregada (aguarda verificação)','Uploaded (pending review)','Téléchargée (en attente)'):'⚠ '+tx('Em falta','Missing','Manquant')))
+              React.createElement('div',{style:{display:'flex',gap:8}},
+                React.createElement('span',{style:{color:'var(--text3)'}},tx('Verificação:','Identity:','Vérification:')),
+                React.createElement('strong',{style:{color:'var(--text3)',fontStyle:'italic'}},
+                  tx('A iniciar com Stripe Identity','Starting with Stripe Identity','En cours via Stripe Identity')
+                )
+              )
             )
           ),
           React.createElement('div',{style:{display:'flex',alignItems:'flex-start',gap:10,marginBottom:12,padding:'12px 14px',background:f.agreed?'rgba(26,188,156,.05)':'#fff',border:'1.5px solid',borderColor:f.agreed?'var(--green)':'var(--bord)',borderRadius:12,cursor:'pointer'},onClick:()=>s('agreed',!f.agreed)},
@@ -4509,34 +4481,13 @@ const handleLogin=async(formData)=>{
             whatsapp:formData.wa,
             phone_verified:!!formData.phoneVerified,
             id_type:formData.idType||null,
-            verification_status:(formData.idImageData||formData.selfieData)?'pending_review':'pending',
+            verification_status:'pending', // Stripe Identity webhook sets this
             is_verified_traveler: false,
           });
         }catch(profileErr){
           console.log('Profile upsert error (non-fatal):', profileErr.message);
         }
-        // Upload ID document to Supabase Storage
-        if(formData.idImageData && String(formData.idImageData).startsWith('data:')){
-          try{
-            const idBlob = await (await fetch(formData.idImageData)).blob();
-            const idPath = `${userId}/id_document.jpg`;
-            await sb.uploadFile('verifications', idPath, idBlob, 'image/jpeg');
-            console.log('ID uploaded to Supabase Storage');
-          }catch(uploadErr){
-            console.log('ID upload error (non-fatal):', uploadErr.message);
-          }
-        }
-        // Upload selfie to Supabase Storage
-        if(formData.selfieData && String(formData.selfieData).startsWith('data:')){
-          try{
-            const selfieBlob = await (await fetch(formData.selfieData)).blob();
-            const selfiePath = `${userId}/selfie.jpg`;
-            await sb.uploadFile('verifications', selfiePath, selfieBlob, 'image/jpeg');
-            console.log('Selfie uploaded to Supabase Storage');
-          }catch(uploadErr){
-            console.log('Selfie upload error (non-fatal):', uploadErr.message);
-          }
-        }
+        // Manual ID/selfie upload removed — Stripe Identity webhook sets verification status
         setUser({id:userId,email:formData.email,name:formData.name,country:formData.country,wa:formData.wa,isSubscribed:false});
         setLI(true);setSub(false);loadListings(true);
         showToast('Welcome to AfroRoute, '+formData.name.split(' ')[0]+'! 🎉 Please verify your identity to continue.');
