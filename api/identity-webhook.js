@@ -7,7 +7,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// REQUIRED: disable body parsing so Stripe can verify signature
 module.exports.config = {
   api: { bodyParser: false },
 };
@@ -20,7 +19,6 @@ const getRawBody = (req) =>
     req.on('error', reject);
   });
 
-// Stripe timestamps are Unix seconds — convert to ISO
 const fromStripeTimestamp = (ts) => {
   if (!ts || typeof ts !== 'number') return null;
   const d = new Date(ts * 1000);
@@ -35,9 +33,9 @@ const safeISO = (val) => {
 
 const mapStatus = (stripeStatus, lastError) => {
   if (stripeStatus === 'verified') return 'verified';
-  if (stripeStatus === 'processing') return 'pending';
+  if (stripeStatus === 'processing') return 'processing';
   if (stripeStatus === 'requires_input')
-    return lastError?.code === 'consent_declined' ? 'failed' : 'requires_review';
+    return lastError?.code === 'consent_declined' ? 'failed' : 'requires_input';
   if (stripeStatus === 'canceled') return 'failed';
   return 'pending';
 };
@@ -52,7 +50,7 @@ const updateUser = async (userId, sessionId, stripeStatus, role, lastError, veri
     stripe_verification_status: stripeStatus,
     identity_verification_status: status,
     stripe_verification_last_error: lastError ? JSON.stringify(lastError) : null,
-    stripe_verification_requires_review: status === 'requires_review',
+    stripe_verification_requires_review: status === 'requires_input',
     identity_verification_last_error: lastError?.reason || lastError?.code || null,
     updated_at: now,
   };
@@ -66,13 +64,47 @@ const updateUser = async (userId, sessionId, stripeStatus, role, lastError, veri
     if (role === 'sender' || role === 'both') update.is_sender_verified = true;
   }
 
-  const { error } = await supabase
-    .from('profiles')
-    .update(update)
-    .eq('stripe_verification_session_id', sessionId);
+  // PRIMARY: update by profile id (most reliable)
+  let rowsUpdated = 0;
+  if (userId) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(update)
+      .eq('id', userId)
+      .select('id');
 
-  if (error) throw error;
+    if (error) {
+      console.error('Supabase update by userId failed:', error.message);
+      throw error;
+    }
+    rowsUpdated = data?.length || 0;
+    console.log(`Profile update by userId: ${rowsUpdated} row(s) updated`);
+  }
 
+  // FALLBACK: if userId gave 0 rows, try by session ID
+  if (rowsUpdated === 0) {
+    console.warn(`No rows updated by userId — falling back to session_id: ${sessionId}`);
+    const { data: d2, error: e2 } = await supabase
+      .from('profiles')
+      .update(update)
+      .eq('stripe_verification_session_id', sessionId)
+      .select('id');
+
+    if (e2) {
+      console.error('Supabase fallback update by session_id failed:', e2.message);
+      throw e2;
+    }
+    rowsUpdated = d2?.length || 0;
+    console.log(`Profile update by session_id: ${rowsUpdated} row(s) updated`);
+  }
+
+  if (rowsUpdated === 0) {
+    // This is a real problem — Stripe knows the user is verified but we can't find the profile
+    console.error('CRITICAL: 0 profile rows updated. userId:', userId, 'sessionId:', sessionId);
+    throw new Error('No profile found to update. userId: ' + userId);
+  }
+
+  // Log to verification_logs (non-fatal)
   await supabase.from('verification_logs').insert({
     user_id: userId,
     session_id: sessionId,
@@ -103,20 +135,26 @@ module.exports = async (req, res) => {
   }
 
   const s = event.data.object;
-  const userId = s.metadata?.user_id;
+
+  // Support both metadata.user_id (snake_case) and metadata.userId (camelCase) + client_reference_id
+  const userId = s.metadata?.user_id || s.metadata?.userId || s.client_reference_id || null;
   const role = s.metadata?.role || 'both';
 
-  console.log('Identity webhook:', {
+  // Safe diagnostic log — no secrets, no document data
+  console.log('Identity webhook received', {
     event_id: event.id,
     event_type: event.type,
     session_id: s.id,
     session_status: s.status,
-    user_id: userId,
+    resolved_userId: userId,
+    metadata_keys: Object.keys(s.metadata || {}),
   });
 
   if (!userId) {
-    console.warn('No user_id in session metadata:', s.id);
-    return res.status(200).json({ received: true, warning: 'no user_id' });
+    console.warn('No user ID found in metadata or client_reference_id. Session:', s.id,
+      '| metadata:', JSON.stringify(s.metadata || {}));
+    // Return 200 so Stripe does not keep retrying a session we can't resolve
+    return res.status(200).json({ received: true, warning: 'no_user_id' });
   }
 
   try {
@@ -125,21 +163,43 @@ module.exports = async (req, res) => {
       case 'identity.verification_session.verified': {
         const verifiedAt = fromStripeTimestamp(event.created) || new Date().toISOString();
         const status = await updateUser(userId, s.id, 'verified', role, null, verifiedAt);
-        console.log(`User ${userId} verified (${role}) — status: ${status}`);
+        console.log(`✅ User ${userId} verified (${role}) — afro_status: ${status}`);
         break;
       }
 
-      case 'identity.verification_session.requires_input':
-        await updateUser(userId, s.id, 'requires_input', role, s.last_error || null, null);
-        break;
-
-      case 'identity.verification_session.processing':
+      case 'identity.verification_session.processing': {
+        // Do NOT downgrade if already verified
+        const { data: existing } = await supabase
+          .from('profiles').select('identity_verification_status').eq('id', userId).maybeSingle();
+        if (existing?.identity_verification_status === 'verified') {
+          console.log('Skipping processing update — profile already verified');
+          break;
+        }
         await updateUser(userId, s.id, 'processing', role, null, null);
         break;
+      }
 
-      case 'identity.verification_session.canceled':
+      case 'identity.verification_session.requires_input': {
+        const { data: existing } = await supabase
+          .from('profiles').select('identity_verification_status').eq('id', userId).maybeSingle();
+        if (existing?.identity_verification_status === 'verified') {
+          console.log('Skipping requires_input update — profile already verified');
+          break;
+        }
+        await updateUser(userId, s.id, 'requires_input', role, s.last_error || null, null);
+        break;
+      }
+
+      case 'identity.verification_session.canceled': {
+        const { data: existing } = await supabase
+          .from('profiles').select('identity_verification_status').eq('id', userId).maybeSingle();
+        if (existing?.identity_verification_status === 'verified') {
+          console.log('Skipping canceled update — profile already verified');
+          break;
+        }
         await updateUser(userId, s.id, 'canceled', role, s.last_error || null, null);
         break;
+      }
 
       default:
         console.log('Ignored Identity event:', event.type);
@@ -149,7 +209,9 @@ module.exports = async (req, res) => {
     return res.status(200).json({ received: true });
 
   } catch (error) {
-    console.error('Identity webhook handler error:', error.message);
+    // Return 500 so Stripe retries the delivery
+    console.error('Identity webhook handler error:', error.message,
+      '| event:', event?.id, '| userId:', userId);
     return res.status(500).json({ error: error.message });
   }
 };
