@@ -1,0 +1,13 @@
+{
+  "name": "AfroRoute",
+  "short_name": "AfroRoute",
+  "description": "Trusted shipping between Portugal and Angola",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0A2540",
+  "orientation": "portrait",
+  "categories": ["shopping", "travel"],
+  "prefer_related_applications": false,
+  "icons": []
+}
