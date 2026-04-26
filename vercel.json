@@ -68,10 +68,42 @@
       ]
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/((?!api/|favicon\\.png|afroroute-logo\\.png|apple-touch-icon\\.png|og-image\\.jpg|manifest\\.json|terms|privacy|prohibited-items|disputes|refunds-cancellations|payout-policy).*)",
-      "destination": "/index.html"
+      "src": "/terms",
+      "dest": "/terms.html"
+    },
+    {
+      "src": "/privacy",
+      "dest": "/privacy.html"
+    },
+    {
+      "src": "/prohibited-items",
+      "dest": "/prohibited-items.html"
+    },
+    {
+      "src": "/disputes",
+      "dest": "/disputes.html"
+    },
+    {
+      "src": "/refunds-cancellations",
+      "dest": "/refunds-cancellations.html"
+    },
+    {
+      "src": "/payout-policy",
+      "dest": "/payout-policy.html"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
