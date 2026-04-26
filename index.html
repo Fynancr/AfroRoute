@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
 
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com https://*.supabase.co;">
+<meta http-equiv="Content-Security-Policy" content="manifest-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com https://*.supabase.co;">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0A2540">
-<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22AfroRoute%22%2C%22short_name%22%3A%22AfroRoute%22%2C%22description%22%3A%22Trusted%20shipping%20between%20Portugal%20and%20Angola%22%2C%22start_url%22%3A%22/%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230A2540%22%2C%22theme_color%22%3A%22%231ABC9C%22%2C%22orientation%22%3A%22portrait%22%2C%22categories%22%3A%5B%22shopping%22%2C%22travel%22%5D%2C%22prefer_related_applications%22%3Afalse%7D">
+<link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AfroRoute">
@@ -2598,9 +2599,18 @@ const sb = {
     try{
       const rt=localStorage.getItem('ar_ref');if(!rt)return null;
       const r=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:sb._headers(),body:JSON.stringify({refresh_token:rt})});
+      if(r.status===400||r.status===401){
+        // Stale or invalid refresh token — clear auth state cleanly, do not retry
+        sb._token=null;sb._user=null;
+        try{localStorage.removeItem('ar_tok');localStorage.removeItem('ar_ref');}catch(_e){}
+        return null;
+      }
       const d=await r.json();
       if(d.access_token){sb._token=d.access_token;sb._user=d.user;localStorage.setItem('ar_tok',d.access_token);localStorage.setItem('ar_ref',d.refresh_token);return d.user;}
-    }catch(e){}return null;},
+    }catch(e){
+      // Network error — clear tokens to avoid retry loops
+      try{localStorage.removeItem('ar_tok');localStorage.removeItem('ar_ref');}catch(_e){}
+    }return null;},
   async select(table,query='*',filters=''){
     const url=`${SUPABASE_URL}/rest/v1/${table}?select=${encodeURIComponent(query)}${filters?'&'+filters:''}`;
     const r=await fetch(url,{headers:{...sb._headers(),'Prefer':'return=representation'}});
@@ -4443,6 +4453,12 @@ useEffect(()=>{
       if(savedToken){
         sb._token=savedToken;
         const u=await sb.refreshSession();
+        if(!u){
+          // Refresh failed (token expired/invalid) — ensure clean logged-out state
+          setLI(false);setUser(null);setSub(false);
+          setAppLoading(false);
+          return;
+        }
         if(u){
           const profile=await sb.getProfile(u.id);
           const savedAvatar=localStorage.getItem('ar_av_'+u.id)||null;
