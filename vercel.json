@@ -70,7 +70,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!api/|favicon\\.png|afroroute-logo\\.png|apple-touch-icon\\.png|og-image\\.jpg).*)",
+      "source": "/((?!api/|favicon\\.png|afroroute-logo\\.png|apple-touch-icon\\.png|og-image\\.jpg|manifest\\.json|terms|privacy|prohibited-items|disputes|refunds-cancellations|payout-policy).*)",
       "destination": "/index.html"
     }
   ]
