@@ -1,6 +1,11 @@
+// api/create-verification-session.js
 const Stripe = require('stripe');
 
 module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -16,10 +21,15 @@ module.exports = async (req, res) => {
   try {
     const verificationSession = await stripe.identity.verificationSessions.create({
       type: 'document',
+      // client_reference_id gives the webhook a third way to identify the user
+      client_reference_id: userId,
       metadata: {
-        userId,
+        // Include BOTH formats so webhook works regardless of which key it reads
+        user_id: userId,
+        userId:  userId,
         email,
         role,
+        platform: 'afroroute',
       },
       options: {
         document: {
@@ -30,6 +40,12 @@ module.exports = async (req, res) => {
         },
       },
       return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/?verification=complete&signup_step=3`,
+    });
+
+    console.log('Verification session created', {
+      session_id: verificationSession.id,
+      userId,
+      role,
     });
 
     return res.status(200).json({
