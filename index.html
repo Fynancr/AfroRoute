@@ -1740,6 +1740,10 @@ function AuthPage({t,onLogin,go,initialMode}){
   // Manual ID/selfie upload removed — Stripe Identity handles verification
   const[signupDone,setSignupDone]=React.useState(false);
   const[signupEmail,setSignupEmail]=React.useState('');
+  const[verifyStatus,setVerifyStatus]=React.useState('not_started'); // not_started | loading | processing | verified | failed
+  const[verifyLoading,setVerifyLoading]=React.useState(false);
+  const[pendingUserId,setPendingUserId]=React.useState(null);
+  const[pendingUserEmail,setPendingUserEmail]=React.useState('');
   
   
   
@@ -1749,6 +1753,36 @@ function AuthPage({t,onLogin,go,initialMode}){
   const isFR=lang==='Français';
 
   const tx=(pt,en,fr)=>isFR?fr:isEN?en:pt;
+
+  // Listen for Stripe Identity return event (dispatched by the global handler above)
+  React.useEffect(()=>{
+    // Restore pending signup state if returning from Stripe
+    try{
+      const stored = JSON.parse(localStorage.getItem('ar_signup_pending')||'null');
+      if(stored&&stored.step===3){
+        if(stored.userId)setPendingUserId(stored.userId);
+        if(stored.email)setPendingUserEmail(stored.email);
+        setMode('signup');
+        setStep(3);
+      }
+    }catch(_e){}
+
+    const handleVerifyReturn=(e)=>{
+      const {verified,status,isSignupReturn}=e.detail||{};
+      if(isSignupReturn||step===3){
+        if(verified){
+          setVerifyStatus('verified');
+          try{localStorage.removeItem('ar_signup_pending');}catch(_e){}
+        } else if(status==='processing'||status==='pending'){
+          setVerifyStatus('processing');
+        } else {
+          setVerifyStatus('failed');
+        }
+      }
+    };
+    window.addEventListener('ar_verify_return',handleVerifyReturn);
+    return ()=>window.removeEventListener('ar_verify_return',handleVerifyReturn);
+  },[]);
 
   const validateStep1=()=>{
     const e={};
@@ -1818,43 +1852,120 @@ function AuthPage({t,onLogin,go,initialMode}){
 
 
   // ── Final signup submit ──
+  // ── Start Stripe Identity — creates account first, then redirects to Stripe ──
+  const startStripeIdentity=async()=>{
+    if(verifyLoading)return;
+    setVerifyLoading(true);
+    setVerifyStatus('loading');
+    setE({});
+    try{
+      // Ensure account exists (create or reuse)
+      let userId = pendingUserId;
+      let userEmail = pendingUserEmail || f.email;
+
+      if(!userId){
+        // Create the Supabase account now (step 1/2 must be valid)
+        const result = await onLogin({
+          ...f,
+          isNew:true,
+          phoneVerified,
+          _onConfirmNeeded: ()=>{ setSignupEmail(f.email); setSignupDone(true); }
+        });
+        if(!result||!result.id){
+          setVerifyStatus('failed');
+          setE({submit:tx('Erro ao criar conta. Tenta novamente.','Error creating account. Please try again.','Erreur lors de la création du compte.')});
+          return;
+        }
+        userId = result.id;
+        userEmail = result.email||f.email;
+        setPendingUserId(userId);
+        setPendingUserEmail(userEmail);
+      }
+
+      // Call Stripe Identity session endpoint
+      const token = localStorage.getItem('ar_tok')||'';
+      const verRes = await fetch('/api/create-verification-session',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body:JSON.stringify({userId,email:userEmail,role:'both'})
+      });
+      const verData = await verRes.json();
+
+      if(verData.url){
+        // Store signup state so we can resume on return
+        try{localStorage.setItem('ar_signup_pending',JSON.stringify({userId,email:userEmail,step:3}));}catch(_e){}
+        // Redirect to Stripe Identity — Stripe redirects back to ?verification=complete&signup_step=3
+        window.location.href = verData.url;
+        return;
+      }
+
+      // No URL = might already be verified
+      if(verData.already_verified){
+        setVerifyStatus('verified');
+        return;
+      }
+
+      setVerifyStatus('failed');
+      setE({submit:tx('Não foi possível iniciar a verificação. Tenta novamente.','Could not start verification. Please try again.','Impossible de démarrer la vérification.')});
+    }catch(ex){
+      setVerifyStatus('failed');
+      setE({submit:ex.message||tx('Erro de verificação','Verification error','Erreur de vérification')});
+    }finally{
+      setVerifyLoading(false);
+    }
+  };
+
+  // ── Re-check verification status after Stripe return ──
+  const recheckVerification=async()=>{
+    setVerifyLoading(true);
+    try{
+      const stored = localStorage.getItem('ar_signup_pending');
+      const pending = stored?JSON.parse(stored):null;
+      const uid = pendingUserId||(pending&&pending.userId);
+      if(!uid){setVerifyStatus('not_started');return;}
+      const profile = await sb.getProfile(uid);
+      if(!profile){return;}
+      const status = profile.stripe_verification_status||profile.identity_verification_status||'pending';
+      const isVerif = !!(
+        profile.is_verified_traveler||profile.is_traveler_verified||profile.is_sender_verified||
+        status==='verified'
+      );
+      if(isVerif){
+        setVerifyStatus('verified');
+        try{localStorage.removeItem('ar_signup_pending');}catch(_e){}
+        if(!pendingUserId)setPendingUserId(uid);
+        if(!pendingUserEmail)setPendingUserEmail(profile.email||'');
+      } else if(status==='processing'||status==='pending'){
+        setVerifyStatus('processing');
+      } else if(status==='requires_input'||status==='failed'){
+        setVerifyStatus('failed');
+      } else {
+        setVerifyStatus('processing');
+      }
+    }catch(_e){
+      setVerifyStatus('processing'); // assume still processing on error
+    }finally{
+      setVerifyLoading(false);
+    }
+  };
+
   const submitSignup=async()=>{
     if(!f.agreed){setE({agreed:tx('Aceita os termos para continuar','Accept terms to continue','Accepte les conditions pour continuer')});return;}
+    // Account was already created in step 3 before Stripe Identity redirect.
     setL(true);setE({});
     try{
-      // Step 1: Create Supabase account and profile
-      const result = await onLogin({
-        ...f,
-        isNew:true,
-        phoneVerified,
-        // No idImageData or selfieData — Stripe Identity handles verification
-        _onConfirmNeeded: ()=>{
-          setSignupEmail(f.email);
-          setSignupDone(true);
-        }
-      });
-
-      // Step 2: If account created, redirect to Stripe Identity verification
-      if(result&&result.id){
-        try{
-          const token = localStorage.getItem('ar_tok')||'';
-          const verRes = await fetch('/api/create-verification-session',{
-            method:'POST',
-            headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-            body:JSON.stringify({userId:result.id,email:result.email||f.email,role:'both'})
-          });
-          const verData = await verRes.json();
-          if(verData.url){
-            // Redirect to Stripe Identity — Stripe will redirect back after completion
-            window.location.href = verData.url;
-            return;
-          }
-          // If no URL (e.g. already verified), just continue to app
-        }catch(_ve){
-          // Non-fatal: verification can be done later from profile
-          console.log('Stripe Identity session error (non-fatal):',_ve.message);
-        }
+      if(pendingUserId){
+        // Account exists — log in with credentials to get session, then go home
+        const result = await onLogin({...f,isNew:false,_onConfirmNeeded:()=>{setSignupEmail(f.email);setSignupDone(true);}});
+        if(result&&result.id){go('home');}
+        return;
       }
+      // Edge case: account not yet created (user somehow skipped step 3 create)
+      const result = await onLogin({
+        ...f,isNew:true,phoneVerified,
+        _onConfirmNeeded:()=>{setSignupEmail(f.email);setSignupDone(true);}
+      });
+      if(result&&result.id){go('home');}
     }catch(ex){
       const _m=ex.message||'';
       let _err=tx('Erro ao criar conta','Error creating account','Erreur de création de compte');
@@ -2080,39 +2191,74 @@ function AuthPage({t,onLogin,go,initialMode}){
 
         // ════ SIGNUP STEP 3: ID + Selfie ════
         mode==='signup'&&step===3&&React.createElement('div',null,
-          // ── Identity verification via Stripe Identity ──
-          React.createElement('div',{style:{textAlign:'center',padding:'8px 0 20px'}},
-            React.createElement('div',{style:{fontSize:52,marginBottom:12}},'🪪'),
-            React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:18,color:'var(--navy)',marginBottom:10}},
-              tx('Verificar identidade','Verify your identity','Vérifier votre identité')
-            ),
-            React.createElement('div',{style:{fontSize:13,color:'var(--text3)',lineHeight:1.7,marginBottom:20,maxWidth:320,margin:'0 auto 20px'}},
-              tx(
+          // ── State-aware Stripe Identity step — NO bypass to step 4 ──
+          (()=>{
+            const isVerif = verifyStatus==='verified';
+            const isProc  = verifyStatus==='processing';
+            const isFail  = verifyStatus==='failed';
+            const isLoad  = verifyStatus==='loading'||verifyLoading;
+
+            const icon    = isVerif?'✅':isProc?'⏳':isFail?'❌':'🪪';
+            const title   = isVerif
+              ?tx('Identidade verificada','Identity verified','Identité vérifiée')
+              :isProc
+              ?tx('Verificação em processamento','Verification processing','Vérification en cours')
+              :isFail
+              ?tx('Verificação não concluída','Verification needs attention','Vérification incomplète')
+              :tx('Verificar identidade','Verify your identity','Vérifier votre identité');
+            const body    = isVerif
+              ?tx('A tua identidade foi verificada com sucesso.','Your identity has been successfully verified.','Votre identité a été vérifiée avec succès.')
+              :isProc
+              ?tx('O Stripe está a rever a tua verificação. Pode demorar alguns instantes.','Stripe is reviewing your identity verification. This may take a few moments.','Stripe examine votre vérification. Cela peut prendre quelques instants.')
+              :isFail
+              ?tx('O Stripe não conseguiu concluir a verificação. Por favor tenta novamente.','Stripe could not complete verification. Please try again.','Stripe n\'a pas pu compléter la vérification. Veuillez réessayer.')
+              :tx(
                 'A AfroRoute utiliza o Stripe Identity para verificar a tua identidade de forma segura. O teu documento é analisado pelo Stripe, não carregado manualmente para a AfroRoute.',
                 'AfroRoute uses Stripe Identity to securely verify your identity. Your document is reviewed by Stripe — not manually uploaded into AfroRoute.',
-                'AfroRoute utilise Stripe Identity pour vérifier votre identité de manière sécurisée. Votre document est examiné par Stripe, pas téléchargé manuellement dans AfroRoute.'
+                'AfroRoute utilise Stripe Identity pour vérifier votre identité. Votre document est examiné par Stripe, pas téléchargé manuellement.'
+              );
+
+            return React.createElement('div',null,
+              React.createElement('div',{style:{textAlign:'center',padding:'8px 0 20px'}},
+                React.createElement('div',{style:{fontSize:52,marginBottom:12}},icon),
+                React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:18,color:isVerif?'var(--succ)':isFail?'var(--danger)':'var(--navy)',marginBottom:10}},title),
+                React.createElement('div',{style:{fontSize:13,color:'var(--text3)',lineHeight:1.7,marginBottom:16,maxWidth:320,margin:'0 auto 16px'}},body),
+                !isVerif&&!isProc&&React.createElement('div',{style:{background:'rgba(99,102,241,.06)',border:'1px solid rgba(99,102,241,.15)',borderRadius:10,padding:'10px 14px',marginBottom:16,fontSize:12,color:'#4338ca',display:'flex',gap:8,alignItems:'flex-start',textAlign:'left',maxWidth:340,margin:'0 auto 16px'}},
+                  React.createElement('span',null,'🔒'),
+                  React.createElement('span',null,tx('A tua verificação é processada pelo Stripe. A AfroRoute nunca armazena imagens do teu documento.','Your verification is processed by Stripe. AfroRoute never stores images of your document.','Votre vérification est traitée par Stripe. AfroRoute ne stocke jamais vos documents.'))
+                ),
+                errors.submit&&React.createElement('div',{className:'ferr',style:{marginBottom:10}},'⚠ ',errors.submit)
+              ),
+              React.createElement('div',{style:{display:'flex',gap:10}},
+                React.createElement('button',{
+                  onClick:()=>setStep(2),
+                  style:{flex:1,padding:'12px',borderRadius:10,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}
+                },'← '+tx('Voltar','Back','Retour')),
+
+                isVerif
+                  // ✅ Verified — only now can user advance to step 4
+                  ?React.createElement('button',{
+                      onClick:()=>setStep(4),
+                      style:{flex:2,padding:'12px',borderRadius:10,border:'none',background:'var(--succ)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif"}
+                    },tx('Continuar para os termos','Continue to terms','Continuer vers les conditions')+' →')
+
+                  :isProc
+                  // ⏳ Processing — refresh to check
+                  ?React.createElement('button',{
+                      onClick:recheckVerification,
+                      disabled:isLoad,
+                      style:{flex:2,padding:'12px',borderRadius:10,border:'none',background:'var(--navy)',color:'#fff',fontWeight:700,fontSize:14,cursor:isLoad?'default':'pointer',fontFamily:"'Sora',sans-serif"}
+                    },isLoad?'…':tx('Atualizar estado','Refresh status','Actualiser le statut'))
+
+                  // Not started or failed — launch Stripe
+                  :React.createElement('button',{
+                      onClick:startStripeIdentity,
+                      disabled:isLoad,
+                      style:{flex:2,padding:'12px',borderRadius:10,border:'none',background:isLoad?'#94a3b8':'var(--green)',color:'#fff',fontWeight:700,fontSize:14,cursor:isLoad?'default':'pointer',fontFamily:"'Sora',sans-serif"}
+                    },isLoad?'…':(isFail?tx('Tentar novamente','Try again','Réessayer'):tx('Verificar com Stripe','Verify with Stripe','Vérifier avec Stripe')))
               )
-            ),
-            React.createElement('div',{style:{background:'rgba(99,102,241,.06)',border:'1px solid rgba(99,102,241,.15)',borderRadius:10,padding:'10px 14px',marginBottom:20,fontSize:12,color:'#4338ca',display:'flex',gap:8,alignItems:'flex-start'}},
-              React.createElement('span',null,'🔒'),
-              React.createElement('span',null,
-                tx('A tua verificação é processada diretamente pelo Stripe. A AfroRoute nunca armazena imagens do teu documento.',
-                   'Your verification is processed directly by Stripe. AfroRoute never stores images of your document.',
-                   'Votre vérification est traitée directement par Stripe. AfroRoute ne stocke jamais les images de vos documents.')
-              )
-            )
-          ),
-          React.createElement('div',{style:{display:'flex',gap:10}},
-            React.createElement('button',{onClick:()=>setStep(2),style:{flex:1,padding:'12px',borderRadius:10,border:'1.5px solid var(--bord)',background:'#fff',fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)'}},
-              '← '+tx('Voltar','Back','Retour')
-            ),
-            React.createElement('button',{
-              onClick:()=>setStep(4),
-              style:{flex:2,padding:'12px',borderRadius:10,border:'none',background:'var(--green)',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif"}
-            },
-              tx('Continuar','Continue','Continuer')+' →'
-            )
-          )
+            );
+          })()
         ),
 
         // ════ SIGNUP STEP 4: Terms + submit ════
@@ -4263,50 +4409,26 @@ useEffect(()=>{
   })();
 },[]);
 
-// Check if returning from Stripe Identity verification
-if(typeof window !== 'undefined'){
-  const params=new URLSearchParams(window.location.search);
-  if(params.get('verification')==='complete'){
-    // Clean URL
-    window.history.replaceState({},document.title,window.location.pathname);
-    // Will reload user state on next render cycle
-    setTimeout(()=>{
-      if(user&&user.id){
-        sb.getProfile(user.id).then(profile=>{
-          if(profile){
-            setUser(prev=>({
-              ...prev,
-              isVerifiedTraveler:profile.is_verified_traveler||profile.is_traveler_verified||false,
-              payout_method:profile.payout_method||'',
-              payout_fields:profile.payout_fields||{},
-              isTravelerVerified:profile.is_traveler_verified||false,
-              isSenderVerified:profile.is_sender_verified||false,
-              stripeVerificationStatus:profile.stripe_verification_status||'pending',
-              identityVerificationStatus:profile.identity_verification_status||'pending',
-              subscription_plan:profile.subscription_plan||'free',
-              subscription_status:profile.subscription_status||'active',
-              stripe_customer_id:profile.stripe_customer_id||null,
-              stripe_subscription_id:profile.stripe_subscription_id||null,
-            }));
-            if(profile.identity_verification_status==='pending'){
-              showToast('✅ Verification submitted! We will notify you once reviewed.','success');
-            }
-          }
-        }).catch(()=>{});
-      }
-    },500);
-  }
-}
-
-// Handle return from Stripe Identity verification
+// Handle return from Stripe Identity (covers both profile page and signup flow)
 if(typeof window!=='undefined'){
   const _vp=new URLSearchParams(window.location.search);
   if(_vp.get('verification')==='complete'){
     window.history.replaceState({},document.title,window.location.pathname);
+    const _isSignupReturn = _vp.get('signup_step')==='3';
     setTimeout(()=>{
-      if(user&&user.id){
-        sb.getProfile(user.id).then(profile=>{
-          if(profile){
+      // Try to get userId — from logged-in user or from pending signup localStorage
+      const _stored = (() => { try{return JSON.parse(localStorage.getItem('ar_signup_pending')||'null');}catch(_e){return null;} })();
+      const _uid = (user&&user.id)||(_stored&&_stored.userId);
+      if(_uid){
+        sb.getProfile(_uid).then(profile=>{
+          if(!profile)return;
+          const _stripeStatus = profile.stripe_verification_status||profile.identity_verification_status||'pending';
+          const _isVerif = !!(
+            profile.is_verified_traveler||profile.is_traveler_verified||profile.is_sender_verified||
+            _stripeStatus==='verified'
+          );
+          // Update user state if logged in
+          if(user&&user.id){
             setUser(prev=>({...prev,
               isVerifiedTraveler:profile.is_verified_traveler||profile.is_traveler_verified||false,
               isTravelerVerified:profile.is_traveler_verified||false,
@@ -4318,13 +4440,19 @@ if(typeof window!=='undefined'){
               stripe_customer_id:profile.stripe_customer_id||null,
               stripe_subscription_id:profile.stripe_subscription_id||null,
             }));
-            showToast('Verification submitted! We will notify you once complete.','success');
           }
-        }).catch(()=>{});
+          // Dispatch event so AuthPage can pick up the result
+          window.dispatchEvent(new CustomEvent('ar_verify_return',{detail:{verified:_isVerif,status:_stripeStatus,isSignupReturn:_isSignupReturn}}));
+        }).catch(()=>{
+          window.dispatchEvent(new CustomEvent('ar_verify_return',{detail:{verified:false,status:'processing',isSignupReturn:_isSignupReturn}}));
+        });
+      } else {
+        window.dispatchEvent(new CustomEvent('ar_verify_return',{detail:{verified:false,status:'processing',isSignupReturn:_isSignupReturn}}));
       }
-    },500);
+    },800);
   }
 }
+
 const loadStats=async()=>{
   try{
     const r1=await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id`,{
