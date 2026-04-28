@@ -1901,7 +1901,7 @@ function AuthPage({t,onLogin,go,initialMode}){
         // Store signup state so we can resume on return
         try{localStorage.setItem('ar_signup_pending',JSON.stringify({userId,email:userEmail,step:3}));}catch(_e){}
         // Redirect to Stripe Identity — Stripe redirects back to ?verification=complete&signup_step=3
-        window.location.href = verData.url;
+        window.location.replace(verData.url);
         return;
       }
 
@@ -4559,7 +4559,7 @@ const startStripeVerification=async(role)=>{
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||'Could not start verification');
     if(d.url){
-      window.location.href=d.url;
+      window.location.replace(d.url);
     }else if(d.already_verified){
       // Re-fetch profile to get latest verified status
       await refreshIdentityStatus();
