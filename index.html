@@ -1900,21 +1900,18 @@ function AuthPage({t,onLogin,go,initialMode}){
       const verData = await verRes.json();
 
       if(verData.url && typeof verData.url==='string' && verData.url.startsWith('https://verify.stripe.com/')){
-        // Store signup state so we can resume on return
         try{localStorage.setItem('ar_signup_pending',JSON.stringify({userId,email:userEmail,step:3}));}catch(_e){}
-        // Save URL for fallback screen in case redirect fails
         setStripeVerifyUrl(verData.url);
         setStripeSessionId(verData.session_id||'');
-        console.log('Stripe session ready',{
-          session_id:verData.session_id,
-          has_url:verData.has_url,
-          url_host:verData.url_host,
-          status:verData.status,
-        });
-        // ── Redirect immediately ──
-        window.location.href = verData.url;
-        // Show fallback screen after 3s in case redirect didn't work
-        setTimeout(()=>{ setVerifyStatus('ready'); setVerifyLoading(false); }, 3000);
+        // Show the ready screen first so the real <a> anchor is in the DOM
+        setVerifyStatus('ready');
+        setVerifyLoading(false);
+        // Then auto-click the real anchor after a short paint cycle
+        setTimeout(()=>{
+          const link=document.getElementById('stripe-identity-direct-link');
+          if(link){ link.click(); }
+          else { window.location.assign(verData.url); }
+        },150);
         return;
       }
 
@@ -2298,12 +2295,15 @@ function AuthPage({t,onLogin,go,initialMode}){
                       "Votre session de vérification Stripe est prête. Si la page ne s'ouvre pas automatiquement, utilisez le bouton ci-dessous."
                     )
                   ),
-                  // Primary: Open Stripe
-                  React.createElement('button',{
-                    onClick:()=>{ window.location.href = stripeVerifyUrl; },
+                  // Primary: Real anchor — works on all mobile browsers
+                  React.createElement('a',{
+                    id:'stripe-identity-direct-link',
+                    href:stripeVerifyUrl,
+                    target:'_self',
+                    rel:'noopener noreferrer',
                     style:{display:'block',width:'100%',maxWidth:320,margin:'0 auto 10px',background:'var(--green)',color:'#fff',
-                           border:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:15,
-                           cursor:'pointer',fontFamily:"'Sora',sans-serif"}
+                           textAlign:'center',textDecoration:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:15,
+                           fontFamily:"'Sora',sans-serif",boxSizing:'border-box'}
                   },'🔗 '+tx('Abrir Stripe Identity','Open Stripe Identity','Ouvrir Stripe Identity')),
                   // Secondary: Copy link
                   React.createElement('button',{
@@ -2325,12 +2325,16 @@ function AuthPage({t,onLogin,go,initialMode}){
                            border:'1.5px solid var(--bord)',padding:'12px',borderRadius:11,fontWeight:600,
                            fontSize:14,cursor:'pointer',color:'var(--text2)'}
                   },'📋 '+tx('Copiar link de verificação','Copy verification link','Copier le lien de vérification')),
-                  // Diagnostics
+                  // Diagnostics + build marker
                   React.createElement('div',{style:{fontSize:10,color:'var(--text4)',marginTop:10,fontFamily:'monospace',background:'var(--surf2)',borderRadius:8,padding:'8px 10px',textAlign:'left',maxWidth:320,margin:'10px auto 0'}},
+                    React.createElement('div',{style:{fontWeight:700,color:'var(--green)',marginBottom:4}},'Build: stripe-anchor-redirect-2026-04-28'),
                     React.createElement('div',null,'session_id: '+(stripeSessionId||'—')),
                     React.createElement('div',null,'has_url: '+(stripeVerifyUrl?'true ✅':'false ❌')),
                     React.createElement('div',null,'url_host: '+(stripeVerifyUrl?stripeVerifyUrl.split('/')[2]||'—':'—')),
-                    React.createElement('div',null,'url_valid: '+(stripeVerifyUrl&&stripeVerifyUrl.includes('verify.stripe.com')?'true ✅':'false ❌'))
+                    React.createElement('div',null,'url_valid: '+(stripeVerifyUrl&&stripeVerifyUrl.includes('verify.stripe.com')?'true ✅':'false ❌')),
+                    stripeVerifyUrl&&React.createElement('div',{style:{marginTop:4,wordBreak:'break-all'}},
+                      React.createElement('a',{href:stripeVerifyUrl,style:{color:'var(--green)',fontSize:9}},'↗ '+stripeVerifyUrl.substring(0,60)+'...')
+                    )
                   ),
                   // Cancel
                   React.createElement('button',{
