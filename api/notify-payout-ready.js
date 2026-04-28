@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'AfroRoute Admin <noreply@afroroute.com>',
+        from: 'AfroRoute Admin <support@afroroute.com>',
         to: [adminEmail],
         subject: `AfroRoute payout ready — Shipment ${shipment_id || agreement_id}`,
         html: `
