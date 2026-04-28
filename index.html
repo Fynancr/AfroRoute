@@ -2065,7 +2065,13 @@ function AuthPage({t,onLogin,go,initialMode}){
       if(!signupEmail){return;}
       setResendLoading(true);setResendMsg('');setResendErr('');
       try{
-        await sb.resendConfirmation(signupEmail);
+        const r=await fetch('/api/send-confirmation-email',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({email:signupEmail})
+        });
+        const d=await r.json();
+        if(!r.ok||!d.success)throw new Error(d.error||'Could not resend');
         setResendMsg(t.confirm_sent||'Confirmation email sent. Please check your inbox and spam folder.');
       }catch(e){
         setResendErr(t.confirm_sent_err||'We could not resend the confirmation email. Please try again or contact support.');
@@ -2076,20 +2082,31 @@ function AuthPage({t,onLogin,go,initialMode}){
     const handleCheckConfirmed=async()=>{
       setCheckLoading(true);setNotConfirmedMsg('');
       try{
-        // Try to sign in — if confirmed, session will be returned
-        const result=await onLogin({email:signupEmail,pass:f.pass,isNew:false});
-        if(result&&result.id){
-          setSignupDone(false);go('home');
+        // Try to sign in — if email confirmed, Supabase returns a session
+        const r=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{
+          method:'POST',headers:sb._headers(),
+          body:JSON.stringify({email:signupEmail,password:f.pass})
+        });
+        const d=await r.json();
+        if(d.access_token){
+          sb._token=d.access_token;
+          try{localStorage.setItem('ar_tok',d.access_token);}catch(_e){}
+          const profile=await sb.getProfile(d.user.id);
+          setLI(true);
+          setUser({id:d.user.id,email:d.user.email,
+            name:profile?.name||d.user.email?.split('@')[0]||'',
+            country:profile?.country||'',
+            subscription_plan:profile?.subscription_plan||'free',
+            subscription_status:profile?.subscription_status||'active',
+          });
+          setSignupDone(false);
+          setMode('account-created');
         }else{
+          // email_not_confirmed or invalid_grant means not confirmed yet
           setNotConfirmedMsg(t.confirm_not_yet||'Your email is not confirmed yet. Please click the confirmation link or resend the email.');
         }
       }catch(e){
-        const msg=e.message||'';
-        if(msg.toLowerCase().includes('confirm')||msg.toLowerCase().includes('not confirmed')||msg.toLowerCase().includes('email')){
-          setNotConfirmedMsg(t.confirm_not_yet||'Your email is not confirmed yet. Please click the confirmation link or resend the email.');
-        }else{
-          setNotConfirmedMsg(t.confirm_not_yet||'Your email is not confirmed yet. Please click the confirmation link or resend the email.');
-        }
+        setNotConfirmedMsg(t.confirm_not_yet||'Your email is not confirmed yet. Please click the confirmation link or resend the email.');
       }
       setCheckLoading(false);
     };
@@ -4783,6 +4800,70 @@ useEffect(()=>{
       setSub(false);
     }
     try{
+      // ── Handle Supabase auth callback (email confirmation, magic link) ──
+      // Supabase puts tokens in the hash: #access_token=xxx&type=signup
+      // or query: ?token_hash=xxx&type=email
+      try{
+        const _hash = window.location.hash;
+        const _search = window.location.search;
+        const _hashParams = _hash ? new URLSearchParams(_hash.substring(1)) : null;
+        const _searchParams = new URLSearchParams(_search);
+        const _token = _hashParams?.get('access_token') || _searchParams.get('token_hash');
+        const _type = _hashParams?.get('type') || _searchParams.get('type');
+
+        if(_token && (_type === 'signup' || _type === 'email' || _type === 'recovery' || _type === 'magiclink')){
+          // Clean the URL immediately
+          window.history.replaceState({},document.title,window.location.pathname);
+          try{
+            // Exchange token for session
+            let sessionResult;
+            if(_hashParams?.get('access_token')){
+              // Token already in hash — set directly
+              sb._token = _hashParams.get('access_token');
+              sessionResult = await sb.refreshSession();
+            } else {
+              // token_hash — need to verify OTP
+              const r = await fetch(`${SUPABASE_URL}/auth/v1/verify`,{
+                method:'POST',
+                headers:sb._headers(),
+                body:JSON.stringify({token_hash:_token,type:_type})
+              });
+              sessionResult = await r.json();
+              if(sessionResult.access_token){
+                sb._token = sessionResult.access_token;
+                try{localStorage.setItem('ar_tok',sessionResult.access_token);}catch(_e){}
+              }
+            }
+            const _confirmedUser = await sb.refreshSession();
+            if(_confirmedUser?.id){
+              const _profile = await sb.getProfile(_confirmedUser.id);
+              setLI(true);
+              setUser({
+                id:_confirmedUser.id,
+                email:_confirmedUser.email,
+                name:(_profile?.name||_confirmedUser.email?.split('@')[0]||''),
+                country:_profile?.country||'',
+                avatar_url:_profile?.avatar_url||null,
+                isVerifiedTraveler:_profile?.is_verified_traveler||false,
+                isTravelerVerified:_profile?.is_traveler_verified||false,
+                isSenderVerified:_profile?.is_sender_verified||false,
+                stripeVerificationStatus:_profile?.stripe_verification_status||'',
+                identityVerificationStatus:_profile?.identity_verification_status||'',
+                subscription_plan:_profile?.subscription_plan||'free',
+                subscription_status:_profile?.subscription_status||'active',
+              });
+              setAppLoading(false);
+              // Show account-created or home
+              if(_type==='signup'){ setMode('account-created'); setPage('auth'); }
+              else { setPage('home'); }
+              return;
+            }
+          }catch(_authErr){
+            console.log('Auth callback error:',_authErr.message);
+          }
+        }
+      }catch(_e){}
+
       // Handle direct URL navigation to legal pages (e.g. /terms → /?goto=terms)
       try{
         const _goto = new URLSearchParams(window.location.search).get('goto');
