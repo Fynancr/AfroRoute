@@ -1899,20 +1899,22 @@ function AuthPage({t,onLogin,go,initialMode}){
       });
       const verData = await verRes.json();
 
-      if(verData.url && typeof verData.url==='string' && verData.url.startsWith('https://')){
+      if(verData.url && typeof verData.url==='string' && verData.url.startsWith('https://verify.stripe.com/')){
         // Store signup state so we can resume on return
         try{localStorage.setItem('ar_signup_pending',JSON.stringify({userId,email:userEmail,step:3}));}catch(_e){}
-        // Show intermediate screen — let user tap manually (required on mobile)
+        // Save URL for fallback screen in case redirect fails
         setStripeVerifyUrl(verData.url);
         setStripeSessionId(verData.session_id||'');
-        setVerifyStatus('ready');
-        // Log diagnostics to console for debugging
         console.log('Stripe session ready',{
           session_id:verData.session_id,
           has_url:verData.has_url,
           url_host:verData.url_host,
           status:verData.status,
         });
+        // ── Redirect immediately ──
+        window.location.href = verData.url;
+        // Show fallback screen after 3s in case redirect didn't work
+        setTimeout(()=>{ setVerifyStatus('ready'); setVerifyLoading(false); }, 3000);
         return;
       }
 
