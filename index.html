@@ -1746,7 +1746,9 @@ function AuthPage({t,onLogin,go,initialMode}){
   // Manual ID/selfie upload removed — Stripe Identity handles verification
   const[signupDone,setSignupDone]=React.useState(false);
   const[signupEmail,setSignupEmail]=React.useState('');
-  const[verifyStatus,setVerifyStatus]=React.useState('not_started'); // not_started | loading | processing | verified | failed
+  const[verifyStatus,setVerifyStatus]=React.useState('not_started');
+  const[stripeVerifyUrl,setStripeVerifyUrl]=React.useState('');
+  const[stripeSessionId,setStripeSessionId]=React.useState(''); // not_started | loading | processing | verified | failed
   const[verifyLoading,setVerifyLoading]=React.useState(false);
   const[pendingUserId,setPendingUserId]=React.useState(null);
   const[pendingUserEmail,setPendingUserEmail]=React.useState('');
@@ -1897,11 +1899,13 @@ function AuthPage({t,onLogin,go,initialMode}){
       });
       const verData = await verRes.json();
 
-      if(verData.url){
+      if(verData.url && typeof verData.url==='string' && verData.url.startsWith('https://')){
         // Store signup state so we can resume on return
         try{localStorage.setItem('ar_signup_pending',JSON.stringify({userId,email:userEmail,step:3}));}catch(_e){}
-        // Redirect to Stripe Identity — Stripe redirects back to ?verification=complete&signup_step=3
-        window.location.replace(verData.url);
+        // Show intermediate screen — let user tap manually (required on mobile)
+        setStripeVerifyUrl(verData.url);
+        setStripeSessionId(verData.session_id||'');
+        setVerifyStatus('ready');
         return;
       }
 
@@ -2265,7 +2269,63 @@ function AuthPage({t,onLogin,go,initialMode}){
             const isVerif = verifyStatus==='verified';
             const isProc  = verifyStatus==='processing';
             const isFail  = verifyStatus==='failed';
+            const isReady = verifyStatus==='ready';
             const isLoad  = verifyStatus==='loading'||verifyLoading;
+
+            // ── Intermediate screen: session ready, user taps manually ──
+            if(isReady && stripeVerifyUrl){
+              return React.createElement('div',null,
+                React.createElement('div',{style:{textAlign:'center',padding:'8px 0 20px'}},
+                  React.createElement('div',{style:{fontSize:52,marginBottom:12}},'🔐'),
+                  React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:17,color:'var(--navy)',marginBottom:10}},
+                    tx('Verificação pronta','Identity verification ready','Vérification prête')
+                  ),
+                  React.createElement('p',{style:{fontSize:13,color:'var(--text3)',lineHeight:1.7,marginBottom:20,maxWidth:320,margin:'0 auto 20px'}},
+                    tx(
+                      'A tua sessão de verificação Stripe está pronta. Se a página não abrir automaticamente, usa o botão abaixo.',
+                      'Your secure Stripe Identity verification session is ready. If the page does not open automatically, use the button below.',
+                      "Votre session de vérification Stripe est prête. Si la page ne s'ouvre pas automatiquement, utilisez le bouton ci-dessous."
+                    )
+                  ),
+                  // Primary: Open Stripe
+                  React.createElement('button',{
+                    onClick:()=>{ window.location.assign(stripeVerifyUrl); },
+                    style:{display:'block',width:'100%',maxWidth:320,margin:'0 auto 10px',background:'var(--green)',color:'#fff',
+                           border:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:15,
+                           cursor:'pointer',fontFamily:"'Sora',sans-serif"}
+                  },'🔗 '+tx('Abrir Stripe Identity','Open Stripe Identity','Ouvrir Stripe Identity')),
+                  // Secondary: Copy link
+                  React.createElement('button',{
+                    onClick:()=>{
+                      try{
+                        navigator.clipboard.writeText(stripeVerifyUrl).then(()=>{
+                          showToast(tx('Link copiado! Cola no teu browser.','Link copied! Paste it in your browser.','Lien copié ! Collez-le dans votre navigateur.'),'success');
+                        }).catch(()=>{
+                          // Fallback for browsers that block clipboard
+                          const ta=document.createElement('textarea');
+                          ta.value=stripeVerifyUrl;ta.style.position='fixed';ta.style.opacity='0';
+                          document.body.appendChild(ta);ta.select();document.execCommand('copy');
+                          document.body.removeChild(ta);
+                          showToast(tx('Link copiado!','Link copied!','Lien copié!'),'success');
+                        });
+                      }catch(_e){showToast(stripeVerifyUrl,'info');}
+                    },
+                    style:{display:'block',width:'100%',maxWidth:320,margin:'0 auto 10px',background:'var(--surf2)',
+                           border:'1.5px solid var(--bord)',padding:'12px',borderRadius:11,fontWeight:600,
+                           fontSize:14,cursor:'pointer',color:'var(--text2)'}
+                  },'📋 '+tx('Copiar link de verificação','Copy verification link','Copier le lien de vérification')),
+                  // Session ID for debugging
+                  stripeSessionId&&React.createElement('div',{style:{fontSize:10,color:'var(--text4)',marginTop:8,fontFamily:'monospace',opacity:.5}},
+                    'Session: '+stripeSessionId
+                  ),
+                  // Cancel
+                  React.createElement('button',{
+                    onClick:()=>{setVerifyStatus('not_started');setStripeVerifyUrl('');setStripeSessionId('');},
+                    style:{background:'none',border:'none',color:'var(--text3)',fontSize:13,cursor:'pointer',marginTop:8,padding:8}
+                  },tx('← Cancelar','← Cancel','← Annuler'))
+                )
+              );
+            }
 
             const icon    = isVerif?'✅':isProc?'⏳':isFail?'❌':'🪪';
             const title   = isVerif
@@ -4558,8 +4618,10 @@ const startStripeVerification=async(role)=>{
     });
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||'Could not start verification');
-    if(d.url){
-      window.location.replace(d.url);
+    if(d.url && typeof d.url==='string' && d.url.startsWith('https://')){
+      setStripeVerifyUrl&&setStripeVerifyUrl(d.url);
+      // For profile page verification, open directly — user tapped a button already
+      window.location.assign(d.url);
     }else if(d.already_verified){
       // Re-fetch profile to get latest verified status
       await refreshIdentityStatus();
