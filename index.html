@@ -2298,7 +2298,7 @@ function AuthPage({t,onLogin,go,initialMode}){
                   ),
                   // Primary: Open Stripe
                   React.createElement('button',{
-                    onClick:()=>{ window.location.assign(stripeVerifyUrl); },
+                    onClick:()=>{ window.location.href = stripeVerifyUrl; },
                     style:{display:'block',width:'100%',maxWidth:320,margin:'0 auto 10px',background:'var(--green)',color:'#fff',
                            border:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:15,
                            cursor:'pointer',fontFamily:"'Sora',sans-serif"}
