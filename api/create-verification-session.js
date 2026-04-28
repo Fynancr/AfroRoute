@@ -42,15 +42,22 @@ module.exports = async (req, res) => {
       return_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.afroroute.com'}/?verification=complete&signup_step=3`,
     });
 
-    console.log('Verification session created', {
+    const return_url = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.afroroute.com'}/?verification=complete&signup_step=3`;
+
+    console.log('Stripe Identity session created', {
       session_id: verificationSession.id,
+      status: verificationSession.status,
+      has_url: !!verificationSession.url,
+      url_host: verificationSession.url ? new URL(verificationSession.url).host : null,
       userId,
-      role,
+      return_url,
     });
 
     return res.status(200).json({
+      success: true,
       url: verificationSession.url,
       session_id: verificationSession.id,
+      status: verificationSession.status,
     });
   } catch (err) {
     console.error('Stripe Identity error:', err.message);
