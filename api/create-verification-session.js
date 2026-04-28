@@ -39,7 +39,7 @@ module.exports = async (req, res) => {
           require_matching_selfie: true,
         },
       },
-      return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/?verification=complete&signup_step=3`,
+      return_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.afroroute.com'}/?verification=complete&signup_step=3`,
     });
 
     console.log('Verification session created', {
