@@ -2201,7 +2201,7 @@ function AuthPage({t,onLogin,go,initialMode}){
         mode==='login'&&React.createElement('div',null,
           React.createElement('div',{className:'ff'},
             React.createElement('label',{className:'fl'},tx('Email','Email','Email'),'*'),
-            React.createElement('input',{className:`fi ${errors.email?'err':''}`,type:'email',value:f.email,onChange:e=>{s('email',e.target.value);setOtpSent(false);setOtpError('');},placeholder:'email@exemplo.com',autoFocus:true})
+            React.createElement('input',{className:`fi ${errors.email?'err':''}`,type:'email',value:f.email,onChange:e=>{s('email',e.target.value);setOtpSent(false);setOtpError('');},placeholder:'support@afroroute.com',autoFocus:true})
           ),
           !otpSent&&React.createElement('div',{className:'ff'},
             React.createElement('label',{className:'fl'},tx('Password','Password','Mot de passe'),'*'),
@@ -2235,7 +2235,7 @@ function AuthPage({t,onLogin,go,initialMode}){
           ),
           React.createElement('div',{className:'ff'},
             React.createElement('label',{className:'fl'},tx('Email','Email','Email'),'*'),
-            React.createElement('input',{className:`fi ${errors.email?'err':''}`,type:'email',value:f.email,onChange:e=>s('email',e.target.value),placeholder:'email@exemplo.com'}),
+            React.createElement('input',{className:`fi ${errors.email?'err':''}`,type:'email',value:f.email,onChange:e=>s('email',e.target.value),placeholder:'support@afroroute.com'}),
             errors.email&&React.createElement('div',{className:'ferr'},'⚠ ',errors.email)
           ),
           React.createElement('div',{className:'ff'},
@@ -2690,7 +2690,7 @@ return React.createElement('div', { className: "page",}, React.createElement('di
     , React.createElement('input', { id: "avatar-upload", type: "file", accept: "image/*", style: {display:'none'}, onChange: handleAvatarChange,})
   )
   , React.createElement('div', { className: "prof-name",}, _optionalChain([user, 'optionalAccess', _15 => _15.name])||'Your Name')
-  , React.createElement('div', { className: "prof-email",}, _optionalChain([user, 'optionalAccess', _16 => _16.email])||'your@email.com')
+  , React.createElement('div', { className: "prof-email",}, _optionalChain([user, 'optionalAccess', _16 => _16.email])||'support@afroroute.com')
   , React.createElement('div', { style: {display:'flex',gap:6,justifyContent:'center',marginTop:10,flexWrap:'wrap',position:'relative',zIndex:1},}
     , subscribed&&React.createElement('span', { className: "bpro",}, "⚡ Pro" )
     , (_optionalChain([user,'optionalAccess',_=>_.is_verified_traveler])||_optionalChain([user,'optionalAccess',_=>_.isTravelerVerified]))&&React.createElement('span', { className: "bv", style:{background:'rgba(26,188,156,.15)',border:'1px solid rgba(26,188,156,.4)',color:'#0e8f72'},}, "🪪 ID Verified" )
@@ -5508,7 +5508,7 @@ case 'verify-device':go('home');return null;
             React.createElement('div',{style:{fontSize:13,color:'var(--text2)',marginBottom:16,lineHeight:1.6}},
               'Your verification could not be completed. This may be due to a blurry photo, expired document, or failed liveness check.'),
             React.createElement('div',{style:{background:'var(--surf2)',borderRadius:10,padding:'12px 14px',marginBottom:16,fontSize:12,color:'var(--text3)'}},
-              'If you need help, email us at '+React.createElement('a',{href:'mailto:hello@afroroute.com',style:{color:'var(--green)'}},'hello@afroroute.com')
+              'If you need help, email us at '+React.createElement('a',{href:'mailto:support@afroroute.com',style:{color:'var(--green)'}},'support@afroroute.com')
             ),
             React.createElement('button',{
               onClick:()=>startStripeVerification(),
@@ -5897,9 +5897,9 @@ const PAGE_COPY = {
 };
 
 const CONTACT_CHANNELS = {
-  pt:[{icon:'💬',title:'WhatsApp',desc:'Fale connosco diretamente',btn:'Abrir WhatsApp',link:'https://wa.me/351964362617',color:'#25d366'},{icon:'📧',title:'Email',desc:'hello@afroroute.com',btn:'Enviar Email',link:'mailto:hello@afroroute.com',color:'var(--navy)'},{icon:'📸',title:'Instagram',desc:'@afroroute',btn:'Seguir',link:'https://www.instagram.com/afroroute',color:'#e1306c'}],
-  en:[{icon:'💬',title:'WhatsApp',desc:'Chat with us directly',btn:'Open WhatsApp',link:'https://wa.me/351964362617',color:'#25d366'},{icon:'📧',title:'Email',desc:'hello@afroroute.com',btn:'Send Email',link:'mailto:hello@afroroute.com',color:'var(--navy)'},{icon:'📸',title:'Instagram',desc:'@afroroute',btn:'Follow Us',link:'https://www.instagram.com/afroroute',color:'#e1306c'}],
-  fr:[{icon:'💬',title:'WhatsApp',desc:'Discutez directement avec nous',btn:'Ouvrir WhatsApp',link:'https://wa.me/351964362617',color:'#25d366'},{icon:'📧',title:'Email',desc:'hello@afroroute.com',btn:'Envoyer un email',link:'mailto:hello@afroroute.com',color:'var(--navy)'},{icon:'📸',title:'Instagram',desc:'@afroroute',btn:'Nous suivre',link:'https://www.instagram.com/afroroute',color:'#e1306c'}]
+  pt:[{icon:'💬',title:'WhatsApp',desc:'Fale connosco diretamente',btn:'Abrir WhatsApp',link:'https://wa.me/351964362617',color:'#25d366'},{icon:'📧',title:'Email',desc:'support@afroroute.com',btn:'Enviar Email',link:'mailto:support@afroroute.com',color:'var(--navy)'},{icon:'📸',title:'Instagram',desc:'@afroroute',btn:'Seguir',link:'https://www.instagram.com/afroroute',color:'#e1306c'}],
+  en:[{icon:'💬',title:'WhatsApp',desc:'Chat with us directly',btn:'Open WhatsApp',link:'https://wa.me/351964362617',color:'#25d366'},{icon:'📧',title:'Email',desc:'support@afroroute.com',btn:'Send Email',link:'mailto:support@afroroute.com',color:'var(--navy)'},{icon:'📸',title:'Instagram',desc:'@afroroute',btn:'Follow Us',link:'https://www.instagram.com/afroroute',color:'#e1306c'}],
+  fr:[{icon:'💬',title:'WhatsApp',desc:'Discutez directement avec nous',btn:'Ouvrir WhatsApp',link:'https://wa.me/351964362617',color:'#25d366'},{icon:'📧',title:'Email',desc:'support@afroroute.com',btn:'Envoyer un email',link:'mailto:support@afroroute.com',color:'var(--navy)'},{icon:'📸',title:'Instagram',desc:'@afroroute',btn:'Nous suivre',link:'https://www.instagram.com/afroroute',color:'#e1306c'}]
 };
 const CONTACT_SUBJECTS = {
   pt:[['general','Questão geral'],['verification','Problema de verificação'],['dispute','Disputa / Denunciar utilizador'],['billing','Faturação & subscrição'],['safety','Questão de segurança'],['press','Imprensa & parcerias'],['bug','Bug técnico / problema'],['legal','Pedido legal / RGPD']],
