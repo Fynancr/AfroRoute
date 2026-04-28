@@ -11,20 +11,19 @@ module.exports = async (req, res) => {
   }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
   const { userId, email, role = 'both' } = req.body;
 
   if (!userId || !email) {
     return res.status(400).json({ error: 'Missing userId or email' });
   }
 
+  const return_url = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.afroroute.com'}/?verification=complete&signup_step=3`;
+
   try {
-    const verificationSession = await stripe.identity.verificationSessions.create({
+    const session = await stripe.identity.verificationSessions.create({
       type: 'document',
-      // client_reference_id gives the webhook a third way to identify the user
       client_reference_id: userId,
       metadata: {
-        // Include BOTH formats so webhook works regardless of which key it reads
         user_id: userId,
         userId:  userId,
         email,
@@ -39,28 +38,32 @@ module.exports = async (req, res) => {
           require_matching_selfie: true,
         },
       },
-      return_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.afroroute.com'}/?verification=complete&signup_step=3`,
+      return_url,
     });
 
-    const return_url = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.afroroute.com'}/?verification=complete&signup_step=3`;
+    const urlHost = session.url ? new URL(session.url).host : null;
 
     console.log('Stripe Identity session created', {
-      session_id: verificationSession.id,
-      status: verificationSession.status,
-      has_url: !!verificationSession.url,
-      url_host: verificationSession.url ? new URL(verificationSession.url).host : null,
+      session_id: session.id,
+      status: session.status,
+      has_url: !!session.url,
+      url_host: urlHost,
       userId,
       return_url,
+      live_mode: process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_'),
     });
 
     return res.status(200).json({
       success: true,
-      url: verificationSession.url,
-      session_id: verificationSession.id,
-      status: verificationSession.status,
+      url: session.url,
+      session_id: session.id,
+      status: session.status,
+      url_host: urlHost,
+      has_url: !!session.url,
     });
+
   } catch (err) {
     console.error('Stripe Identity error:', err.message);
-    return res.status(500).json({ error: err.message || 'Failed to create verification session' });
+    return res.status(500).json({ success: false, error: err.message || 'Failed to create verification session' });
   }
 };
