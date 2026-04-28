@@ -1906,6 +1906,13 @@ function AuthPage({t,onLogin,go,initialMode}){
         setStripeVerifyUrl(verData.url);
         setStripeSessionId(verData.session_id||'');
         setVerifyStatus('ready');
+        // Log diagnostics to console for debugging
+        console.log('Stripe session ready',{
+          session_id:verData.session_id,
+          has_url:verData.has_url,
+          url_host:verData.url_host,
+          status:verData.status,
+        });
         return;
       }
 
@@ -1942,6 +1949,7 @@ function AuthPage({t,onLogin,go,initialMode}){
       );
       if(isVerif){
         setVerifyStatus('verified');
+        setStripeVerifyUrl('');
         try{localStorage.removeItem('ar_signup_pending');}catch(_e){}
         if(!pendingUserId)setPendingUserId(uid);
         if(!pendingUserEmail)setPendingUserEmail(profile.email||'');
@@ -1949,6 +1957,7 @@ function AuthPage({t,onLogin,go,initialMode}){
         setVerifyStatus('processing');
       } else if(status==='requires_input'||status==='failed'){
         setVerifyStatus('failed');
+        setStripeVerifyUrl('');
       } else {
         setVerifyStatus('processing');
       }
@@ -2314,9 +2323,12 @@ function AuthPage({t,onLogin,go,initialMode}){
                            border:'1.5px solid var(--bord)',padding:'12px',borderRadius:11,fontWeight:600,
                            fontSize:14,cursor:'pointer',color:'var(--text2)'}
                   },'📋 '+tx('Copiar link de verificação','Copy verification link','Copier le lien de vérification')),
-                  // Session ID for debugging
-                  stripeSessionId&&React.createElement('div',{style:{fontSize:10,color:'var(--text4)',marginTop:8,fontFamily:'monospace',opacity:.5}},
-                    'Session: '+stripeSessionId
+                  // Diagnostics
+                  React.createElement('div',{style:{fontSize:10,color:'var(--text4)',marginTop:10,fontFamily:'monospace',background:'var(--surf2)',borderRadius:8,padding:'8px 10px',textAlign:'left',maxWidth:320,margin:'10px auto 0'}},
+                    React.createElement('div',null,'session_id: '+(stripeSessionId||'—')),
+                    React.createElement('div',null,'has_url: '+(stripeVerifyUrl?'true ✅':'false ❌')),
+                    React.createElement('div',null,'url_host: '+(stripeVerifyUrl?stripeVerifyUrl.split('/')[2]||'—':'—')),
+                    React.createElement('div',null,'url_valid: '+(stripeVerifyUrl&&stripeVerifyUrl.includes('verify.stripe.com')?'true ✅':'false ❌'))
                   ),
                   // Cancel
                   React.createElement('button',{
@@ -4722,41 +4734,55 @@ if(typeof window!=='undefined'){
   if(_vp.get('verification')==='complete'){
     window.history.replaceState({},document.title,window.location.pathname);
     const _isSignupReturn = _vp.get('signup_step')==='3';
-    setTimeout(()=>{
-      // Try to get userId — from logged-in user or from pending signup localStorage
-      const _stored = (() => { try{return JSON.parse(localStorage.getItem('ar_signup_pending')||'null');}catch(_e){return null;} })();
-      const _uid = (user&&user.id)||(_stored&&_stored.userId);
-      if(_uid){
-        sb.getProfile(_uid).then(profile=>{
-          if(!profile)return;
-          const _stripeStatus = profile.stripe_verification_status||profile.identity_verification_status||'pending';
-          const _isVerif = !!(
-            profile.is_verified_traveler||profile.is_traveler_verified||profile.is_sender_verified||
-            _stripeStatus==='verified'
-          );
-          // Update user state if logged in
-          if(user&&user.id){
-            setUser(prev=>({...prev,
-              isVerifiedTraveler:profile.is_verified_traveler||profile.is_traveler_verified||false,
-              isTravelerVerified:profile.is_traveler_verified||false,
-              isSenderVerified:profile.is_sender_verified||false,
-              stripeVerificationStatus:profile.stripe_verification_status||'pending',
-              identityVerificationStatus:profile.identity_verification_status||'pending',
-              subscription_plan:profile.subscription_plan||'free',
-              subscription_status:profile.subscription_status||'active',
-              stripe_customer_id:profile.stripe_customer_id||null,
-              stripe_subscription_id:profile.stripe_subscription_id||null,
-            }));
-          }
-          // Dispatch event so AuthPage can pick up the result
-          window.dispatchEvent(new CustomEvent('ar_verify_return',{detail:{verified:_isVerif,status:_stripeStatus,isSignupReturn:_isSignupReturn}}));
-        }).catch(()=>{
-          window.dispatchEvent(new CustomEvent('ar_verify_return',{detail:{verified:false,status:'processing',isSignupReturn:_isSignupReturn}}));
-        });
-      } else {
+    // Poll Supabase up to 10 times (every 2s = 20s total) waiting for webhook to mark verified
+    const _stored = (() => { try{return JSON.parse(localStorage.getItem('ar_signup_pending')||'null');}catch(_e){return null;} })();
+    const _uid = (user&&user.id)||(_stored&&_stored.userId);
+    let _attempts = 0;
+    const _maxAttempts = 10;
+    const _pollVerify = () => {
+      _attempts++;
+      if(!_uid){
         window.dispatchEvent(new CustomEvent('ar_verify_return',{detail:{verified:false,status:'processing',isSignupReturn:_isSignupReturn}}));
+        return;
       }
-    },800);
+      sb.getProfile(_uid).then(profile=>{
+        if(!profile){
+          if(_attempts < _maxAttempts) setTimeout(_pollVerify, 2000);
+          return;
+        }
+        const _stripeStatus = profile.stripe_verification_status||profile.identity_verification_status||'pending';
+        const _isVerif = !!(
+          profile.is_verified_traveler||profile.is_traveler_verified||profile.is_sender_verified||
+          _stripeStatus==='verified'
+        );
+        // Update user state if logged in
+        if(user&&user.id){
+          setUser(prev=>({...prev,
+            isVerifiedTraveler:profile.is_verified_traveler||profile.is_traveler_verified||false,
+            isTravelerVerified:profile.is_traveler_verified||false,
+            isSenderVerified:profile.is_sender_verified||false,
+            stripeVerificationStatus:profile.stripe_verification_status||'',
+            identityVerificationStatus:profile.identity_verification_status||'',
+            stripe_verification_session_id:profile.stripe_verification_session_id||'',
+          }));
+        }
+        if(_isVerif){
+          // Verified — dispatch immediately
+          window.dispatchEvent(new CustomEvent('ar_verify_return',{detail:{verified:true,status:'verified',isSignupReturn:_isSignupReturn}}));
+        } else if(_attempts < _maxAttempts){
+          // Not yet — keep polling
+          setTimeout(_pollVerify, 2000);
+        } else {
+          // Give up polling — show processing state
+          window.dispatchEvent(new CustomEvent('ar_verify_return',{detail:{verified:false,status:_stripeStatus||'processing',isSignupReturn:_isSignupReturn}}));
+        }
+      }).catch(()=>{
+        if(_attempts < _maxAttempts) setTimeout(_pollVerify, 2000);
+        else window.dispatchEvent(new CustomEvent('ar_verify_return',{detail:{verified:false,status:'processing',isSignupReturn:_isSignupReturn}}));
+      });
+    };
+    // Start first poll after 1.5s to give webhook time to fire
+    setTimeout(_pollVerify, 1500);
   }
 }
 
