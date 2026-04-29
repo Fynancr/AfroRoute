@@ -2841,6 +2841,77 @@ const AUTH_CALLBACK_URL = `${getAfroRouteOrigin()}/auth/callback`;
 
 
 const sb = {
+  // Compatibility wrapper for code that expects a Supabase JS-style client.
+  // The app uses REST helpers, so this safely supports sb.client.rpc(...)
+  // and sb.client.from(...).select/eq/maybeSingle/upsert(...) without extra libraries.
+  client:{
+    async rpc(fn,args={}){
+      const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{
+        method:'POST',
+        headers:{...sb._headers(),'Prefer':'params=single-object'},
+        body:JSON.stringify(args||{})
+      });
+      const txt=await r.text();
+      let data=null;
+      try{data=txt?JSON.parse(txt):null;}catch(_e){data=txt;}
+      if(!r.ok){return {data:null,error:{message:(data&&data.message)||txt||r.statusText,details:data,status:r.status}};}
+      return {data,error:null};
+    },
+    from(table){
+      const q={
+        _table:table,_select:'*',_filters:[],_order:null,_limit:null,
+        select(cols='*'){this._select=cols;return this;},
+        eq(col,val){this._filters.push(`${encodeURIComponent(col)}=eq.${encodeURIComponent(val)}`);return this;},
+        order(col,opt={}){this._order=`order=${encodeURIComponent(col)}.${opt.ascending===false?'desc':'asc'}`;return this;},
+        limit(n){this._limit=`limit=${parseInt(n,10)||1}`;return this;},
+        _query(){
+          const parts=[`select=${encodeURIComponent(this._select)}`].concat(this._filters);
+          if(this._order)parts.push(this._order);
+          if(this._limit)parts.push(this._limit);
+          return parts.join('&');
+        },
+        async _execute(){
+          const r=await fetch(`${SUPABASE_URL}/rest/v1/${this._table}?${this._query()}`,{headers:{...sb._headers(),'Prefer':'return=representation'}});
+          const txt=await r.text();
+          let data=null;
+          try{data=txt?JSON.parse(txt):null;}catch(_e){data=txt;}
+          if(!r.ok)return {data:null,error:{message:(data&&data.message)||txt||r.statusText,details:data,status:r.status}};
+          return {data,error:null};
+        },
+        async maybeSingle(){
+          if(!this._limit)this._limit='limit=1';
+          const res=await this._execute();
+          if(res.error)return res;
+          const arr=Array.isArray(res.data)?res.data:[];
+          return {data:arr[0]||null,error:null};
+        },
+        async single(){
+          if(!this._limit)this._limit='limit=1';
+          const res=await this._execute();
+          if(res.error)return res;
+          const arr=Array.isArray(res.data)?res.data:[];
+          if(!arr[0])return {data:null,error:{message:'No rows returned'}};
+          return {data:arr[0],error:null};
+        },
+        async upsert(body,opt={}){
+          const qs=opt.onConflict?`?on_conflict=${encodeURIComponent(opt.onConflict)}`:'';
+          const r=await fetch(`${SUPABASE_URL}/rest/v1/${this._table}${qs}`,{
+            method:'POST',
+            headers:{...sb._headers(),'Prefer':'resolution=merge-duplicates,return=representation'},
+            body:JSON.stringify(body)
+          });
+          const txt=await r.text();
+          let data=null;
+          try{data=txt?JSON.parse(txt):null;}catch(_e){data=txt;}
+          if(!r.ok)return {data:null,error:{message:(data&&data.message)||txt||r.statusText,details:data,status:r.status}};
+          return {data,error:null};
+        },
+        then(resolve,reject){return this._execute().then(resolve,reject);},
+        catch(reject){return this._execute().catch(reject);}
+      };
+      return q;
+    }
+  },
   _headers:()=>({'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':`Bearer ${sb._token||SUPABASE_ANON_KEY}`}),
   _token:null,_user:null,
   async signUp(_rawEmail,password,name,country,wa){
