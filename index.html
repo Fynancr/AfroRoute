@@ -1755,6 +1755,7 @@ function AuthPage({t,onLogin,go,initialMode}){
   const[resendLoading,setResendLoading]=React.useState(false);
   const[resendMsg,setResendMsg]=React.useState('');
   const[resendErr,setResendErr]=React.useState('');
+  const[resendDebug,setResendDebug]=React.useState(null);
   const[checkLoading,setCheckLoading]=React.useState(false);
   const[notConfirmedMsg,setNotConfirmedMsg]=React.useState('');
   
@@ -2072,14 +2073,25 @@ function AuthPage({t,onLogin,go,initialMode}){
   // ── Email confirmation screen ──
   if(signupDone){
     const handleResend=async()=>{
-      if(!signupEmail){return;}
-      setResendLoading(true);setResendMsg('');setResendErr('');
+      if(!signupEmail){
+        setResendErr(tx('Email em falta. Volte ao registo.','Missing email. Please go back and sign up again.','E-mail manquant. Veuillez revenir à l’inscription.'));
+        return;
+      }
+      setResendLoading(true);setResendMsg('');setResendErr('');setResendDebug(null);
       try{
-        // Use Supabase native resend — goes through configured SMTP (Resend)
-        await sb.resendConfirmation(signupEmail);
-        setResendMsg(t.confirm_sent||'Confirmation email sent. Please check your inbox and spam folder.');
+        console.log('Sending confirmation email to', signupEmail);
+        const result=await sb.resendConfirmation(signupEmail);
+        console.log('Confirmation API response', result);
+        setResendDebug(result);
+        if(result&&result.success===true){
+          setResendMsg((t.confirm_sent||'Confirmation email sent. Please check your inbox and spam folder.')+` API status: ${result.customStatus||result.status||200}`);
+        }else{
+          throw new Error(result?.error||'Could not send confirmation email');
+        }
       }catch(e){
-        setResendErr(t.confirm_sent_err||'We could not resend the confirmation email. Please try again or contact support.');
+        const msg=e?.message||t.confirm_sent_err||'We could not resend the confirmation email. Please try again or contact support.';
+        console.error('Confirmation resend failed', msg);
+        setResendErr(msg);
       }
       setResendLoading(false);
     };
@@ -2146,6 +2158,9 @@ function AuthPage({t,onLogin,go,initialMode}){
           ),
           resendErr&&React.createElement('div',{style:{background:'rgba(239,68,68,.07)',border:'1px solid rgba(239,68,68,.2)',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#dc2626',marginBottom:8}},
             '⚠ '+resendErr
+          ),
+          resendDebug&&React.createElement('pre',{style:{whiteSpace:'pre-wrap',wordBreak:'break-word',background:'#0f172a',color:'#d1fae5',borderRadius:8,padding:'10px 12px',fontSize:11,lineHeight:1.45,marginBottom:8,textAlign:'left'}},
+            'Debug / API response:\n'+JSON.stringify(resendDebug,null,2)
           ),
           React.createElement('button',{
             onClick:handleResend,
@@ -2806,19 +2821,50 @@ const sb = {
     const r=await fetch(`${SUPABASE_URL}/auth/v1/signup`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email,password,data:{name,country,wa},options:{emailRedirectTo:'https://www.afroroute.com/auth/callback'}})});
     const d=await r.json();if(d.error)throw new Error(d.error.message||d.msg||'Signup failed');
     if(d.access_token){sb._token=d.access_token;sb._user=d.user;}
-    // Always send confirmation email via Resend regardless of Supabase SMTP settings
+    // Always send confirmation email via Resend regardless of Supabase SMTP settings. Non-fatal.
     try{
-      await fetch('/api/send-confirmation-email',{
+      console.log('Sending signup confirmation email to', email);
+      const cr=await fetch('/api/send-confirmation-email',{
         method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({email})
+        body:JSON.stringify({email,redirectTo:AUTH_CALLBACK_URL})
       });
-    }catch(_e){console.log('Confirmation email send failed (non-fatal):',_e.message);}
+      const cd=await cr.json().catch(()=>({success:false,error:'Invalid JSON response'}));
+      console.log('Signup confirmation API response', {status:cr.status, result:cd});
+      if(!cr.ok||cd.success!==true){console.warn('Custom confirmation email failed:',cd.error||cr.status);}
+    }catch(_e){console.warn('Custom confirmation email failed:',_e.message);}
     // Mark as needing confirmation if no session returned
     if(!d.access_token){d._needsConfirmation=true;}
     return d;},
   async resendConfirmation(email){
-    const r=await fetch(`${SUPABASE_URL}/auth/v1/resend`,{method:'POST',headers:sb._headers(),body:JSON.stringify({type:'signup',email:email.trim().toLowerCase(),options:{emailRedirectTo:'https://www.afroroute.com/auth/callback'}})});
-    const d=await r.json();if(d.error)throw new Error(d.error.message||'Could not resend');return d;},
+    const clean=(email||'').trim().toLowerCase();
+    if(!clean)throw new Error('Missing email');
+    let nativeStatus=null,nativeOk=false,nativeError=null;
+    try{
+      const redirect=encodeURIComponent(AUTH_CALLBACK_URL);
+      const r=await fetch(`${SUPABASE_URL}/auth/v1/resend?redirect_to=${redirect}`,{
+        method:'POST',headers:sb._headers(),body:JSON.stringify({type:'signup',email:clean})
+      });
+      nativeStatus=r.status;
+      const d=await r.json().catch(()=>({}));
+      nativeOk=r.ok&&!d.error;
+      if(!nativeOk)nativeError=d.error?.message||d.msg||d.error_description||`Native resend failed (${r.status})`;
+    }catch(e){nativeError=e.message||'Native resend failed';}
+
+    const rr=await fetch('/api/send-confirmation-email',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:clean,redirectTo:AUTH_CALLBACK_URL})
+    });
+    const dd=await rr.json().catch(()=>({success:false,error:'Invalid JSON response'}));
+    const result={
+      success: rr.ok && dd.success===true,
+      customStatus: rr.status,
+      customResponse: dd,
+      nativeStatus,
+      nativeOk,
+      nativeError
+    };
+    if(!result.success){throw new Error(dd.error||nativeError||`Could not send confirmation email (API ${rr.status})`);}
+    return result;},
   async resetPassword(email){
     const redirectTo='https://www.afroroute.com/auth/callback?type=recovery';
     const r=await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email:(email||'').trim().toLowerCase()})});
