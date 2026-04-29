@@ -79,7 +79,8 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'AfroRoute Security <security@afroroute.com>',
+        from: process.env.RESEND_FROM || 'AfroRoute <noreply@afroroute.com>',
+        reply_to: process.env.RESEND_REPLY_TO || 'support@afroroute.com',
         to: [email],
         subject: `${code} — Your AfroRoute security code`,
         html: `
@@ -98,6 +99,9 @@ module.exports = async (req, res) => {
               </div>
               <p style="color: #94a3b8; font-size: 12px; line-height: 1.6;">
                 If you didn't try to log in, please change your password immediately.
+              </p>
+              <p style="color: #94a3b8; font-size: 12px;">
+                Need help? Contact <a href="mailto:support@afroroute.com" style="color:#1ABC9C;">support@afroroute.com</a>
               </p>
             </div>
           </div>
