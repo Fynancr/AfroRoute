@@ -2842,8 +2842,7 @@ const AUTH_CALLBACK_URL = `${getAfroRouteOrigin()}/auth/callback`;
 
 const sb = {
   // Compatibility wrapper for code that expects a Supabase JS-style client.
-  // The app uses REST helpers, so this safely supports sb.client.rpc(...)
-  // and sb.client.from(...).select/eq/maybeSingle/upsert(...) without extra libraries.
+  // Keeps the existing app stable while supporting sb.client.rpc(...) and sb.client.from(...).
   client:{
     async rpc(fn,args={}){
       const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{
@@ -2914,28 +2913,6 @@ const sb = {
   },
   _headers:()=>({'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':`Bearer ${sb._token||SUPABASE_ANON_KEY}`}),
   _token:null,_user:null,
-  async rpc(fn,args={}){
-    const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{
-      method:'POST',
-      headers:{...sb._headers(),'Prefer':'params=single-object'},
-      body:JSON.stringify(args||{})
-    });
-    const txt=await r.text();
-    let data=null;
-    try{data=txt?JSON.parse(txt):null;}catch(_e){data=txt;}
-    if(!r.ok)return {data:null,error:{message:(data&&data.message)||txt||r.statusText,details:data,status:r.status}};
-    return {data,error:null};
-  },
-  async upsertRows(table,body,onConflict='id'){
-    const qs=onConflict?`?on_conflict=${encodeURIComponent(onConflict)}`:'';
-    const r=await fetch(`${SUPABASE_URL}/rest/v1/${table}${qs}`,{
-      method:'POST',
-      headers:{...sb._headers(),'Prefer':'resolution=merge-duplicates,return=representation'},
-      body:JSON.stringify(body)
-    });
-    if(!r.ok)throw new Error(await r.text());
-    return r.json();
-  },
   async signUp(_rawEmail,password,name,country,wa){
     const email=(_rawEmail||'').trim().toLowerCase();
     if(!email||!email.includes('@'))throw new Error('Valid email required');
@@ -5216,8 +5193,7 @@ useEffect(()=>{
           loadConversations(u.id);
           loadListings(true);
           // Load payout method from DB
-          sb.select('user_payout_methods','payout_method,payout_details',`user_id=eq.${u.id}&is_default=eq.true&limit=1`).then((rows)=>{
-            const pm=Array.isArray(rows)?rows[0]:null;
+          sb.client.from('user_payout_methods').select('payout_method,payout_details').eq('user_id',u.id).eq('is_default',true).maybeSingle().then(({data:pm})=>{
             if(pm){setUser(prev=>({...prev,payout_method:pm.payout_method||'',payout_fields:pm.payout_details||{}}));}
           }).catch(()=>{});
         } else {
@@ -5322,13 +5298,15 @@ const handleSaveProfile=async(updated)=>{
     // Save payout method to dedicated table if provided
     if(updated.payout_method){
       try{
-        await sb.upsertRows('user_payout_methods',{
-          user_id:user.id,
-          payout_method:updated.payout_method,
-          payout_details:updated.payout_fields||{},
-          is_default:true,
-          updated_at:new Date().toISOString(),
-        },'user_id');
+        await sb.client
+          .from('user_payout_methods')
+          .upsert({
+            user_id:user.id,
+            payout_method:updated.payout_method,
+            payout_details:updated.payout_fields||{},
+            is_default:true,
+            updated_at:new Date().toISOString(),
+          },{onConflict:'user_id'});
       }catch(pe){console.error('Payout save non-fatal:',pe.message);}
     }
     setUser(prev=>({...prev,...updated}));showToast(t.toast_profile_saved);
@@ -5338,7 +5316,7 @@ const handleSaveProfile=async(updated)=>{
 const handlePostTrip=async(form)=>{
   try{
     // Server-side limit check via Supabase RPC
-    const {data:canPost,error:rpcErr}=await sb.rpc('can_create_trip',{p_user_id:user.id});
+    const {data:canPost,error:rpcErr}=await sb.client.rpc('can_create_trip',{p_user_id:user.id});
     if(rpcErr){console.error('RPC error:',rpcErr.message);}
     if(canPost===false){goUpgrade('free_limit_reached');return;}
     await sb.insert('trips',{user_id:user.id,from_country:form.from,from_city:form.fc,to_country:form.to,to_city:form.tc,travel_date:form.date,airline:form.airline,kg_available:parseFloat(form.kg),price_per_kg:form.open?null:parseFloat(form.price),open_to_offers:form.open,categories:form.cats,notes:form.notes,status:form.status});
@@ -5352,7 +5330,7 @@ const handlePostTrip=async(form)=>{
 const handlePostShip=async(form)=>{
   try{
     // Server-side limit check via Supabase RPC
-    const {data:canPost,error:rpcErr}=await sb.rpc('can_create_shipment',{p_user_id:user.id});
+    const {data:canPost,error:rpcErr}=await sb.client.rpc('can_create_shipment',{p_user_id:user.id});
     if(rpcErr){console.error('RPC error:',rpcErr.message);}
     if(canPost===false){goUpgrade('free_limit_reached');return;}
     await sb.insert('shipments',{user_id:user.id,from_country:form.from,from_city:form.fc,to_country:form.to,to_city:form.tc,preferred_date:form.pref_date,category:form.category,weight_kg:parseFloat(form.kg),budget_per_kg:parseFloat(form.budget),description:form.desc,is_urgent:form.urgent,status:form.status});
