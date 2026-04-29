@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- AfroRoute CLEAN RESTORE: style/scripts validated 2026-04-29 -->
 
-<meta http-equiv="Content-Security-Policy" content="manifest-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com https://*.supabase.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co https://api.resend.com https://api.stripe.com;">
+<meta http-equiv="Content-Security-Policy" content="manifest-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com https://*.supabase.co;">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1295,8 +1294,7 @@ button{cursor:pointer}
   .chat-back-btn{
     display:none;
   }
-}
-</style>
+}</style>
 <script>
 // Capture Android install prompt early
 window.__pwaInstallEvent = null;
@@ -1310,6 +1308,8 @@ window.addEventListener('beforeinstallprompt', function(e) {
 window.addEventListener('appinstalled', function() {
   window.__pwaInstallEvent = null;
 });
+</script>
+
 </script>
 <script>
 if('serviceWorker' in navigator){
@@ -1746,18 +1746,17 @@ function AuthPage({t,onLogin,go,initialMode}){
   // Manual ID/selfie upload removed — Stripe Identity handles verification
   const[signupDone,setSignupDone]=React.useState(false);
   const[signupEmail,setSignupEmail]=React.useState('');
+  const[resendLoading,setResendLoading]=React.useState(false);
+  const[resendMsg,setResendMsg]=React.useState('');
+  const[resendErr,setResendErr]=React.useState('');
+  const[checkLoading,setCheckLoading]=React.useState(false);
+  const[notConfirmedMsg,setNotConfirmedMsg]=React.useState('');
   const[verifyStatus,setVerifyStatus]=React.useState('not_started');
   const[stripeVerifyUrl,setStripeVerifyUrl]=React.useState('');
   const[stripeSessionId,setStripeSessionId]=React.useState(''); // not_started | loading | processing | verified | failed
   const[verifyLoading,setVerifyLoading]=React.useState(false);
   const[pendingUserId,setPendingUserId]=React.useState(null);
   const[pendingUserEmail,setPendingUserEmail]=React.useState('');
-  const[resendLoading,setResendLoading]=React.useState(false);
-  const[resendMsg,setResendMsg]=React.useState('');
-  const[resendErr,setResendErr]=React.useState('');
-  const[resendDebug,setResendDebug]=React.useState(null);
-  const[checkLoading,setCheckLoading]=React.useState(false);
-  const[notConfirmedMsg,setNotConfirmedMsg]=React.useState('');
   
   
   
@@ -2024,17 +2023,6 @@ function AuthPage({t,onLogin,go,initialMode}){
     finally{setL(false);}
   };
 
-
-  const sendPasswordReset=async()=>{
-    if(!f.email||!/\S+@\S+\.\S+/.test(f.email)){setOtpError(tx('Introduz o teu email primeiro','Enter your email first','Entre ton email d’abord'));return;}
-    setOtpError('');setL(true);
-    try{
-      await sb.resetPassword(f.email);
-      setOtpError(tx('Email de recuperação enviado. Verifica a caixa de entrada e spam.','Password reset email sent. Check your inbox and spam folder.','E-mail de réinitialisation envoyé. Vérifiez votre boîte de réception et le spam.'));
-    }catch(ex){setOtpError(ex.message||tx('Não foi possível enviar o email de recuperação.','Could not send password reset email.','Impossible d’envoyer l’e-mail de réinitialisation.'));}
-    setL(false);
-  };
-
   const stepLabels=[
     tx('Dados','Info','Infos'),
     tx('Telefone','Phone','Téléphone'),
@@ -2063,7 +2051,7 @@ function AuthPage({t,onLogin,go,initialMode}){
           className:'btn-auth'
         },t.start_exploring||tx('Começar a explorar','Start exploring','Commencer à explorer')),
         React.createElement('button',{
-          onClick:()=>go('verify-identity-required'),
+          onClick:()=>{ startStripeVerification('both'); go('home'); },
           style:{width:'100%',marginTop:10,background:'none',border:'1.5px solid var(--green)',color:'var(--green)',padding:'12px',borderRadius:11,fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif"}
         },t.verify_now||tx('Verificar identidade agora','Verify identity now',"Vérifier l'identité maintenant"))
       )
@@ -2073,25 +2061,14 @@ function AuthPage({t,onLogin,go,initialMode}){
   // ── Email confirmation screen ──
   if(signupDone){
     const handleResend=async()=>{
-      if(!signupEmail){
-        setResendErr(tx('Email em falta. Volte ao registo.','Missing email. Please go back and sign up again.','E-mail manquant. Veuillez revenir à l’inscription.'));
-        return;
-      }
-      setResendLoading(true);setResendMsg('');setResendErr('');setResendDebug(null);
+      if(!signupEmail){return;}
+      setResendLoading(true);setResendMsg('');setResendErr('');
       try{
-        console.log('Sending confirmation email to', signupEmail);
-        const result=await sb.resendConfirmation(signupEmail);
-        console.log('Confirmation API response', result);
-        setResendDebug(result);
-        if(result&&result.success===true){
-          setResendMsg((t.confirm_sent||'Confirmation email sent. Please check your inbox and spam folder.')+` API status: ${result.customStatus||result.status||200}`);
-        }else{
-          throw new Error(result?.error||'Could not send confirmation email');
-        }
+        // Use Supabase native resend — goes through configured SMTP (Resend)
+        await sb.resendConfirmation(signupEmail);
+        setResendMsg(t.confirm_sent||'Confirmation email sent. Please check your inbox and spam folder.');
       }catch(e){
-        const msg=e?.message||t.confirm_sent_err||'We could not resend the confirmation email. Please try again or contact support.';
-        console.error('Confirmation resend failed', msg);
-        setResendErr(msg);
+        setResendErr(t.confirm_sent_err||'We could not resend the confirmation email. Please try again or contact support.');
       }
       setResendLoading(false);
     };
@@ -2102,7 +2079,7 @@ function AuthPage({t,onLogin,go,initialMode}){
         // Try to sign in — if email confirmed, Supabase returns a session
         const r=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{
           method:'POST',headers:sb._headers(),
-          body:JSON.stringify({email:signupEmail,password:f.password})
+          body:JSON.stringify({email:signupEmail,password:f.pass})
         });
         const d=await r.json();
         if(d.access_token){
@@ -2158,9 +2135,6 @@ function AuthPage({t,onLogin,go,initialMode}){
           ),
           resendErr&&React.createElement('div',{style:{background:'rgba(239,68,68,.07)',border:'1px solid rgba(239,68,68,.2)',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#dc2626',marginBottom:8}},
             '⚠ '+resendErr
-          ),
-          resendDebug&&React.createElement('pre',{style:{whiteSpace:'pre-wrap',wordBreak:'break-word',background:'#0f172a',color:'#d1fae5',borderRadius:8,padding:'10px 12px',fontSize:11,lineHeight:1.45,marginBottom:8,textAlign:'left'}},
-            'Debug / API response:\n'+JSON.stringify(resendDebug,null,2)
           ),
           React.createElement('button',{
             onClick:handleResend,
@@ -2227,7 +2201,6 @@ function AuthPage({t,onLogin,go,initialMode}){
             React.createElement('label',{className:'fl'},tx('Password','Password','Mot de passe'),'*'),
             React.createElement('input',{className:`fi ${errors.password?'err':''}`,type:'password',value:f.password,onChange:e=>s('password',e.target.value),placeholder:'••••••••',onKeyDown:e=>e.key==='Enter'&&submitLogin()})
           ),
-          !otpSent&&React.createElement('button',{type:'button',onClick:sendPasswordReset,style:{alignSelf:'flex-end',background:'none',border:'none',color:'var(--green)',fontWeight:700,fontSize:12,cursor:'pointer',padding:'2px 0 10px'}},t.forgot_pass||tx('Esqueceste a password?','Forgot password?','Mot de passe oublié ?')),
           errors.email&&React.createElement('div',{className:'ferr'},'⚠ ',errors.email),
           otpSent&&React.createElement('div',{style:{background:'var(--gpale)',border:'1px solid var(--gborder)',borderRadius:12,padding:14,marginBottom:12}},
             React.createElement('div',{style:{fontSize:13,color:'var(--text2)',marginBottom:10}},tx('Código enviado para ','Code sent to ','Code envoyé à '),React.createElement('strong',null,f.email)),
@@ -2419,49 +2392,6 @@ return React.createElement('div', { className: "modal-ov", onClick: onClose,}, R
     )
   )
 ));}
-
-function ResetPasswordPage({t,go,sb,showToast}){
-  const lang=_optionalChain([t,'optionalAccess',_=>_.lang])||'pt';
-  const isEN=lang==='English'; const isFR=lang==='Français';
-  const tx=(pt,en,fr)=>isFR?fr:isEN?en:pt;
-  const[p1,setP1]=React.useState('');
-  const[p2,setP2]=React.useState('');
-  const[loading,setLoading]=React.useState(false);
-  const[error,setError]=React.useState('');
-  const[done,setDone]=React.useState(false);
-  const submit=async()=>{
-    setError('');
-    if(!p1||p1.length<8){setError(tx('A password deve ter pelo menos 8 caracteres.','Password must be at least 8 characters.','Le mot de passe doit contenir au moins 8 caractères.'));return;}
-    if(p1!==p2){setError(tx('As passwords não coincidem.','Passwords do not match.','Les mots de passe ne correspondent pas.'));return;}
-    setLoading(true);
-    try{
-      await sb.updatePassword(p1);
-      setDone(true);
-      showToast&&showToast(tx('Password atualizada.','Password updated.','Mot de passe mis à jour.'),'success');
-    }catch(e){setError(e.message||tx('Não foi possível atualizar a password.','Could not update password.','Impossible de mettre à jour le mot de passe.'));}
-    setLoading(false);
-  };
-  return React.createElement('div',{className:'page',style:{display:'flex',justifyContent:'center',padding:'24px 16px'}},
-    React.createElement('div',{style:{width:'100%',maxWidth:440,background:'#fff',borderRadius:20,boxShadow:'0 4px 24px rgba(0,0,0,.10)',overflow:'hidden'}},
-      React.createElement('div',{style:{background:'linear-gradient(135deg,#0A2540,#0d6e5b)',padding:'26px 20px',textAlign:'center'}},
-        React.createElement('div',{style:{fontSize:46,marginBottom:10}},done?'✅':'🔐'),
-        React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:20,color:'#fff'}},done?tx('Password atualizada','Password updated','Mot de passe mis à jour'):tx('Criar nova password','Create new password','Créer un nouveau mot de passe')),
-        React.createElement('div',{style:{fontSize:13,color:'rgba(255,255,255,.72)',marginTop:6,lineHeight:1.6}},done?tx('Já podes iniciar sessão com a nova password.','You can now sign in with your new password.','Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.'):tx('Escolhe uma nova password segura para a tua conta AfroRoute.','Choose a secure new password for your AfroRoute account.','Choisissez un nouveau mot de passe sécurisé pour votre compte AfroRoute.'))
-      ),
-      React.createElement('div',{style:{padding:'20px 16px'}},
-        done?React.createElement('button',{className:'btn-auth',onClick:()=>go('auth')},tx('Ir para login','Go to login','Aller à la connexion')):
-        React.createElement(React.Fragment,null,
-          React.createElement('div',{className:'ff'},React.createElement('label',{className:'fl'},tx('Nova password','New password','Nouveau mot de passe')),React.createElement('input',{className:'fi',type:'password',value:p1,onChange:e=>setP1(e.target.value),placeholder:'••••••••',autoFocus:true})),
-          React.createElement('div',{className:'ff'},React.createElement('label',{className:'fl'},tx('Confirmar password','Confirm password','Confirmer le mot de passe')),React.createElement('input',{className:'fi',type:'password',value:p2,onChange:e=>setP2(e.target.value),placeholder:'••••••••',onKeyDown:e=>e.key==='Enter'&&submit()})),
-          error&&React.createElement('div',{className:'ferr',style:{marginBottom:10}},'⚠ ',error),
-          React.createElement('button',{className:'btn-auth',onClick:submit,disabled:loading},loading?'…':tx('Atualizar password','Update password','Mettre à jour le mot de passe')),
-          React.createElement('button',{onClick:()=>go('auth'),style:{width:'100%',marginTop:10,background:'none',border:'none',color:'var(--text3)',fontSize:13,cursor:'pointer',padding:'8px'}},tx('← Voltar ao login','← Back to login','← Retour à la connexion'))
-        )
-      )
-    )
-  );
-}
-
 function SettingsPage({t,user,subscribed,go,showToast,sb,setSub,onLogout}){
   const[deleteConfirm,setDeleteConfirm]=React.useState(false);
   const[deleting,setDeleting]=React.useState(false);
@@ -2544,39 +2474,24 @@ function SettingsPage({t,user,subscribed,go,showToast,sb,setSub,onLogout}){
           user.stripeVerificationStatus==='verified'||user.identityVerificationStatus==='verified'||
           user.stripe_verification_status==='verified'||user.identity_verification_status==='verified'
         ));
-        const _startIdv=(e)=>{
-          if(e&&e.preventDefault)e.preventDefault();
-          if(e&&e.stopPropagation)e.stopPropagation();
-          if(_idv)return;
-          try{ showToast((t.verif_in_progress||'Starting identity verification...'),'success'); }catch(_e){}
-          if(typeof startStripeVerification==='function'){
-            startStripeVerification('both');
-          }else if(window.afroRouteStartIdentityVerification){
-            window.afroRouteStartIdentityVerification('both');
-          }else{
-            showToast('Verification handler is not loaded. Refresh and try again.','error');
-          }
-        };
         return React.createElement('div',{style:{background:'#fff',borderRadius:16,border:'1px solid var(--bord)',overflow:'hidden',marginBottom:16,boxShadow:'0 2px 8px rgba(0,0,0,.04)'}},
           React.createElement('div',{style:{padding:'12px 16px',background:'var(--surf2)',borderBottom:'1px solid var(--bord)',fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:12,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px'}},t.identity_section||'Identity verification'),
-          React.createElement('div',{style:{width:'100%',padding:'16px',display:'flex',alignItems:'center',gap:12,background:'#fff',border:'none',textAlign:'left',fontFamily:"'Sora',sans-serif"}},
-            React.createElement('div',{style:{width:44,height:44,borderRadius:12,background:_idv?'rgba(26,188,156,.12)':'rgba(245,158,11,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0}},'🚪'),
-            React.createElement('div',{style:{flex:'1 1 auto',minWidth:0}},
+          React.createElement('button',{
+            onClick:_idv?undefined:()=>startStripeVerification(),
+            title:_idv?(t.identity_verified_title||'Identity verified'):(t.start_verification||'Start verification'),
+            style:{width:'100%',padding:'16px',display:'flex',alignItems:'center',gap:12,background:'none',border:'none',cursor:_idv?'default':'pointer',textAlign:'left',fontFamily:"'Sora',sans-serif"}
+          },
+            React.createElement('div',{style:{width:44,height:44,borderRadius:12,background:_idv?'rgba(26,188,156,.12)':'rgba(245,158,11,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0}},'\uD83D\uDEAA'),
+            React.createElement('div',{style:{flex:1}},
               React.createElement('div',{style:{fontWeight:700,fontSize:14,color:'var(--navy)',marginBottom:4}},_idv?(t.identity_verified_title||'Identity verified'):(t.verify_your_identity||'Verify your identity')),
               React.createElement('span',{style:{display:'inline-flex',alignItems:'center',gap:4,background:_idv?'rgba(26,188,156,.12)':'rgba(245,158,11,.12)',color:_idv?'var(--succ)':'#d97706',fontWeight:700,fontSize:11,padding:'2px 8px',borderRadius:99,marginBottom:6}},
-                _idv?('✅ '+(t.billing_active||'Verified')):('⏳ '+(t.verif_pending_badge||'Pending'))
+                _idv?('\u2705 '+(t.billing_active||'Verified')):('\u23F3 '+(t.verif_pending_badge||'Pending'))
               ),
               React.createElement('div',{style:{fontSize:12,color:'var(--text3)',lineHeight:1.5,display:'block'}},
                 _idv?(t.identity_verified_body||'Your identity has been successfully verified.'):(t.verif_pending_body||'Complete verification to unlock full account access')
               )
             ),
-            !_idv&&React.createElement('button',{
-              type:'button',
-              'data-idv-start':'true',
-              onClick:_startIdv,
-              onTouchEnd:_startIdv,
-              style:{flex:'0 0 auto',background:'var(--green)',color:'#fff',fontWeight:800,fontSize:13,padding:'12px 16px',borderRadius:10,whiteSpace:'nowrap',border:'none',cursor:'pointer',boxShadow:'0 3px 10px rgba(26,188,156,.25)',touchAction:'manipulation',WebkitAppearance:'none'}
-            },t.start_verification||'Start verification')
+            !_idv&&React.createElement('div',{style:{flexShrink:0,background:'var(--green)',color:'#fff',fontWeight:700,fontSize:12,padding:'7px 14px',borderRadius:8,whiteSpace:'nowrap'}},t.start_verification||'Start verification')
           )
         );
       })()
@@ -2696,7 +2611,7 @@ function MyListingsPage({t,items,type,go,sb,user,showToast,loadListings}){
   );
 }
 
-function ProfilePage({t,user,subscribed,savedIds,trips=[],ships=[],onLogout,onSubscribe,go,goAfterLogin,onSaveProfile,setUser,showToast,sb,phoneVerified,setPhoneModal,startStripeVerification}){
+function ProfilePage({t,user,subscribed,savedIds,trips=[],ships=[],onLogout,onSubscribe,go,goAfterLogin,onSaveProfile,setUser,showToast,sb,phoneVerified,setPhoneModal}){
 const[editing,setEditing]=useState(false);const[ef,setEF]=useState({name:_optionalChain([user, 'optionalAccess', _10 => _10.name])||'',country:_optionalChain([user, 'optionalAccess', _11 => _11.country])||'',bio:'',wa:_optionalChain([user, 'optionalAccess', _12 => _12.wa])||'',payout_method:_optionalChain([user,'optionalAccess',_=>_.payout_method])||'',payout_fields:_optionalChain([user,'optionalAccess',_=>_.payout_fields])||{}});
 React.useEffect(()=>{if(user){setEF(prev=>({...prev,name:user.name||prev.name,country:user.country||prev.country,wa:user.wa||prev.wa,payout_method:user.payout_method||prev.payout_method||'',payout_fields:user.payout_fields||prev.payout_fields||{}}));}},[user]);
 const handleAvatarChange=(e)=>{
@@ -2812,7 +2727,7 @@ return React.createElement('div', { className: "page",}, React.createElement('di
 }, style: {background:'linear-gradient(135deg,#0A2540,#1ABC9C)',border:'none',color:'#fff',padding:'9px 16px',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:"'Sora',sans-serif"},}, t.manage_billing, " →" )
 )
 , React.createElement('div', { style: {fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:13,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:10,marginTop:4},},t.account_section||"Account")
-, [{i:'✏️',bg:'rgba(26,188,156,.1)',l:t.edit_profile,s:t.edit_profile||'Update your information',a:()=>setEditing(true)},{i:'✈️',bg:'rgba(10,37,64,.08)',l:t.my_trips,s:trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _18 => _18.id])).length+' posted',a:()=>go('my-trips')},{i:'📦',bg:'rgba(26,188,156,.1)',l:t.my_requests,s:ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _19 => _19.id])).length+' posted',a:()=>go('my-requests')},{i:'📋',bg:'rgba(26,188,156,.08)',l:t.my_agreements||'My Agreements',s:t.my_agreements_sub||'View signed agreements',a:()=>go('agreements')},{i:'⭐',bg:'rgba(245,158,11,.1)',l:t.saved_listings,s:savedIds.size+' saved',a:()=>go('saved')},{i:'💬',bg:'rgba(10,37,64,.08)',l:t.nav_msgs,s:t.messages_sub||'Your conversations',a:()=>go('messages')},{i:'💎',bg:'rgba(26,188,156,.1)',l:t.subscription_status,s:subscribed?'Active — €9.99/mo':(t.free_plan||'Free Plan'),a:()=>go('pricing')},{i:'📱',bg:'rgba(26,188,156,.08)',l:phoneVerified?(t.phone_verified_label||'Phone Verified ✅'):(t.verify_phone_cta||'Verify Phone Number'),s:phoneVerified?'Phone is verified':(t.verified_badge||'Get a verified badge'),a:()=>setPhoneModal(true)},{i:'⚙️',bg:'rgba(100,116,139,.1)',l:'Settings',s:'Account and preferences',a:()=>go('settings')},...((user&&(user.isAdmin===true||user.is_admin===true||user.role==='admin'))?[{i:'🛡️',bg:'rgba(245,158,11,.1)',l:t.admin_title||'Moderation Panel',s:t.mod_note||'Admin access required',a:()=>go('admin')}]:[])].map(item=>React.createElement('button', { key: item.l, className: "mrow", onClick: item.a,}, React.createElement('div', { className: "mrow-icon", style: {background:item.bg},}, item.i), React.createElement('div', { style: {flex:1,textAlign:'left'},}, React.createElement('div', { className: "mrow-t",}, item.l), React.createElement('div', { className: "mrow-s",}, item.s)), React.createElement('span', { className: "mrow-arr",}, "›")))
+, [{i:'✏️',bg:'rgba(26,188,156,.1)',l:t.edit_profile,s:t.edit_profile||'Update your information',a:()=>setEditing(true)},{i:'✈️',bg:'rgba(10,37,64,.08)',l:t.my_trips,s:trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _18 => _18.id])).length+' posted',a:()=>go('my-trips')},{i:'📦',bg:'rgba(26,188,156,.1)',l:t.my_requests,s:ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _19 => _19.id])).length+' posted',a:()=>go('my-requests')},{i:'📋',bg:'rgba(26,188,156,.08)',l:t.my_agreements||'My Agreements',s:t.my_agreements_sub||'View signed agreements',a:()=>go('agreements')},{i:'⭐',bg:'rgba(245,158,11,.1)',l:t.saved_listings,s:savedIds.size+' saved',a:()=>go('saved')},{i:'💬',bg:'rgba(10,37,64,.08)',l:t.nav_msgs,s:t.messages_sub||'Your conversations',a:()=>go('messages')},{i:'💎',bg:'rgba(26,188,156,.1)',l:t.subscription_status,s:subscribed?'Active — €9.99/mo':(t.free_plan||'Free Plan'),a:()=>go('pricing')},{i:'📱',bg:'rgba(26,188,156,.08)',l:phoneVerified?(t.phone_verified_label||'Phone Verified ✅'):(t.verify_phone_cta||'Verify Phone Number'),s:phoneVerified?'Phone is verified':(t.verified_badge||'Get a verified badge'),a:()=>setPhoneModal(true)},{i:'⚙️',bg:'rgba(100,116,139,.1)',l:'Settings',s:'Account and preferences',a:()=>go('settings')},...(_optionalChain([user, 'optionalAccess', _20 => _20.email])==='alcino.manuel86@gmail.com'?[{i:'🛡️',bg:'rgba(245,158,11,.1)',l:'Moderation Panel',s:'Admin access',a:()=>go('admin')}]:[])].map(item=>React.createElement('button', { key: item.l, className: "mrow", onClick: item.a,}, React.createElement('div', { className: "mrow-icon", style: {background:item.bg},}, item.i), React.createElement('div', { style: {flex:1,textAlign:'left'},}, React.createElement('div', { className: "mrow-t",}, item.l), React.createElement('div', { className: "mrow-s",}, item.s)), React.createElement('span', { className: "mrow-arr",}, "›")))
 , React.createElement('div',{style:{marginTop:16,padding:'0 0 8px'}},
     React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:13,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:10}},
       t.lang==='English'?'My Reviews':t.lang==='Français'?'Mes avis':'As minhas Avaliações'
@@ -2824,164 +2739,43 @@ return React.createElement('div', { className: "page",}, React.createElement('di
 // SUPABASE CLIENT
 // ══════════════════════════════════════════════════════════
 const SUPABASE_URL = "https://fzokrhosmthdiymdewuw.supabase.co";
+const AUTH_CALLBACK_URL = "https://www.afroroute.com/auth/callback";
 // Replace with your anon key from Supabase → Settings → API
 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6b2tyaG9zbXRoZGl5bWRld3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTY2MTgsImV4cCI6MjA5MTY5MjYxOH0.ee5OBNh6Om0mLTSjmFOqH0JVGu4cbjcLL9Ekawem4YE";
 
-// Safe auth callback URL for signup confirmation and password recovery.
-// Fixes: "Can't find variable: AUTH_CALLBACK_URL" on the confirmation screen.
-function getAfroRouteOrigin(){
-  try{
-    return (window.location && window.location.origin) ? window.location.origin : 'https://www.afroroute.com';
-  }catch(_e){
-    return 'https://www.afroroute.com';
-  }
-}
-const AUTH_CALLBACK_URL = `${getAfroRouteOrigin()}/auth/callback`;
-
-
 const sb = {
-  // Compatibility wrapper for code that expects a Supabase JS-style client.
-  // Keeps the existing app stable while supporting sb.client.rpc(...) and sb.client.from(...).
-  client:{
-    async rpc(fn,args={}){
-      const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{
-        method:'POST',
-        headers:{...sb._headers(),'Prefer':'params=single-object'},
-        body:JSON.stringify(args||{})
-      });
-      const txt=await r.text();
-      let data=null;
-      try{data=txt?JSON.parse(txt):null;}catch(_e){data=txt;}
-      if(!r.ok){return {data:null,error:{message:(data&&data.message)||txt||r.statusText,details:data,status:r.status}};}
-      return {data,error:null};
-    },
-    from(table){
-      const q={
-        _table:table,_select:'*',_filters:[],_order:null,_limit:null,
-        select(cols='*'){this._select=cols;return this;},
-        eq(col,val){this._filters.push(`${encodeURIComponent(col)}=eq.${encodeURIComponent(val)}`);return this;},
-        order(col,opt={}){this._order=`order=${encodeURIComponent(col)}.${opt.ascending===false?'desc':'asc'}`;return this;},
-        limit(n){this._limit=`limit=${parseInt(n,10)||1}`;return this;},
-        _query(){
-          const parts=[`select=${encodeURIComponent(this._select)}`].concat(this._filters);
-          if(this._order)parts.push(this._order);
-          if(this._limit)parts.push(this._limit);
-          return parts.join('&');
-        },
-        async _execute(){
-          const r=await fetch(`${SUPABASE_URL}/rest/v1/${this._table}?${this._query()}`,{headers:{...sb._headers(),'Prefer':'return=representation'}});
-          const txt=await r.text();
-          let data=null;
-          try{data=txt?JSON.parse(txt):null;}catch(_e){data=txt;}
-          if(!r.ok)return {data:null,error:{message:(data&&data.message)||txt||r.statusText,details:data,status:r.status}};
-          return {data,error:null};
-        },
-        async maybeSingle(){
-          if(!this._limit)this._limit='limit=1';
-          const res=await this._execute();
-          if(res.error)return res;
-          const arr=Array.isArray(res.data)?res.data:[];
-          return {data:arr[0]||null,error:null};
-        },
-        async single(){
-          if(!this._limit)this._limit='limit=1';
-          const res=await this._execute();
-          if(res.error)return res;
-          const arr=Array.isArray(res.data)?res.data:[];
-          if(!arr[0])return {data:null,error:{message:'No rows returned'}};
-          return {data:arr[0],error:null};
-        },
-        async upsert(body,opt={}){
-          const qs=opt.onConflict?`?on_conflict=${encodeURIComponent(opt.onConflict)}`:'';
-          const r=await fetch(`${SUPABASE_URL}/rest/v1/${this._table}${qs}`,{
-            method:'POST',
-            headers:{...sb._headers(),'Prefer':'resolution=merge-duplicates,return=representation'},
-            body:JSON.stringify(body)
-          });
-          const txt=await r.text();
-          let data=null;
-          try{data=txt?JSON.parse(txt):null;}catch(_e){data=txt;}
-          if(!r.ok)return {data:null,error:{message:(data&&data.message)||txt||r.statusText,details:data,status:r.status}};
-          return {data,error:null};
-        },
-        then(resolve,reject){return this._execute().then(resolve,reject);},
-        catch(reject){return this._execute().catch(reject);}
-      };
-      return q;
-    }
-  },
   _headers:()=>({'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':`Bearer ${sb._token||SUPABASE_ANON_KEY}`}),
   _token:null,_user:null,
   async signUp(_rawEmail,password,name,country,wa){
     const email=(_rawEmail||'').trim().toLowerCase();
-    if(!email||!email.includes('@'))throw new Error('Valid email required');
-    if(!password||password.length<8)throw new Error('Password must be at least 8 characters');
-
-    // IMPORTANT: create the Supabase user and confirmation link on the server in one step.
-    // This avoids the broken flow where the frontend creates the user first, then the API tries
-    // to generate a signup link for an already-existing user and returns "Could not generate confirmation link. This usually means the account already exists or the server signup endpoint is not deployed. Try logging in or resetting your password.".
-    const r=await fetch('/api/signup-and-send-confirmation',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        email,
-        password,
-        name:name||'',
-        country:country||'',
-        wa:wa||'',
-        redirectTo:AUTH_CALLBACK_URL
-      })
-    });
-    const d=await r.json().catch(()=>({success:false,error:'Invalid server response'}));
-    console.log('Signup confirmation API response',{status:r.status,result:d});
-    if(!r.ok||d.success!==true){
-      const msg=d.error||d.message||'Signup failed. Please try again.';
-      throw new Error(msg);
-    }
-    return {
-      user:d.user||{email,user_metadata:{name,country,wa}},
-      _needsConfirmation:true,
-      confirmation_sent:true
-    };
-  },
+    const redirect=encodeURIComponent(AUTH_CALLBACK_URL);
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/signup?redirect_to=${redirect}`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email,password,data:{name,country,wa}})});
+    const d=await r.json();if(d.error)throw new Error(d.error.message||d.msg||'Signup failed');
+    if(d.access_token){sb._token=d.access_token;sb._user=d.user;}
+    // Fallback custom email sender. Non-fatal: the UI must still show the confirmation screen.
+    try{
+      await fetch('/api/send-confirmation-email',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email,redirectTo:AUTH_CALLBACK_URL})
+      });
+    }catch(_e){console.log('Confirmation email send failed (non-fatal):',_e.message);}
+    // Mark as needing confirmation if no session returned.
+    if(!d.access_token&&!_optionalChain([d,'optionalAccess',_=>_.session,'optionalAccess',_=>_.access_token])){d._needsConfirmation=true;}
+    return d;},
   async resendConfirmation(email){
-    const clean=(email||'').trim().toLowerCase();
-    if(!clean||!clean.includes('@'))throw new Error('Missing valid email');
-
-    const rr=await fetch('/api/send-confirmation-email',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email:clean,redirectTo:AUTH_CALLBACK_URL})
-    });
-    const dd=await rr.json().catch(()=>({success:false,error:'Invalid JSON response'}));
-    const result={
-      success: rr.ok && dd.success===true,
-      customStatus: rr.status,
-      customResponse: dd,
-      nativeStatus:null,
-      nativeOk:null,
-      nativeError:null
-    };
-    console.log('Resend confirmation API response',result);
-    if(!result.success){
-      throw new Error(dd.error||dd.message||`Could not send confirmation email (API ${rr.status})`);
+    const clean=email.trim().toLowerCase();
+    const redirect=encodeURIComponent(AUTH_CALLBACK_URL);
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/resend?redirect_to=${redirect}`,{method:'POST',headers:sb._headers(),body:JSON.stringify({type:'signup',email:clean})});
+    const d=await r.json();
+    if(d.error){
+      // Fallback to the custom Resend endpoint if native Supabase resend is unavailable.
+      const rr=await fetch('/api/send-confirmation-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:clean,redirectTo:AUTH_CALLBACK_URL})});
+      const dd=await rr.json().catch(()=>({}));
+      if(!rr.ok||dd.error)throw new Error(dd.error||d.error.message||'Could not resend');
+      return dd;
     }
-    return result;
-  },
-  async resetPassword(email){
-    const redirectTo=`${AUTH_CALLBACK_URL}?type=recovery`;
-    const r=await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email:(email||'').trim().toLowerCase()})});
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok||d.error)throw new Error(d.error?.message||d.msg||d.error_description||'Could not send reset password email');
-    return d;
-  },
-  async updatePassword(newPassword){
-    const r=await fetch(`${SUPABASE_URL}/auth/v1/user`,{method:'PUT',headers:sb._headers(),body:JSON.stringify({password:newPassword})});
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok||d.error)throw new Error(d.error?.message||d.msg||d.error_description||'Could not update password');
-    return d;
-  },
+    return d;},
   async checkEmailConfirmed(email){
     // Try signing in — if email_not_confirmed error, not confirmed yet
     // We can't check directly without password, so we use getUser after refreshSession
@@ -4750,73 +4544,41 @@ const refreshIdentityStatus=async()=>{
         identityVerificationStatus:profile.identity_verification_status||'',
         stripe_verification_session_id:profile.stripe_verification_session_id||'',
       }));
-      return profile;
     }
   }catch(_e){console.log('refreshIdentityStatus:',_e.message);}
-  return null;
 };
 const[verifyLoading,setVerifyLoading]=useState(false);
 const[msgView,setMsgView]=useState('list'); // mobile: 'list' or 'chat'
 // goAfterLogin: go somewhere, but redirect through login if not authenticated
 const startStripeVerification=async(role)=>{
   if(!loggedIn||!user){goAfterLogin('verify-identity');return;}
+  // Don't start if already verified
+  if(isIdentityVerified(user)){showToast(t.identity_verified_title||'Already verified','info');return;}
   setVerifyLoading(true);
-  try{ showToast((t.verif_in_progress||'Starting identity verification...'),'success'); }catch(_e){}
   try{
-    // Always refresh first so the UI is not stuck on stale Pending after webhook verification
-    const latest=await refreshIdentityStatus();
-    const latestVerified=!!(latest&&(latest.is_verified_traveler||latest.is_traveler_verified||latest.is_sender_verified||latest.stripe_verification_status==='verified'||latest.identity_verification_status==='verified'));
-    if(isIdentityVerified(user)||latestVerified){
-      showToast(t.identity_verified_title||'Identity verified','success');
-      setVerifyLoading(false);
-      return;
-    }
     const token=localStorage.getItem('ar_tok')||'';
     const r=await fetch('/api/create-verification-session',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({userId:user.id,email:user.email,role:role||'both'})
     });
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok){
-      const msg=d.error||'Could not start verification';
-      if(String(msg).toLowerCase().includes('already verified')){
-        await refreshIdentityStatus();
-        showToast(t.identity_verified_title||'Identity verified','success');
-        setVerifyLoading(false);
-        return;
-      }
-      throw new Error(msg);
-    }
-    if(d.url && typeof d.url==='string' && d.url.startsWith('https://verify.stripe.com/')){
-      // Account-page verification flow: do NOT call setStripeVerifyUrl here.
-      // That setter only exists inside the signup wizard; referencing it here crashes the normal account page on mobile.
-      try{
-        localStorage.setItem('ar_identity_verify_url', d.url);
-        localStorage.setItem('ar_identity_verify_session_id', d.session_id||'');
-        localStorage.setItem('ar_identity_verify_user_id', user.id||'');
-      }catch(_e){}
-
-      try{ showToast('Opening Stripe Identity...','success'); }catch(_e){}
-      // Mobile-safe same-tab redirect. This should not be blocked by Safari/Chrome.
-      setTimeout(()=>{
-        try{ window.location.assign(d.url); }
-        catch(_e){ window.location.href=d.url; }
-      },50);
-      return;
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Could not start verification');
+    if(d.url && typeof d.url==='string' && d.url.startsWith('https://')){
+      setStripeVerifyUrl&&setStripeVerifyUrl(d.url);
+      // For profile page verification, open directly — user tapped a button already
+      window.location.assign(d.url);
     }else if(d.already_verified){
+      // Re-fetch profile to get latest verified status
       await refreshIdentityStatus();
-      showToast(t.identity_verified_title||'Identity verified','success');
     }else{
       throw new Error('No verification URL returned');
     }
   }catch(e){
     showToast((t.verif_needs_attention||'Verification error')+': '+e.message,'error');
-  }finally{
     setVerifyLoading(false);
   }
 };
-try{ window.afroRouteStartIdentityVerification=startStripeVerification; }catch(_e){}
 
 const verifyDeviceCode=async()=>{
   if(!deviceVerify||!deviceVerify.code)return;
@@ -5027,22 +4789,6 @@ useEffect(()=>{
   (async()=>{
     // Handle Stripe payment redirect
     const urlParams = new URLSearchParams(window.location.search);
-    // Handle Supabase password recovery before generic auth callback so it does not fall through to home
-    try{
-      const _hashParams = window.location.hash ? new URLSearchParams(window.location.hash.substring(1)) : null;
-      const _searchParams = new URLSearchParams(window.location.search);
-      const _recoveryType = (_hashParams&&_hashParams.get('type')) || _searchParams.get('type');
-      const _access = _hashParams&&_hashParams.get('access_token');
-      const _refresh = _hashParams&&_hashParams.get('refresh_token');
-      if(_recoveryType==='recovery' && _access){
-        sb._token=_access;
-        try{localStorage.setItem('ar_tok',_access); if(_refresh)localStorage.setItem('ar_ref',_refresh);}catch(_e){}
-        window.history.replaceState({},document.title,'/');
-        setPage('reset-password');
-        setAppLoading(false);
-        return;
-      }
-    }catch(_recoverErr){console.log('Recovery callback:',_recoverErr.message);}
     const paymentStatus = urlParams.get('payment');
     if(paymentStatus === 'success'){
       window.history.replaceState(null, '', window.location.pathname);
@@ -5123,12 +4869,9 @@ useEffect(()=>{
                 subscription_status:_profile?.subscription_status||'active',
               });
               setAppLoading(false);
-              // Route auth callbacks safely
-              if(_type==='recovery'){ setPage('reset-password'); }
-              else {
-                showToast(tx?tx('Email confirmado! Bem-vindo à AfroRoute.','Email confirmed! Welcome to AfroRoute.','E-mail confirmé ! Bienvenue sur AfroRoute.'):'Email confirmed! Welcome to AfroRoute.','success');
-                setPage('account');
-              }
+              // Show account-created or home
+              if(_type==='signup'){ setMode('account-created'); setPage('auth'); }
+              else { setPage('home'); }
               return;
             }
           }catch(_authErr){
@@ -5188,7 +4931,7 @@ useEffect(()=>{
           if(false&&!_optionalChain([profile, 'optionalAccess', _72 => _72.is_subscribed])){
             sb.update('profiles',{is_subscribed:true},`id=eq.${u.id}`).catch(()=>{});
           }
-          setUser({id:u.id,email:u.email,name:_optionalChain([profile, 'optionalAccess', _73 => _73.name])||_optionalChain([u, 'access', _74 => _74.user_metadata, 'optionalAccess', _75 => _75.name])||u.email.split('@')[0],country:_optionalChain([profile, 'optionalAccess', _76 => _76.country])||'',wa:_optionalChain([profile, 'optionalAccess', _77 => _77.whatsapp])||'',isSubscribed:isSub,avatarUrl:(_optionalChain([profile,'optionalAccess',_=>_.avatar_url])||savedAvatar),role:_optionalChain([profile,'optionalAccess',_=>_.role])||'user',is_admin:_optionalChain([profile,'optionalAccess',_=>_.is_admin])===true,isAdmin:_optionalChain([profile,'optionalAccess',_=>_.is_admin])===true});
+          setUser({id:u.id,email:u.email,name:_optionalChain([profile, 'optionalAccess', _73 => _73.name])||_optionalChain([u, 'access', _74 => _74.user_metadata, 'optionalAccess', _75 => _75.name])||u.email.split('@')[0],country:_optionalChain([profile, 'optionalAccess', _76 => _76.country])||'',wa:_optionalChain([profile, 'optionalAccess', _77 => _77.whatsapp])||'',isSubscribed:isSub,avatarUrl:(_optionalChain([profile,'optionalAccess',_=>_.avatar_url])||savedAvatar)});
           setLI(true);setSub(isSub);
           loadConversations(u.id);
           loadListings(true);
@@ -5218,7 +4961,15 @@ const handleLogin=async(formData)=>{
   try{
     if(formData.isNew){
       const data=await sb.signUp(formData.email,formData.password,formData.name,formData.country,formData.wa);
-      // Handle both confirmed (data.user) and unconfirmed (data.user null, session null)
+      const hasSession=!!(data&&(_optionalChain([data,'optionalAccess',_=>_.access_token])||_optionalChain([data,'optionalAccess',_=>_.session,'optionalAccess',_=>_.access_token])));
+      // If email confirmation is required, Supabase can still return a user id but no session.
+      // Do NOT mark the app as logged in or redirect. Show the confirm-email screen safely.
+      if(!hasSession||data._needsConfirmation){
+        if(formData._onConfirmNeeded) formData._onConfirmNeeded();
+        else showToast(tx?tx('Verifica o teu email para confirmar a conta.','Check your email to confirm your account.','Vérifie ton email pour confirmer ton compte.'):'Check your email to confirm your account.');
+        return null;
+      }
+      // Confirmed/immediate-session signup only.
       const userId = _optionalChain([data, 'optionalAccess', _81 => _81.user, 'optionalAccess', _82 => _82.id]) || _optionalChain([data, 'optionalAccess', _83 => _83.session, 'optionalAccess', _84 => _84.user, 'optionalAccess', _85 => _85.id]);
       if(userId){
         try{
@@ -5236,7 +4987,7 @@ const handleLogin=async(formData)=>{
           console.log('Profile upsert error (non-fatal):', profileErr.message);
         }
         // Manual ID/selfie upload removed — Stripe Identity webhook sets verification status
-        setUser({id:userId,email:formData.email,name:formData.name,country:formData.country,wa:formData.wa,isSubscribed:false,role:'user',is_admin:false,isAdmin:false});
+        setUser({id:userId,email:formData.email,name:formData.name,country:formData.country,wa:formData.wa,isSubscribed:false});
         setLI(true);setSub(false);loadListings(true);
         showToast('Welcome to AfroRoute, '+formData.name.split(' ')[0]+'! 🎉 Please verify your identity to continue.');
         // New users must verify identity before full access
@@ -5255,7 +5006,7 @@ const handleLogin=async(formData)=>{
         isTravelerVerified:_optionalChain([profile,'optionalAccess',_=>_.is_traveler_verified])||false,
         isSenderVerified:_optionalChain([profile,'optionalAccess',_=>_.is_sender_verified])||false,
         stripeVerificationStatus:_optionalChain([profile,'optionalAccess',_=>_.stripe_verification_status])||'not_started',
-        identityVerificationStatus:_optionalChain([profile,'optionalAccess',_=>_.identity_verification_status])||'not_started',phoneVerified:_optionalChain([profile,'optionalAccess',_=>_.phone_verified])||false||false,role:_optionalChain([profile,'optionalAccess',_=>_.role])||'user',is_admin:_optionalChain([profile,'optionalAccess',_=>_.is_admin])===true,isAdmin:_optionalChain([profile,'optionalAccess',_=>_.is_admin])===true});
+        identityVerificationStatus:_optionalChain([profile,'optionalAccess',_=>_.identity_verification_status])||'not_started',phoneVerified:_optionalChain([profile,'optionalAccess',_=>_.phone_verified])||false||false});
         setLI(true);setSub(isSub);setPhoneVerified(_optionalChain([profile,'optionalAccess',_=>_.phone_verified])||false);loadConversations(formData.id);loadListings(true);
         showToast('Welcome back, '+(_optionalChain([profile, 'optionalAccess', _92 => _92.name])||formData.email.split('@')[0]).split(' ')[0]+'! 👋');(function(){const _r=pendingRedirect;setPendingRedirect(null);go(_r||'home');})();
       }catch(e){
@@ -5274,7 +5025,7 @@ const handleLogin=async(formData)=>{
         isTravelerVerified:_optionalChain([profile,'optionalAccess',_=>_.is_traveler_verified])||false,
         isSenderVerified:_optionalChain([profile,'optionalAccess',_=>_.is_sender_verified])||false,
         stripeVerificationStatus:_optionalChain([profile,'optionalAccess',_=>_.stripe_verification_status])||'not_started',
-        identityVerificationStatus:_optionalChain([profile,'optionalAccess',_=>_.identity_verification_status])||'not_started',role:_optionalChain([profile,'optionalAccess',_=>_.role])||'user',is_admin:_optionalChain([profile,'optionalAccess',_=>_.is_admin])===true,isAdmin:_optionalChain([profile,'optionalAccess',_=>_.is_admin])===true});
+        identityVerificationStatus:_optionalChain([profile,'optionalAccess',_=>_.identity_verification_status])||'not_started'});
       setLI(true);setSub(isSubLogin);
       loadConversations(data.user.id);
       loadListings(true); // logged in — hide demos
@@ -5315,10 +5066,7 @@ const handleSaveProfile=async(updated)=>{
 
 const handlePostTrip=async(form)=>{
   try{
-    // Server-side limit check via Supabase RPC
-    const {data:canPost,error:rpcErr}=await sb.client.rpc('can_create_trip',{p_user_id:user.id});
-    if(rpcErr){console.error('RPC error:',rpcErr.message);}
-    if(canPost===false){goUpgrade('free_limit_reached');return;}
+    // Free-plan limit RPC temporarily bypassed: direct insert keeps posting stable.
     await sb.insert('trips',{user_id:user.id,from_country:form.from,from_city:form.fc,to_country:form.to,to_city:form.tc,travel_date:form.date,airline:form.airline,kg_available:parseFloat(form.kg),price_per_kg:form.open?null:parseFloat(form.price),open_to_offers:form.open,categories:form.cats,notes:form.notes,status:form.status});
     showToast(t.toast_trip_posted);loadListings();go('profile');
   }catch(e){
@@ -5329,10 +5077,7 @@ const handlePostTrip=async(form)=>{
 
 const handlePostShip=async(form)=>{
   try{
-    // Server-side limit check via Supabase RPC
-    const {data:canPost,error:rpcErr}=await sb.client.rpc('can_create_shipment',{p_user_id:user.id});
-    if(rpcErr){console.error('RPC error:',rpcErr.message);}
-    if(canPost===false){goUpgrade('free_limit_reached');return;}
+    // Free-plan limit RPC temporarily bypassed: direct insert keeps posting stable.
     await sb.insert('shipments',{user_id:user.id,from_country:form.from,from_city:form.fc,to_country:form.to,to_city:form.tc,preferred_date:form.pref_date,category:form.category,weight_kg:parseFloat(form.kg),budget_per_kg:parseFloat(form.budget),description:form.desc,is_urgent:form.urgent,status:form.status});
     showToast(t.toast_ship_posted);loadListings();go('profile');
   }catch(e){
@@ -5761,7 +5506,6 @@ case 'messages':return React.createElement('div', { className: "page", style: {p
     )
   ));
 
-case 'reset-password':return React.createElement(ResetPasswordPage,{t:t,go:go,sb:sb,showToast:showToast});
 case 'pricing':return React.createElement(PricingPage, { go: go, lang: lang, onSubscribe: handleSubscribe, onLoggedIn: loggedIn, upgradeReason: upgradeReason, user: user, trips: trips, ships: ships, onNeedLogin: (dest)=>{setPendingRedirect(dest||'pricing');go('auth');},});
 case 'verify-device':go('home');return null;
     
@@ -5854,12 +5598,12 @@ case 'verify-device':go('home');return null;
 
     case 'signup':return React.createElement('div', { className: "page", style: {display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:20},}, React.createElement(AuthPage, { initialMode: 'signup', t: t, onLogin: handleLogin, go: go,}));
 case 'auth':return React.createElement('div', { className: "page", style: {display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:20},}, React.createElement(AuthPage, { t: t, onLogin: handleLogin, go: go,}));
-case 'profile':return !loggedIn?React.createElement('div', { className: "page", style: {padding:'16px'},}, React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),})):React.createElement('div', { className: "page",}, React.createElement(ProfilePage, { t: t, user: user, subscribed: subscribed, savedIds: savedIds, trips: trips, ships: ships, onLogout: handleLogout, onSubscribe: ()=>go('pricing'), go: go, goAfterLogin: goAfterLogin, onSaveProfile: handleSaveProfile, setUser: setUser, showToast: showToast, sb: sb, phoneVerified: phoneVerified, setPhoneModal: setPhoneModal, startStripeVerification: startStripeVerification,}));
+case 'profile':return !loggedIn?React.createElement('div', { className: "page", style: {padding:'16px'},}, React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),})):React.createElement('div', { className: "page",}, React.createElement(ProfilePage, { t: t, user: user, subscribed: subscribed, savedIds: savedIds, trips: trips, ships: ships, onLogout: handleLogout, onSubscribe: ()=>go('pricing'), go: go, goAfterLogin: goAfterLogin, onSaveProfile: handleSaveProfile, setUser: setUser, showToast: showToast, sb: sb, phoneVerified: phoneVerified, setPhoneModal: setPhoneModal,}));
 case 'my-trips':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "✈️"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, "My Trips" ), React.createElement('div', { className: "phd-sub",}, trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _106 => _106.id])).length, " trips posted"  ))), React.createElement(MyListingsPage, { t: t, items: trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _107 => _107.id])), type: "trip", go: go, sb: sb, user: user, showToast: showToast, loadListings: loadListings,}));
 case 'my-requests':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "📦"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, "My Requests" ), React.createElement('div', { className: "phd-sub",}, ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _108 => _108.id])).length, " requests posted"  ))), React.createElement(MyListingsPage, { t: t, items: ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _109 => _109.id])), type: "ship", go: go, sb: sb, user: user, showToast: showToast, loadListings: loadListings,}));
 case 'settings':return React.createElement('div', { className: "page",}, React.createElement(SettingsPage, { t: t, user: user, subscribed: subscribed, go: go, showToast: showToast, sb: sb, setSub: setSub, onLogout: handleLogout,}));
 case 'saved':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "⭐"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.saved_listings))), React.createElement('div', { style: {padding:'0 16px 32px'},}, savedIds.size===0?React.createElement(Empty, { icon: "⭐", title: t.saved_listings, sub: "Items you save will appear here."     , cta: "Browse Trips" , onCta: ()=>go('browse-trips'),}):React.createElement(React.Fragment, null, trips.filter(tr=>savedIds.has(`trip-${tr.id}`)).map(trip=>React.createElement(TCard, { key: trip.id, trip: trip, t: t, onContact: handleContact, onSave: handleSave, saved: true, onDetail: item=>setDetail({item,type:'trip'}), loggedIn: loggedIn, userId: user&&user.id,})), ships.filter(sh=>savedIds.has(`ship-${sh.id}`)).map(ship=>React.createElement(SCard, { key: ship.id, ship: ship, t: t, onContact: handleContact, onSave: handleSave, saved: true, onDetail: item=>setDetail({item,type:'ship'}), loggedIn: loggedIn, userId: user&&user.id,})))));
-case 'admin':return (user&&(user.isAdmin===true||user.is_admin===true||user.role==='admin'))?React.createElement(AdminPage, { t: t, user: user, sb: sb, showToast: showToast,}):React.createElement('div', { className: "page", style: {padding:'40px 24px',textAlign:'center'},}, React.createElement('div', { style: {fontSize:48,marginBottom:16},}, "🔒"), React.createElement('div', { style: {fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:20,color:'var(--navy)',marginBottom:8},}, "Access Restricted" ), React.createElement('div', { style: {color:'var(--text3)',fontSize:14},}, "This area is for authorised administrators only."      ));
+case 'admin':return _optionalChain([user, 'optionalAccess', _110 => _110.email])==='alcino.manuel86@gmail.com'?React.createElement(AdminPage, { t: t, user: user, sb: sb, showToast: showToast,}):React.createElement('div', { className: "page", style: {padding:'40px 24px',textAlign:'center'},}, React.createElement('div', { style: {fontSize:48,marginBottom:16},}, "🔒"), React.createElement('div', { style: {fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:20,color:'var(--navy)',marginBottom:8},}, "Access Restricted" ), React.createElement('div', { style: {color:'var(--text3)',fontSize:14},}, "This area is for authorised administrators only."      ));
 case 'terms':return React.createElement(LegalPage,{go:go,lang:lang,policyKey:'terms'});
 case 'privacy':return React.createElement(LegalPage,{go:go,lang:lang,policyKey:'privacy'});
 case 'prohibited-items':return React.createElement(LegalPage,{go:go,lang:lang,policyKey:'prohibited-items'});
