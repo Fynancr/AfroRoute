@@ -1,12 +1,9 @@
-// Vercel serverless function: /api/send-confirmation-email
-// Sends the official Supabase signup confirmation link through Resend.
-
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM = process.env.RESEND_FROM || 'AfroRoute <noreply@afroroute.com>';
 const RESEND_REPLY_TO = process.env.RESEND_REPLY_TO || 'support@afroroute.com';
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.afroroute.com';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://www.afroroute.com';
 
 function json(res, status, body) {
   res.statusCode = status;
@@ -21,6 +18,11 @@ function maskEmail(email) {
 }
 
 module.exports = async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return json(res, 405, { success: false, error: 'Method not allowed' });
 
   try {
@@ -41,11 +43,6 @@ module.exports = async function handler(req, res) {
     });
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !RESEND_API_KEY) {
-      console.error('confirmation_email_missing_env', {
-        has_supabase_url: !!SUPABASE_URL,
-        has_service_key: !!SUPABASE_SERVICE_KEY,
-        has_resend_key: !!RESEND_API_KEY,
-      });
       return json(res, 500, { success: false, error: 'Email service is not configured' });
     }
 
@@ -53,8 +50,8 @@ module.exports = async function handler(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        apikey: SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
       },
       body: JSON.stringify({
         type: 'signup',
@@ -93,7 +90,7 @@ module.exports = async function handler(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
         from: RESEND_FROM,
