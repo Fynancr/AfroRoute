@@ -1,6 +1,6 @@
 // api/signup-and-send-confirmation.js
 // Creates the Supabase Auth user and sends the official confirmation link through Resend.
-// One job only: signup + confirmation email.
+// If the user already exists, sends a secure continue/login link instead of blocking signup.
 
 const { createClient } = require('@supabase/supabase-js');
 const { Resend } = require('resend');
@@ -36,7 +36,6 @@ function safeRedirect(raw) {
     const url = new URL(raw || fallback);
     const site = new URL(siteUrl);
 
-    // Only allow AfroRoute domain callbacks. Never allow arbitrary redirects.
     if (url.host !== site.host) return fallback;
 
     return url.toString();
@@ -64,7 +63,6 @@ function serviceKeyProblem(serviceKey) {
 
   const payload = decodeJwtPayload(serviceKey);
 
-  // Newer Supabase secret keys may not decode as JWT, so do not reject undecodable keys.
   if (payload && payload.role && payload.role !== 'service_role') {
     return `SUPABASE_SERVICE_KEY is not a service_role key. Current role: ${payload.role}.`;
   }
@@ -79,7 +77,8 @@ function isDuplicateUserMessage(msg) {
     s.includes('already') ||
     s.includes('registered') ||
     s.includes('exists') ||
-    s.includes('duplicate')
+    s.includes('duplicate') ||
+    s.includes('user already')
   );
 }
 
@@ -94,7 +93,13 @@ function isRedirectMessage(msg) {
   );
 }
 
-function confirmationEmailHtml({ actionLink, replyTo }) {
+function confirmationEmailHtml({ actionLink, replyTo, existingUser = false }) {
+  const title = existingUser ? 'Continue to AfroRoute' : 'Confirm your email';
+  const body = existingUser
+    ? 'This email is already connected to an AfroRoute account. Click below to securely continue.'
+    : 'Welcome to AfroRoute. Click the button below to confirm your email and activate your account.';
+  const button = existingUser ? 'Continue to AfroRoute' : 'Confirm email';
+
   return `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0A2540;background:#f7f9fb">
       <div style="text-align:center;margin-bottom:22px">
@@ -103,15 +108,15 @@ function confirmationEmailHtml({ actionLink, replyTo }) {
       </div>
 
       <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:28px">
-        <h2 style="margin:0 0 12px;font-size:21px;color:#0A2540">Confirm your email</h2>
+        <h2 style="margin:0 0 12px;font-size:21px;color:#0A2540">${title}</h2>
 
         <p style="font-size:15px;line-height:1.6;color:#334155;margin:0 0 24px">
-          Welcome to AfroRoute. Click the button below to confirm your email and activate your account.
+          ${body}
         </p>
 
         <p style="margin:28px 0;text-align:center">
           <a href="${actionLink}" style="background:#1ABC9C;color:white;text-decoration:none;padding:14px 24px;border-radius:10px;font-weight:bold;display:inline-block">
-            Confirm email
+            ${button}
           </a>
         </p>
 
@@ -124,7 +129,7 @@ function confirmationEmailHtml({ actionLink, replyTo }) {
         </p>
 
         <p style="font-size:13px;line-height:1.6;color:#94a3b8;margin:24px 0 0">
-          If you did not create an AfroRoute account, you can safely ignore this email.
+          If you did not request this email, you can safely ignore it.
         </p>
       </div>
 
@@ -240,6 +245,30 @@ async function generateSignupLinkWithRest({
     },
     method: 'rest_failed',
   };
+}
+
+async function generateMagicLinkForExistingUser({ supabase, email, redirectTo }) {
+  let result = await supabase.auth.admin.generateLink({
+    type: 'magiclink',
+    email,
+    options: {
+      redirectTo,
+    },
+  });
+
+  if (result.error && isRedirectMessage(result.error.message)) {
+    console.warn('existing_user_magiclink_redirect_retry_no_redirect', {
+      email: maskEmail(email),
+      message: result.error.message,
+    });
+
+    result = await supabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email,
+    });
+  }
+
+  return result;
 }
 
 module.exports = async function handler(req, res) {
@@ -407,12 +436,71 @@ module.exports = async function handler(req, res) {
         message: errorMessage || 'No action link returned',
       });
 
+      // Critical fix:
+      // If the email already exists, do not block the user.
+      // Send a secure magic/continue link instead.
       if (isDuplicateUserMessage(errorMessage)) {
-        return json(res, 409, {
-          success: false,
-          code: 'USER_ALREADY_EXISTS',
-          error:
-            'This email is already registered. Please log in or use reset password.',
+        console.warn('signup_duplicate_user_fallback_to_magiclink', {
+          email: maskEmail(email),
+        });
+
+        const magicResult = await generateMagicLinkForExistingUser({
+          supabase,
+          email,
+          redirectTo,
+        });
+
+        const magicActionLink = magicResult.data?.properties?.action_link;
+
+        if (magicResult.error || !magicActionLink) {
+          console.error('signup_duplicate_magiclink_failed', {
+            email: maskEmail(email),
+            message: magicResult.error?.message || 'No magic link returned',
+          });
+
+          return json(res, 409, {
+            success: false,
+            code: 'USER_ALREADY_EXISTS_MAGICLINK_FAILED',
+            error:
+              'This email already exists, but we could not send a secure login link. Please use reset password or contact support.',
+          });
+        }
+
+        const { error: duplicateSendError } = await resend.emails.send({
+          from,
+          to: email,
+          subject: 'Continue to AfroRoute',
+          html: confirmationEmailHtml({
+            actionLink: magicActionLink,
+            replyTo,
+            existingUser: true,
+          }),
+          reply_to: replyTo,
+        });
+
+        if (duplicateSendError) {
+          console.error('signup_duplicate_resend_failed', {
+            email: maskEmail(email),
+            message: duplicateSendError.message,
+          });
+
+          return json(res, 500, {
+            success: false,
+            code: 'DUPLICATE_RESEND_FAILED',
+            error: `This email already exists, but we could not send the login email. Resend said: ${duplicateSendError.message}`,
+          });
+        }
+
+        console.log('signup_duplicate_continue_email_sent', {
+          email: maskEmail(email),
+        });
+
+        return json(res, 200, {
+          success: true,
+          confirmation_sent: true,
+          existing_user: true,
+          message:
+            'This email already exists. We sent a secure login link so you can continue.',
         });
       }
 
@@ -426,7 +514,6 @@ module.exports = async function handler(req, res) {
     }
 
     // Profile creation/update must never crash signup.
-    // Supabase query builder is handled through { error }, not .catch().
     if (user?.id) {
       try {
         const { error: profileErr } = await supabase
@@ -481,6 +568,7 @@ module.exports = async function handler(req, res) {
       html: confirmationEmailHtml({
         actionLink,
         replyTo,
+        existingUser: false,
       }),
       reply_to: replyTo,
     });
@@ -507,6 +595,7 @@ module.exports = async function handler(req, res) {
     return json(res, 200, {
       success: true,
       confirmation_sent: true,
+      existing_user: false,
       user: user
         ? {
             id: user.id,
