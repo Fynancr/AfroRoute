@@ -23,7 +23,9 @@ module.exports = async (req, res) => {
   const agrStatus     = agreement?.agreement_status || 'delivery_confirmed';
   const now           = new Date().toISOString();
 
-  const adminEmail = process.env.ADMIN_EMAIL || 'alcino.manuel86@gmail.com';
+  const adminEmail  = process.env.ADMIN_EMAIL || 'alcino.manuel86@gmail.com';
+  const fromEmail   = process.env.RESEND_FROM    || 'AfroRoute <noreply@afroroute.com>';
+  const replyTo     = process.env.RESEND_REPLY_TO || 'support@afroroute.com';
 
   try {
     const response = await fetch('https://api.resend.com/emails', {
@@ -33,7 +35,8 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'AfroRoute Admin <support@afroroute.com>',
+        from: fromEmail,
+        reply_to: replyTo,
         to: [adminEmail],
         subject: `AfroRoute payout ready — Shipment ${shipment_id || agreement_id}`,
         html: `
@@ -71,7 +74,8 @@ module.exports = async (req, res) => {
 
             <div style="background: #f0f4f8; border-radius: 10px; padding: 12px; font-size: 12px; color: #64748b; text-align: center;">
               Do NOT auto-release payout. Manual review is required for every payout.<br>
-              AfroRoute — Trusted shipping between Portugal and Angola
+              AfroRoute · <a href="https://www.afroroute.com" style="color: #1ABC9C;">afroroute.com</a><br>
+              Need help? Contact <a href="mailto:support@afroroute.com" style="color: #1ABC9C;">support@afroroute.com</a>
             </div>
           </div>
         `,
