@@ -2749,33 +2749,29 @@ const sb = {
   _token:null,_user:null,
   async signUp(_rawEmail,password,name,country,wa){
     const email=(_rawEmail||'').trim().toLowerCase();
-    const redirect=encodeURIComponent(AUTH_CALLBACK_URL);
-    const r=await fetch(`${SUPABASE_URL}/auth/v1/signup?redirect_to=${redirect}`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email,password,data:{name,country,wa}})});
-    const d=await r.json();if(d.error)throw new Error(d.error.message||d.msg||'Signup failed');
-    if(d.access_token){sb._token=d.access_token;sb._user=d.user;}
-    // Fallback custom email sender. Non-fatal: the UI must still show the confirmation screen.
-    try{
-      await fetch('/api/send-confirmation-email',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({email,redirectTo:AUTH_CALLBACK_URL})
-      });
-    }catch(_e){console.log('Confirmation email send failed (non-fatal):',_e.message);}
-    // Mark as needing confirmation if no session returned.
-    if(!d.access_token&&!_optionalChain([d,'optionalAccess',_=>_.session,'optionalAccess',_=>_.access_token])){d._needsConfirmation=true;}
-    return d;},
+    const r=await fetch('/api/signup-and-send-confirmation',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,password,name,country,wa,redirectTo:AUTH_CALLBACK_URL})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.success===false){throw new Error(d.error||d.message||'Signup failed');}
+    // Custom backend sends the confirmation/continue email. Keep the user on confirm-email screen.
+    d._needsConfirmation=true;
+    return d;
+  },
   async resendConfirmation(email){
-    const clean=email.trim().toLowerCase();
-    const redirect=encodeURIComponent(AUTH_CALLBACK_URL);
-    const r=await fetch(`${SUPABASE_URL}/auth/v1/resend?redirect_to=${redirect}`,{method:'POST',headers:sb._headers(),body:JSON.stringify({type:'signup',email:clean})});
-    const d=await r.json();
-    if(d.error){
-      // Fallback to the custom Resend endpoint if native Supabase resend is unavailable.
-      const rr=await fetch('/api/send-confirmation-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:clean,redirectTo:AUTH_CALLBACK_URL})});
-      const dd=await rr.json().catch(()=>({}));
-      if(!rr.ok||dd.error)throw new Error(dd.error||d.error.message||'Could not resend');
-      return dd;
-    }
-    return d;},
+    const clean=String(email||'').trim().toLowerCase();
+    if(!clean||!clean.includes('@'))throw new Error('Valid email is required');
+    const r=await fetch('/api/send-confirmation-email',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:clean,redirectTo:AUTH_CALLBACK_URL})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.success===false){throw new Error(d.error||d.message||'Could not resend confirmation email');}
+    return d;
+  },
   async checkEmailConfirmed(email){
     // Try signing in — if email_not_confirmed error, not confirmed yet
     // We can't check directly without password, so we use getUser after refreshSession
@@ -2898,68 +2894,45 @@ const sb = {
   }
 };
 
-
-// ── Supabase client compatibility layer ───────────────────────────────
-// Some older app code calls sb.client.rpc(...) / sb.client.from(...).
-// This bridge prevents blank pages by routing those calls through the app's sb wrapper.
-sb.rpc = async function rpc(functionName, args = {}) {
-  try {
-    const r = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + encodeURIComponent(functionName), {
-      method: "POST",
-      headers: { ...sb._headers(), "Prefer": "return=representation" },
-      body: JSON.stringify(args || {})
-    });
-    const text = await r.text();
-    let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch (_) { data = text || null; }
-    if (!r.ok) return { data: null, error: { message: text || ("RPC " + functionName + " failed (" + r.status + ")"), status: r.status } };
-    return { data, error: null };
-  } catch (e) {
-    return { data: null, error: { message: e.message || ("RPC " + functionName + " failed") } };
-  }
-};
-
+// Compatibility bridge for older code paths that still call sb.client.*.
+// Keeps profile/payout helpers from crashing while the main app uses the lightweight sb wrapper.
 sb.client = {
-  rpc: (functionName, args) => sb.rpc(functionName, args),
-  from(table) {
-    const state = { table, select: "*", filters: [] };
-    const chain = {
-      select(cols = "*") { state.select = cols || "*"; return chain; },
-      eq(col, val) { state.filters.push(encodeURIComponent(col) + "=eq." + encodeURIComponent(val)); return chain; },
-      async maybeSingle() {
-        try {
-          const rows = await sb.select(state.table, state.select, state.filters.join("&"));
-          return { data: Array.isArray(rows) ? (rows[0] || null) : (rows || null), error: null };
-        } catch (e) { return { data: null, error: { message: e.message || "Select failed" } }; }
-      },
-      async insert(body) {
-        try { return { data: await sb.insert(state.table, body), error: null }; }
-        catch (e) { return { data: null, error: { message: e.message || "Insert failed" } }; }
-      },
-      async upsert(body, opts = {}) {
-        try {
-          const headers = { ...sb._headers(), "Prefer": "resolution=merge-duplicates,return=representation" };
-          const url = SUPABASE_URL + "/rest/v1/" + state.table + (opts.onConflict ? ("?on_conflict=" + encodeURIComponent(opts.onConflict)) : "");
-          const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
-          const text = await r.text();
-          let data = null;
-          try { data = text ? JSON.parse(text) : null; } catch (_) { data = text || null; }
-          if (!r.ok) return { data: null, error: { message: text || "Upsert failed", status: r.status } };
-          return { data, error: null };
-        } catch (e) { return { data: null, error: { message: e.message || "Upsert failed" } }; }
-      },
-      async update(body) {
-        try { return { data: await sb.update(state.table, body, state.filters.join("&")), error: null }; }
-        catch (e) { return { data: null, error: { message: e.message || "Update failed" } }; }
-      },
-      async delete() {
-        try { return { data: await sb.delete(state.table, state.filters.join("&")), error: null }; }
-        catch (e) { return { data: null, error: { message: e.message || "Delete failed" } }; }
-      }
-    };
-    return chain;
-  }
+  rpc: async (fn, params = {}) => {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: { ...sb._headers(), 'Prefer': 'return=representation' },
+      body: JSON.stringify(params)
+    });
+    const data = await r.json().catch(() => null);
+    return { data, error: r.ok ? null : { message: typeof data === 'string' ? data : JSON.stringify(data) } };
+  },
+  from: (table) => ({
+    upsert: async (body, opts = {}) => {
+      const qs = opts.onConflict ? `?on_conflict=${encodeURIComponent(opts.onConflict)}` : '';
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${qs}`, {
+        method: 'POST',
+        headers: { ...sb._headers(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify(body)
+      });
+      const data = await r.json().catch(() => null);
+      return { data, error: r.ok ? null : { message: typeof data === 'string' ? data : JSON.stringify(data) } };
+    },
+    select: (cols = '*') => {
+      const chain = {
+        _cols: cols,
+        _filters: [],
+        eq(k, v) { this._filters.push(`${encodeURIComponent(k)}=eq.${encodeURIComponent(v)}`); return this; },
+        async maybeSingle() {
+          const filters = this._filters.length ? '&' + this._filters.join('&') : '';
+          const rows = await sb.select(table, this._cols, filters.replace(/^&/, ''));
+          return { data: rows && rows.length ? rows[0] : null, error: null };
+        }
+      };
+      return chain;
+    }
+  })
 };
+
 
 // ══════════════════════════════════════════════════════════
 // STRIPE HELPER
@@ -4628,8 +4601,8 @@ const startStripeVerification=async(role)=>{
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||'Could not start verification');
     if(d.url && typeof d.url==='string' && d.url.startsWith('https://')){
-      setStripeVerifyUrl&&setStripeVerifyUrl(d.url);
-      // For profile page verification, open directly — user tapped a button already
+      // For profile/account verification, redirect directly to Stripe. No signup-only state setters.
+      try{localStorage.setItem('ar_stripe_verify_url',d.url);localStorage.setItem('ar_stripe_verify_session',d.session_id||'');}catch(_e){}
       window.location.assign(d.url);
     }else if(d.already_verified){
       // Re-fetch profile to get latest verified status
@@ -5129,29 +5102,56 @@ const handleSaveProfile=async(updated)=>{
 
 const handlePostTrip=async(form)=>{
   try{
-    // Server-side limit check via Supabase RPC
-    const {data:canPost,error:rpcErr}=await sb.client.rpc('can_create_trip',{p_user_id:user.id});
-    if(rpcErr){console.error('RPC error:',rpcErr.message);}
-    if(canPost===false){goUpgrade('free_limit_reached');return;}
-    await sb.insert('trips',{user_id:user.id,from_country:form.from,from_city:form.fc,to_country:form.to,to_city:form.tc,travel_date:form.date,airline:form.airline,kg_available:parseFloat(form.kg),price_per_kg:form.open?null:parseFloat(form.price),open_to_offers:form.open,categories:form.cats,notes:form.notes,status:form.status});
-    showToast(t.toast_trip_posted);loadListings();go('profile');
+    if(!user||!user.id){showToast('Please log in first.','error');go('auth');return;}
+    const payload={
+      user_id:user.id,
+      from_country:form.from,
+      from_city:form.fc||null,
+      to_country:form.to,
+      to_city:form.tc||null,
+      travel_date:form.date,
+      airline:form.airline||null,
+      kg_available:parseFloat(form.kg),
+      price_per_kg:form.open?null:parseFloat(form.price),
+      open_to_offers:!!form.open,
+      categories:Array.isArray(form.cats)?form.cats:[],
+      notes:form.notes||null,
+      status:form.status||'active'
+    };
+    await sb.insert('trips',payload);
+    showToast(t.toast_trip_posted||'Trip posted successfully');
+    await loadListings(true);
+    go('profile');
   }catch(e){
-    if(e.message&&e.message.includes('FREE_TRIP_LIMIT_REACHED')){goUpgrade('free_limit_reached');return;}
-    else{showToast('Failed: '+e.message,'error');}
+    console.error('Post trip failed:',e);
+    showToast('Failed to post trip: '+(e.message||'Unknown error'),'error');
   }
 };
 
 const handlePostShip=async(form)=>{
   try{
-    // Server-side limit check via Supabase RPC
-    const {data:canPost,error:rpcErr}=await sb.client.rpc('can_create_shipment',{p_user_id:user.id});
-    if(rpcErr){console.error('RPC error:',rpcErr.message);}
-    if(canPost===false){goUpgrade('free_limit_reached');return;}
-    await sb.insert('shipments',{user_id:user.id,from_country:form.from,from_city:form.fc,to_country:form.to,to_city:form.tc,preferred_date:form.pref_date,category:form.category,weight_kg:parseFloat(form.kg),budget_per_kg:parseFloat(form.budget),description:form.desc,is_urgent:form.urgent,status:form.status});
-    showToast(t.toast_ship_posted);loadListings();go('profile');
+    if(!user||!user.id){showToast('Please log in first.','error');go('auth');return;}
+    const payload={
+      user_id:user.id,
+      from_country:form.from,
+      from_city:form.fc||null,
+      to_country:form.to,
+      to_city:form.tc||null,
+      preferred_date:form.pref_date,
+      category:form.category,
+      weight_kg:parseFloat(form.kg),
+      budget_per_kg:parseFloat(form.budget),
+      description:form.desc||null,
+      is_urgent:!!form.urgent,
+      status:form.status||'active'
+    };
+    await sb.insert('shipments',payload);
+    showToast(t.toast_ship_posted||'Request posted successfully');
+    await loadListings(true);
+    go('profile');
   }catch(e){
-    if(e.message&&e.message.includes('FREE_SHIPMENT_LIMIT_REACHED')){goUpgrade('free_limit_reached');return;}
-    else{showToast('Failed: '+e.message,'error');}
+    console.error('Post request failed:',e);
+    showToast('Failed to post request: '+(e.message||'Unknown error'),'error');
   }
 };
 
@@ -5388,7 +5388,7 @@ case 'post-trip':return React.createElement('div', { className: "page",}, React.
     }, isEN?'Maybe later':isFR?'Plus tard':'Talvez mais tarde')
   );
 })():(!loggedIn||!isIdentityVerified(user))?(()=>{
-      if(!loggedIn){return React.createElement(PleaseLogin,{t,go});}
+      if(!loggedIn){return React.createElement(PW,{t:t,type:'post',onSub:()=>go('auth')});}
       // Logged in but not verified → show identity required screen inline
       return React.createElement('div',{className:'page'},
         React.createElement('div',{className:'phd'},
@@ -5411,7 +5411,7 @@ case 'post-trip':return React.createElement('div', { className: "page",}, React.
 case 'post-shipment':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "📦"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.post_ship_title), React.createElement('div', { className: "phd-sub",}, t.post_ship_sub))), React.createElement('div', { style: {padding:'0 16px 32px'},}, !loggedIn?React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),}):
     // Sender verification gate - must be verified before posting shipment
     (!loggedIn||!isIdentityVerified(user))?(()=>{
-      if(!loggedIn){return React.createElement(PleaseLogin,{t,go});}
+      if(!loggedIn){return React.createElement(PW,{t:t,type:'post',onSub:()=>go('auth')});}
       return React.createElement('div',{className:'page'},
         React.createElement('div',{className:'phd'},
           React.createElement('div',{className:'phd-icon'},'🪪'),
