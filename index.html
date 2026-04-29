@@ -2544,24 +2544,39 @@ function SettingsPage({t,user,subscribed,go,showToast,sb,setSub,onLogout}){
           user.stripeVerificationStatus==='verified'||user.identityVerificationStatus==='verified'||
           user.stripe_verification_status==='verified'||user.identity_verification_status==='verified'
         ));
+        const _startIdv=(e)=>{
+          if(e&&e.preventDefault)e.preventDefault();
+          if(e&&e.stopPropagation)e.stopPropagation();
+          if(_idv)return;
+          try{ showToast((t.verif_in_progress||'Starting identity verification...'),'success'); }catch(_e){}
+          if(typeof startStripeVerification==='function'){
+            startStripeVerification('both');
+          }else if(window.afroRouteStartIdentityVerification){
+            window.afroRouteStartIdentityVerification('both');
+          }else{
+            showToast('Verification handler is not loaded. Refresh and try again.','error');
+          }
+        };
         return React.createElement('div',{style:{background:'#fff',borderRadius:16,border:'1px solid var(--bord)',overflow:'hidden',marginBottom:16,boxShadow:'0 2px 8px rgba(0,0,0,.04)'}},
           React.createElement('div',{style:{padding:'12px 16px',background:'var(--surf2)',borderBottom:'1px solid var(--bord)',fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:12,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px'}},t.identity_section||'Identity verification'),
-          React.createElement('button',{
-            onClick:_idv?undefined:()=>startStripeVerification(),
-            title:_idv?(t.identity_verified_title||'Identity verified'):(t.start_verification||'Start verification'),
-            style:{width:'100%',padding:'16px',display:'flex',alignItems:'center',gap:12,background:'none',border:'none',cursor:_idv?'default':'pointer',textAlign:'left',fontFamily:"'Sora',sans-serif"}
-          },
-            React.createElement('div',{style:{width:44,height:44,borderRadius:12,background:_idv?'rgba(26,188,156,.12)':'rgba(245,158,11,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0}},'\uD83D\uDEAA'),
-            React.createElement('div',{style:{flex:1}},
+          React.createElement('div',{style:{width:'100%',padding:'16px',display:'flex',alignItems:'center',gap:12,background:'#fff',border:'none',textAlign:'left',fontFamily:"'Sora',sans-serif"}},
+            React.createElement('div',{style:{width:44,height:44,borderRadius:12,background:_idv?'rgba(26,188,156,.12)':'rgba(245,158,11,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0}},'🚪'),
+            React.createElement('div',{style:{flex:'1 1 auto',minWidth:0}},
               React.createElement('div',{style:{fontWeight:700,fontSize:14,color:'var(--navy)',marginBottom:4}},_idv?(t.identity_verified_title||'Identity verified'):(t.verify_your_identity||'Verify your identity')),
               React.createElement('span',{style:{display:'inline-flex',alignItems:'center',gap:4,background:_idv?'rgba(26,188,156,.12)':'rgba(245,158,11,.12)',color:_idv?'var(--succ)':'#d97706',fontWeight:700,fontSize:11,padding:'2px 8px',borderRadius:99,marginBottom:6}},
-                _idv?('\u2705 '+(t.billing_active||'Verified')):('\u23F3 '+(t.verif_pending_badge||'Pending'))
+                _idv?('✅ '+(t.billing_active||'Verified')):('⏳ '+(t.verif_pending_badge||'Pending'))
               ),
               React.createElement('div',{style:{fontSize:12,color:'var(--text3)',lineHeight:1.5,display:'block'}},
                 _idv?(t.identity_verified_body||'Your identity has been successfully verified.'):(t.verif_pending_body||'Complete verification to unlock full account access')
               )
             ),
-            !_idv&&React.createElement('div',{style:{flexShrink:0,background:'var(--green)',color:'#fff',fontWeight:700,fontSize:12,padding:'7px 14px',borderRadius:8,whiteSpace:'nowrap'}},t.start_verification||'Start verification')
+            !_idv&&React.createElement('button',{
+              type:'button',
+              'data-idv-start':'true',
+              onClick:_startIdv,
+              onTouchEnd:_startIdv,
+              style:{flex:'0 0 auto',background:'var(--green)',color:'#fff',fontWeight:800,fontSize:13,padding:'12px 16px',borderRadius:10,whiteSpace:'nowrap',border:'none',cursor:'pointer',boxShadow:'0 3px 10px rgba(26,188,156,.25)',touchAction:'manipulation',WebkitAppearance:'none'}
+            },t.start_verification||'Start verification')
           )
         );
       })()
@@ -4676,6 +4691,7 @@ const[msgView,setMsgView]=useState('list'); // mobile: 'list' or 'chat'
 const startStripeVerification=async(role)=>{
   if(!loggedIn||!user){goAfterLogin('verify-identity');return;}
   setVerifyLoading(true);
+  try{ showToast((t.verif_in_progress||'Starting identity verification...'),'success'); }catch(_e){}
   try{
     // Always refresh first so the UI is not stuck on stale Pending after webhook verification
     const latest=await refreshIdentityStatus();
@@ -4711,20 +4727,13 @@ const startStripeVerification=async(role)=>{
         localStorage.setItem('ar_identity_verify_user_id', user.id||'');
       }catch(_e){}
 
-      // Redirect using a real anchor click first, then force location as fallback.
-      // This is more reliable on iOS Safari/Chrome after async fetch calls.
-      try{
-        const a=document.createElement('a');
-        a.href=d.url;
-        a.rel='noopener';
-        a.style.display='none';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(()=>{ try{document.body.removeChild(a);}catch(_e){} },1000);
-      }catch(_e){
-        window.location.href=d.url;
-      }
-      setTimeout(()=>{ window.location.href=d.url; },250);
+      try{ showToast('Opening Stripe Identity...','success'); }catch(_e){}
+      // Mobile-safe same-tab redirect. This should not be blocked by Safari/Chrome.
+      setTimeout(()=>{
+        try{ window.location.assign(d.url); }
+        catch(_e){ window.location.href=d.url; }
+      },50);
+      return;
     }else if(d.already_verified){
       await refreshIdentityStatus();
       showToast(t.identity_verified_title||'Identity verified','success');
@@ -4737,6 +4746,7 @@ const startStripeVerification=async(role)=>{
     setVerifyLoading(false);
   }
 };
+try{ window.afroRouteStartIdentityVerification=startStripeVerification; }catch(_e){}
 
 const verifyDeviceCode=async()=>{
   if(!deviceVerify||!deviceVerify.code)return;
