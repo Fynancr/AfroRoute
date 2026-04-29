@@ -2830,40 +2830,43 @@ const sb = {
   _token:null,_user:null,
   async signUp(_rawEmail,password,name,country,wa){
     const email=(_rawEmail||'').trim().toLowerCase();
-    const r=await fetch(`${SUPABASE_URL}/auth/v1/signup`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email,password,data:{name,country,wa},options:{emailRedirectTo:AUTH_CALLBACK_URL}})});
-    const d=await r.json();if(d.error)throw new Error(d.error.message||d.msg||'Signup failed');
-    if(d.access_token){sb._token=d.access_token;sb._user=d.user;}
-    // Always send confirmation email via Resend regardless of Supabase SMTP settings. Non-fatal.
-    try{
-      console.log('Sending signup confirmation email to', email);
-      const cr=await fetch('/api/send-confirmation-email',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({email,redirectTo:AUTH_CALLBACK_URL})
-      });
-      const cd=await cr.json().catch(()=>({success:false,error:'Invalid JSON response'}));
-      console.log('Signup confirmation API response', {status:cr.status, result:cd});
-      if(!cr.ok||cd.success!==true){console.warn('Custom confirmation email failed:',cd.error||cr.status);}
-    }catch(_e){console.warn('Custom confirmation email failed:',_e.message);}
-    // Mark as needing confirmation if no session returned
-    if(!d.access_token){d._needsConfirmation=true;}
-    return d;},
+    if(!email||!email.includes('@'))throw new Error('Valid email required');
+    if(!password||password.length<8)throw new Error('Password must be at least 8 characters');
+
+    // IMPORTANT: create the Supabase user and confirmation link on the server in one step.
+    // This avoids the broken flow where the frontend creates the user first, then the API tries
+    // to generate a signup link for an already-existing user and returns "Could not generate confirmation link. This usually means the account already exists or the server signup endpoint is not deployed. Try logging in or resetting your password.".
+    const r=await fetch('/api/signup-and-send-confirmation',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        email,
+        password,
+        name:name||'',
+        country:country||'',
+        wa:wa||'',
+        redirectTo:AUTH_CALLBACK_URL
+      })
+    });
+    const d=await r.json().catch(()=>({success:false,error:'Invalid server response'}));
+    console.log('Signup confirmation API response',{status:r.status,result:d});
+    if(!r.ok||d.success!==true){
+      const msg=d.error||d.message||'Signup failed. Please try again.';
+      throw new Error(msg);
+    }
+    return {
+      user:d.user||{email,user_metadata:{name,country,wa}},
+      _needsConfirmation:true,
+      confirmation_sent:true
+    };
+  },
   async resendConfirmation(email){
     const clean=(email||'').trim().toLowerCase();
-    if(!clean)throw new Error('Missing email');
-    let nativeStatus=null,nativeOk=false,nativeError=null;
-    try{
-      const redirect=encodeURIComponent(AUTH_CALLBACK_URL);
-      const r=await fetch(`${SUPABASE_URL}/auth/v1/resend?redirect_to=${redirect}`,{
-        method:'POST',headers:sb._headers(),body:JSON.stringify({type:'signup',email:clean})
-      });
-      nativeStatus=r.status;
-      const d=await r.json().catch(()=>({}));
-      nativeOk=r.ok&&!d.error;
-      if(!nativeOk)nativeError=d.error?.message||d.msg||d.error_description||`Native resend failed (${r.status})`;
-    }catch(e){nativeError=e.message||'Native resend failed';}
+    if(!clean||!clean.includes('@'))throw new Error('Missing valid email');
 
     const rr=await fetch('/api/send-confirmation-email',{
-      method:'POST',headers:{'Content-Type':'application/json'},
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({email:clean,redirectTo:AUTH_CALLBACK_URL})
     });
     const dd=await rr.json().catch(()=>({success:false,error:'Invalid JSON response'}));
@@ -2871,12 +2874,16 @@ const sb = {
       success: rr.ok && dd.success===true,
       customStatus: rr.status,
       customResponse: dd,
-      nativeStatus,
-      nativeOk,
-      nativeError
+      nativeStatus:null,
+      nativeOk:null,
+      nativeError:null
     };
-    if(!result.success){throw new Error(dd.error||nativeError||`Could not send confirmation email (API ${rr.status})`);}
-    return result;},
+    console.log('Resend confirmation API response',result);
+    if(!result.success){
+      throw new Error(dd.error||dd.message||`Could not send confirmation email (API ${rr.status})`);
+    }
+    return result;
+  },
   async resetPassword(email){
     const redirectTo=`${AUTH_CALLBACK_URL}?type=recovery`;
     const r=await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email:(email||'').trim().toLowerCase()})});
@@ -5018,8 +5025,10 @@ useEffect(()=>{
               setAppLoading(false);
               // Route auth callbacks safely
               if(_type==='recovery'){ setPage('reset-password'); }
-              else if(_type==='signup'){ setMode('account-created'); setPage('auth'); }
-              else { setPage('home'); }
+              else {
+                showToast(tx?tx('Email confirmado! Bem-vindo à AfroRoute.','Email confirmed! Welcome to AfroRoute.','E-mail confirmé ! Bienvenue sur AfroRoute.'):'Email confirmed! Welcome to AfroRoute.','success');
+                setPage('account');
+              }
               return;
             }
           }catch(_authErr){
