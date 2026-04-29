@@ -1,4 +1,8 @@
-Content-Security-Policy" content="manifest-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com https://*.supabase.co;">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Security-Policy" content="manifest-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com https://*.supabase.co;">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2061,13 +2065,8 @@ function AuthPage({t,onLogin,go,initialMode}){
       if(!signupEmail){return;}
       setResendLoading(true);setResendMsg('');setResendErr('');
       try{
-        const r=await fetch('/api/send-confirmation-email',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({email:signupEmail})
-        });
-        const d=await r.json();
-        if(!r.ok||!d.success)throw new Error(d.error||'Could not resend');
+        // Use Supabase native resend — goes through configured SMTP (Resend)
+        await sb.resendConfirmation(signupEmail);
         setResendMsg(t.confirm_sent||'Confirmation email sent. Please check your inbox and spam folder.');
       }catch(e){
         setResendErr(t.confirm_sent_err||'We could not resend the confirmation email. Please try again or contact support.');
@@ -2750,11 +2749,21 @@ const sb = {
   _token:null,_user:null,
   async signUp(_rawEmail,password,name,country,wa){
     const email=(_rawEmail||'').trim().toLowerCase();
-    const r=await fetch(`${SUPABASE_URL}/auth/v1/signup`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email,password,data:{name,country,wa},options:{emailRedirectTo:'https://www.afroroute.com'}})});
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/signup`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email,password,data:{name,country,wa},options:{emailRedirectTo:'https://www.afroroute.com/?verify=1'}})});
     const d=await r.json();if(d.error)throw new Error(d.error.message||d.msg||'Signup failed');
-    if(d.access_token){sb._token=d.access_token;sb._user=d.user;}return d;},
+    if(d.access_token){sb._token=d.access_token;sb._user=d.user;}
+    // Always send confirmation email via Resend regardless of Supabase SMTP settings
+    try{
+      await fetch('/api/send-confirmation-email',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email})
+      });
+    }catch(_e){console.log('Confirmation email send failed (non-fatal):',_e.message);}
+    // Mark as needing confirmation if no session returned
+    if(!d.access_token){d._needsConfirmation=true;}
+    return d;},
   async resendConfirmation(email){
-    const r=await fetch(`${SUPABASE_URL}/auth/v1/resend`,{method:'POST',headers:sb._headers(),body:JSON.stringify({type:'signup',email:email.trim().toLowerCase(),options:{emailRedirectTo:'https://www.afroroute.com'}})});
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/resend`,{method:'POST',headers:sb._headers(),body:JSON.stringify({type:'signup',email:email.trim().toLowerCase(),options:{emailRedirectTo:'https://www.afroroute.com/?verify=1'}})});
     const d=await r.json();if(d.error)throw new Error(d.error.message||'Could not resend');return d;},
   async checkEmailConfirmed(email){
     // Try signing in — if email_not_confirmed error, not confirmed yet
@@ -4857,6 +4866,18 @@ useEffect(()=>{
           }catch(_authErr){
             console.log('Auth callback error:',_authErr.message);
           }
+        }
+      }catch(_e){}
+
+      // Handle email confirmation return (?verify=1 means user clicked Supabase confirmation link)
+      try{
+        const _vfy = new URLSearchParams(window.location.search).get('verify');
+        if(_vfy==='1'){
+          window.history.replaceState({},document.title,window.location.pathname);
+          // Session will be set by Supabase — just show a welcome toast
+          showToast(tx
+            ?tx('Email confirmado! Bem-vindo à AfroRoute.','Email confirmed! Welcome to AfroRoute.','E-mail confirmé ! Bienvenue sur AfroRoute.')
+            :'Email confirmed! Welcome to AfroRoute.','success');
         }
       }catch(_e){}
 
