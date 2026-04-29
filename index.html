@@ -1752,6 +1752,11 @@ function AuthPage({t,onLogin,go,initialMode}){
   const[verifyLoading,setVerifyLoading]=React.useState(false);
   const[pendingUserId,setPendingUserId]=React.useState(null);
   const[pendingUserEmail,setPendingUserEmail]=React.useState('');
+  const[resendLoading,setResendLoading]=React.useState(false);
+  const[resendMsg,setResendMsg]=React.useState('');
+  const[resendErr,setResendErr]=React.useState('');
+  const[checkLoading,setCheckLoading]=React.useState(false);
+  const[notConfirmedMsg,setNotConfirmedMsg]=React.useState('');
   
   
   
@@ -2018,6 +2023,17 @@ function AuthPage({t,onLogin,go,initialMode}){
     finally{setL(false);}
   };
 
+
+  const sendPasswordReset=async()=>{
+    if(!f.email||!/\S+@\S+\.\S+/.test(f.email)){setOtpError(tx('Introduz o teu email primeiro','Enter your email first','Entre ton email d’abord'));return;}
+    setOtpError('');setL(true);
+    try{
+      await sb.resetPassword(f.email);
+      setOtpError(tx('Email de recuperação enviado. Verifica a caixa de entrada e spam.','Password reset email sent. Check your inbox and spam folder.','E-mail de réinitialisation envoyé. Vérifiez votre boîte de réception et le spam.'));
+    }catch(ex){setOtpError(ex.message||tx('Não foi possível enviar o email de recuperação.','Could not send password reset email.','Impossible d’envoyer l’e-mail de réinitialisation.'));}
+    setL(false);
+  };
+
   const stepLabels=[
     tx('Dados','Info','Infos'),
     tx('Telefone','Phone','Téléphone'),
@@ -2046,7 +2062,7 @@ function AuthPage({t,onLogin,go,initialMode}){
           className:'btn-auth'
         },t.start_exploring||tx('Começar a explorar','Start exploring','Commencer à explorer')),
         React.createElement('button',{
-          onClick:()=>{ startStripeVerification('both'); go('home'); },
+          onClick:()=>go('verify-identity-required'),
           style:{width:'100%',marginTop:10,background:'none',border:'1.5px solid var(--green)',color:'var(--green)',padding:'12px',borderRadius:11,fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif"}
         },t.verify_now||tx('Verificar identidade agora','Verify identity now',"Vérifier l'identité maintenant"))
       )
@@ -2055,12 +2071,6 @@ function AuthPage({t,onLogin,go,initialMode}){
 
   // ── Email confirmation screen ──
   if(signupDone){
-    const[resendLoading,setResendLoading]=React.useState(false);
-    const[resendMsg,setResendMsg]=React.useState('');
-    const[resendErr,setResendErr]=React.useState('');
-    const[checkLoading,setCheckLoading]=React.useState(false);
-    const[notConfirmedMsg,setNotConfirmedMsg]=React.useState('');
-
     const handleResend=async()=>{
       if(!signupEmail){return;}
       setResendLoading(true);setResendMsg('');setResendErr('');
@@ -2080,7 +2090,7 @@ function AuthPage({t,onLogin,go,initialMode}){
         // Try to sign in — if email confirmed, Supabase returns a session
         const r=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{
           method:'POST',headers:sb._headers(),
-          body:JSON.stringify({email:signupEmail,password:f.pass})
+          body:JSON.stringify({email:signupEmail,password:f.password})
         });
         const d=await r.json();
         if(d.access_token){
@@ -2202,6 +2212,7 @@ function AuthPage({t,onLogin,go,initialMode}){
             React.createElement('label',{className:'fl'},tx('Password','Password','Mot de passe'),'*'),
             React.createElement('input',{className:`fi ${errors.password?'err':''}`,type:'password',value:f.password,onChange:e=>s('password',e.target.value),placeholder:'••••••••',onKeyDown:e=>e.key==='Enter'&&submitLogin()})
           ),
+          !otpSent&&React.createElement('button',{type:'button',onClick:sendPasswordReset,style:{alignSelf:'flex-end',background:'none',border:'none',color:'var(--green)',fontWeight:700,fontSize:12,cursor:'pointer',padding:'2px 0 10px'}},t.forgot_pass||tx('Esqueceste a password?','Forgot password?','Mot de passe oublié ?')),
           errors.email&&React.createElement('div',{className:'ferr'},'⚠ ',errors.email),
           otpSent&&React.createElement('div',{style:{background:'var(--gpale)',border:'1px solid var(--gborder)',borderRadius:12,padding:14,marginBottom:12}},
             React.createElement('div',{style:{fontSize:13,color:'var(--text2)',marginBottom:10}},tx('Código enviado para ','Code sent to ','Code envoyé à '),React.createElement('strong',null,f.email)),
@@ -2393,6 +2404,49 @@ return React.createElement('div', { className: "modal-ov", onClick: onClose,}, R
     )
   )
 ));}
+
+function ResetPasswordPage({t,go,sb,showToast}){
+  const lang=_optionalChain([t,'optionalAccess',_=>_.lang])||'pt';
+  const isEN=lang==='English'; const isFR=lang==='Français';
+  const tx=(pt,en,fr)=>isFR?fr:isEN?en:pt;
+  const[p1,setP1]=React.useState('');
+  const[p2,setP2]=React.useState('');
+  const[loading,setLoading]=React.useState(false);
+  const[error,setError]=React.useState('');
+  const[done,setDone]=React.useState(false);
+  const submit=async()=>{
+    setError('');
+    if(!p1||p1.length<8){setError(tx('A password deve ter pelo menos 8 caracteres.','Password must be at least 8 characters.','Le mot de passe doit contenir au moins 8 caractères.'));return;}
+    if(p1!==p2){setError(tx('As passwords não coincidem.','Passwords do not match.','Les mots de passe ne correspondent pas.'));return;}
+    setLoading(true);
+    try{
+      await sb.updatePassword(p1);
+      setDone(true);
+      showToast&&showToast(tx('Password atualizada.','Password updated.','Mot de passe mis à jour.'),'success');
+    }catch(e){setError(e.message||tx('Não foi possível atualizar a password.','Could not update password.','Impossible de mettre à jour le mot de passe.'));}
+    setLoading(false);
+  };
+  return React.createElement('div',{className:'page',style:{display:'flex',justifyContent:'center',padding:'24px 16px'}},
+    React.createElement('div',{style:{width:'100%',maxWidth:440,background:'#fff',borderRadius:20,boxShadow:'0 4px 24px rgba(0,0,0,.10)',overflow:'hidden'}},
+      React.createElement('div',{style:{background:'linear-gradient(135deg,#0A2540,#0d6e5b)',padding:'26px 20px',textAlign:'center'}},
+        React.createElement('div',{style:{fontSize:46,marginBottom:10}},done?'✅':'🔐'),
+        React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:20,color:'#fff'}},done?tx('Password atualizada','Password updated','Mot de passe mis à jour'):tx('Criar nova password','Create new password','Créer un nouveau mot de passe')),
+        React.createElement('div',{style:{fontSize:13,color:'rgba(255,255,255,.72)',marginTop:6,lineHeight:1.6}},done?tx('Já podes iniciar sessão com a nova password.','You can now sign in with your new password.','Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.'):tx('Escolhe uma nova password segura para a tua conta AfroRoute.','Choose a secure new password for your AfroRoute account.','Choisissez un nouveau mot de passe sécurisé pour votre compte AfroRoute.'))
+      ),
+      React.createElement('div',{style:{padding:'20px 16px'}},
+        done?React.createElement('button',{className:'btn-auth',onClick:()=>go('auth')},tx('Ir para login','Go to login','Aller à la connexion')):
+        React.createElement(React.Fragment,null,
+          React.createElement('div',{className:'ff'},React.createElement('label',{className:'fl'},tx('Nova password','New password','Nouveau mot de passe')),React.createElement('input',{className:'fi',type:'password',value:p1,onChange:e=>setP1(e.target.value),placeholder:'••••••••',autoFocus:true})),
+          React.createElement('div',{className:'ff'},React.createElement('label',{className:'fl'},tx('Confirmar password','Confirm password','Confirmer le mot de passe')),React.createElement('input',{className:'fi',type:'password',value:p2,onChange:e=>setP2(e.target.value),placeholder:'••••••••',onKeyDown:e=>e.key==='Enter'&&submit()})),
+          error&&React.createElement('div',{className:'ferr',style:{marginBottom:10}},'⚠ ',error),
+          React.createElement('button',{className:'btn-auth',onClick:submit,disabled:loading},loading?'…':tx('Atualizar password','Update password','Mettre à jour le mot de passe')),
+          React.createElement('button',{onClick:()=>go('auth'),style:{width:'100%',marginTop:10,background:'none',border:'none',color:'var(--text3)',fontSize:13,cursor:'pointer',padding:'8px'}},tx('← Voltar ao login','← Back to login','← Retour à la connexion'))
+        )
+      )
+    )
+  );
+}
+
 function SettingsPage({t,user,subscribed,go,showToast,sb,setSub,onLogout}){
   const[deleteConfirm,setDeleteConfirm]=React.useState(false);
   const[deleting,setDeleting]=React.useState(false);
@@ -2612,7 +2666,7 @@ function MyListingsPage({t,items,type,go,sb,user,showToast,loadListings}){
   );
 }
 
-function ProfilePage({t,user,subscribed,savedIds,trips=[],ships=[],onLogout,onSubscribe,go,goAfterLogin,onSaveProfile,setUser,showToast,sb,phoneVerified,setPhoneModal}){
+function ProfilePage({t,user,subscribed,savedIds,trips=[],ships=[],onLogout,onSubscribe,go,goAfterLogin,onSaveProfile,setUser,showToast,sb,phoneVerified,setPhoneModal,startStripeVerification}){
 const[editing,setEditing]=useState(false);const[ef,setEF]=useState({name:_optionalChain([user, 'optionalAccess', _10 => _10.name])||'',country:_optionalChain([user, 'optionalAccess', _11 => _11.country])||'',bio:'',wa:_optionalChain([user, 'optionalAccess', _12 => _12.wa])||'',payout_method:_optionalChain([user,'optionalAccess',_=>_.payout_method])||'',payout_fields:_optionalChain([user,'optionalAccess',_=>_.payout_fields])||{}});
 React.useEffect(()=>{if(user){setEF(prev=>({...prev,name:user.name||prev.name,country:user.country||prev.country,wa:user.wa||prev.wa,payout_method:user.payout_method||prev.payout_method||'',payout_fields:user.payout_fields||prev.payout_fields||{}}));}},[user]);
 const handleAvatarChange=(e)=>{
@@ -2749,7 +2803,7 @@ const sb = {
   _token:null,_user:null,
   async signUp(_rawEmail,password,name,country,wa){
     const email=(_rawEmail||'').trim().toLowerCase();
-    const r=await fetch(`${SUPABASE_URL}/auth/v1/signup`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email,password,data:{name,country,wa},options:{emailRedirectTo:'https://www.afroroute.com/?verify=1'}})});
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/signup`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email,password,data:{name,country,wa},options:{emailRedirectTo:'https://www.afroroute.com/auth/callback'}})});
     const d=await r.json();if(d.error)throw new Error(d.error.message||d.msg||'Signup failed');
     if(d.access_token){sb._token=d.access_token;sb._user=d.user;}
     // Always send confirmation email via Resend regardless of Supabase SMTP settings
@@ -2763,8 +2817,21 @@ const sb = {
     if(!d.access_token){d._needsConfirmation=true;}
     return d;},
   async resendConfirmation(email){
-    const r=await fetch(`${SUPABASE_URL}/auth/v1/resend`,{method:'POST',headers:sb._headers(),body:JSON.stringify({type:'signup',email:email.trim().toLowerCase(),options:{emailRedirectTo:'https://www.afroroute.com/?verify=1'}})});
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/resend`,{method:'POST',headers:sb._headers(),body:JSON.stringify({type:'signup',email:email.trim().toLowerCase(),options:{emailRedirectTo:'https://www.afroroute.com/auth/callback'}})});
     const d=await r.json();if(d.error)throw new Error(d.error.message||'Could not resend');return d;},
+  async resetPassword(email){
+    const redirectTo='https://www.afroroute.com/auth/callback?type=recovery';
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email:(email||'').trim().toLowerCase()})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.error)throw new Error(d.error?.message||d.msg||d.error_description||'Could not send reset password email');
+    return d;
+  },
+  async updatePassword(newPassword){
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/user`,{method:'PUT',headers:sb._headers(),body:JSON.stringify({password:newPassword})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.error)throw new Error(d.error?.message||d.msg||d.error_description||'Could not update password');
+    return d;
+  },
   async checkEmailConfirmed(email){
     // Try signing in — if email_not_confirmed error, not confirmed yet
     // We can't check directly without password, so we use getUser after refreshSession
@@ -4533,38 +4600,55 @@ const refreshIdentityStatus=async()=>{
         identityVerificationStatus:profile.identity_verification_status||'',
         stripe_verification_session_id:profile.stripe_verification_session_id||'',
       }));
+      return profile;
     }
   }catch(_e){console.log('refreshIdentityStatus:',_e.message);}
+  return null;
 };
 const[verifyLoading,setVerifyLoading]=useState(false);
 const[msgView,setMsgView]=useState('list'); // mobile: 'list' or 'chat'
 // goAfterLogin: go somewhere, but redirect through login if not authenticated
 const startStripeVerification=async(role)=>{
   if(!loggedIn||!user){goAfterLogin('verify-identity');return;}
-  // Don't start if already verified
-  if(isIdentityVerified(user)){showToast(t.identity_verified_title||'Already verified','info');return;}
   setVerifyLoading(true);
   try{
+    // Always refresh first so the UI is not stuck on stale Pending after webhook verification
+    const latest=await refreshIdentityStatus();
+    const latestVerified=!!(latest&&(latest.is_verified_traveler||latest.is_traveler_verified||latest.is_sender_verified||latest.stripe_verification_status==='verified'||latest.identity_verification_status==='verified'));
+    if(isIdentityVerified(user)||latestVerified){
+      showToast(t.identity_verified_title||'Identity verified','success');
+      setVerifyLoading(false);
+      return;
+    }
     const token=localStorage.getItem('ar_tok')||'';
     const r=await fetch('/api/create-verification-session',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({userId:user.id,email:user.email,role:role||'both'})
     });
-    const d=await r.json();
-    if(!r.ok)throw new Error(d.error||'Could not start verification');
-    if(d.url && typeof d.url==='string' && d.url.startsWith('https://')){
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){
+      const msg=d.error||'Could not start verification';
+      if(String(msg).toLowerCase().includes('already verified')){
+        await refreshIdentityStatus();
+        showToast(t.identity_verified_title||'Identity verified','success');
+        setVerifyLoading(false);
+        return;
+      }
+      throw new Error(msg);
+    }
+    if(d.url && typeof d.url==='string' && d.url.startsWith('https://verify.stripe.com/')){
       setStripeVerifyUrl&&setStripeVerifyUrl(d.url);
-      // For profile page verification, open directly — user tapped a button already
       window.location.assign(d.url);
     }else if(d.already_verified){
-      // Re-fetch profile to get latest verified status
       await refreshIdentityStatus();
+      showToast(t.identity_verified_title||'Identity verified','success');
     }else{
       throw new Error('No verification URL returned');
     }
   }catch(e){
     showToast((t.verif_needs_attention||'Verification error')+': '+e.message,'error');
+  }finally{
     setVerifyLoading(false);
   }
 };
@@ -4778,6 +4862,22 @@ useEffect(()=>{
   (async()=>{
     // Handle Stripe payment redirect
     const urlParams = new URLSearchParams(window.location.search);
+    // Handle Supabase password recovery before generic auth callback so it does not fall through to home
+    try{
+      const _hashParams = window.location.hash ? new URLSearchParams(window.location.hash.substring(1)) : null;
+      const _searchParams = new URLSearchParams(window.location.search);
+      const _recoveryType = (_hashParams&&_hashParams.get('type')) || _searchParams.get('type');
+      const _access = _hashParams&&_hashParams.get('access_token');
+      const _refresh = _hashParams&&_hashParams.get('refresh_token');
+      if(_recoveryType==='recovery' && _access){
+        sb._token=_access;
+        try{localStorage.setItem('ar_tok',_access); if(_refresh)localStorage.setItem('ar_ref',_refresh);}catch(_e){}
+        window.history.replaceState({},document.title,'/');
+        setPage('reset-password');
+        setAppLoading(false);
+        return;
+      }
+    }catch(_recoverErr){console.log('Recovery callback:',_recoverErr.message);}
     const paymentStatus = urlParams.get('payment');
     if(paymentStatus === 'success'){
       window.history.replaceState(null, '', window.location.pathname);
@@ -4858,8 +4958,9 @@ useEffect(()=>{
                 subscription_status:_profile?.subscription_status||'active',
               });
               setAppLoading(false);
-              // Show account-created or home
-              if(_type==='signup'){ setMode('account-created'); setPage('auth'); }
+              // Route auth callbacks safely
+              if(_type==='recovery'){ setPage('reset-password'); }
+              else if(_type==='signup'){ setMode('account-created'); setPage('auth'); }
               else { setPage('home'); }
               return;
             }
@@ -5493,6 +5594,7 @@ case 'messages':return React.createElement('div', { className: "page", style: {p
     )
   ));
 
+case 'reset-password':return React.createElement(ResetPasswordPage,{t:t,go:go,sb:sb,showToast:showToast});
 case 'pricing':return React.createElement(PricingPage, { go: go, lang: lang, onSubscribe: handleSubscribe, onLoggedIn: loggedIn, upgradeReason: upgradeReason, user: user, trips: trips, ships: ships, onNeedLogin: (dest)=>{setPendingRedirect(dest||'pricing');go('auth');},});
 case 'verify-device':go('home');return null;
     
@@ -5585,7 +5687,7 @@ case 'verify-device':go('home');return null;
 
     case 'signup':return React.createElement('div', { className: "page", style: {display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:20},}, React.createElement(AuthPage, { initialMode: 'signup', t: t, onLogin: handleLogin, go: go,}));
 case 'auth':return React.createElement('div', { className: "page", style: {display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:20},}, React.createElement(AuthPage, { t: t, onLogin: handleLogin, go: go,}));
-case 'profile':return !loggedIn?React.createElement('div', { className: "page", style: {padding:'16px'},}, React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),})):React.createElement('div', { className: "page",}, React.createElement(ProfilePage, { t: t, user: user, subscribed: subscribed, savedIds: savedIds, trips: trips, ships: ships, onLogout: handleLogout, onSubscribe: ()=>go('pricing'), go: go, goAfterLogin: goAfterLogin, onSaveProfile: handleSaveProfile, setUser: setUser, showToast: showToast, sb: sb, phoneVerified: phoneVerified, setPhoneModal: setPhoneModal,}));
+case 'profile':return !loggedIn?React.createElement('div', { className: "page", style: {padding:'16px'},}, React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),})):React.createElement('div', { className: "page",}, React.createElement(ProfilePage, { t: t, user: user, subscribed: subscribed, savedIds: savedIds, trips: trips, ships: ships, onLogout: handleLogout, onSubscribe: ()=>go('pricing'), go: go, goAfterLogin: goAfterLogin, onSaveProfile: handleSaveProfile, setUser: setUser, showToast: showToast, sb: sb, phoneVerified: phoneVerified, setPhoneModal: setPhoneModal, startStripeVerification: startStripeVerification,}));
 case 'my-trips':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "✈️"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, "My Trips" ), React.createElement('div', { className: "phd-sub",}, trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _106 => _106.id])).length, " trips posted"  ))), React.createElement(MyListingsPage, { t: t, items: trips.filter(tr=>!tr.isDemo&&tr.user_id===_optionalChain([user, 'optionalAccess', _107 => _107.id])), type: "trip", go: go, sb: sb, user: user, showToast: showToast, loadListings: loadListings,}));
 case 'my-requests':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "📦"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, "My Requests" ), React.createElement('div', { className: "phd-sub",}, ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _108 => _108.id])).length, " requests posted"  ))), React.createElement(MyListingsPage, { t: t, items: ships.filter(sh=>!sh.isDemo&&sh.user_id===_optionalChain([user, 'optionalAccess', _109 => _109.id])), type: "ship", go: go, sb: sb, user: user, showToast: showToast, loadListings: loadListings,}));
 case 'settings':return React.createElement('div', { className: "page",}, React.createElement(SettingsPage, { t: t, user: user, subscribed: subscribed, go: go, showToast: showToast, sb: sb, setSub: setSub, onLogout: handleLogout,}));
