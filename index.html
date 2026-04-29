@@ -2898,6 +2898,69 @@ const sb = {
   }
 };
 
+
+// ── Supabase client compatibility layer ───────────────────────────────
+// Some older app code calls sb.client.rpc(...) / sb.client.from(...).
+// This bridge prevents blank pages by routing those calls through the app's sb wrapper.
+sb.rpc = async function rpc(functionName, args = {}) {
+  try {
+    const r = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + encodeURIComponent(functionName), {
+      method: "POST",
+      headers: { ...sb._headers(), "Prefer": "return=representation" },
+      body: JSON.stringify(args || {})
+    });
+    const text = await r.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (_) { data = text || null; }
+    if (!r.ok) return { data: null, error: { message: text || ("RPC " + functionName + " failed (" + r.status + ")"), status: r.status } };
+    return { data, error: null };
+  } catch (e) {
+    return { data: null, error: { message: e.message || ("RPC " + functionName + " failed") } };
+  }
+};
+
+sb.client = {
+  rpc: (functionName, args) => sb.rpc(functionName, args),
+  from(table) {
+    const state = { table, select: "*", filters: [] };
+    const chain = {
+      select(cols = "*") { state.select = cols || "*"; return chain; },
+      eq(col, val) { state.filters.push(encodeURIComponent(col) + "=eq." + encodeURIComponent(val)); return chain; },
+      async maybeSingle() {
+        try {
+          const rows = await sb.select(state.table, state.select, state.filters.join("&"));
+          return { data: Array.isArray(rows) ? (rows[0] || null) : (rows || null), error: null };
+        } catch (e) { return { data: null, error: { message: e.message || "Select failed" } }; }
+      },
+      async insert(body) {
+        try { return { data: await sb.insert(state.table, body), error: null }; }
+        catch (e) { return { data: null, error: { message: e.message || "Insert failed" } }; }
+      },
+      async upsert(body, opts = {}) {
+        try {
+          const headers = { ...sb._headers(), "Prefer": "resolution=merge-duplicates,return=representation" };
+          const url = SUPABASE_URL + "/rest/v1/" + state.table + (opts.onConflict ? ("?on_conflict=" + encodeURIComponent(opts.onConflict)) : "");
+          const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+          const text = await r.text();
+          let data = null;
+          try { data = text ? JSON.parse(text) : null; } catch (_) { data = text || null; }
+          if (!r.ok) return { data: null, error: { message: text || "Upsert failed", status: r.status } };
+          return { data, error: null };
+        } catch (e) { return { data: null, error: { message: e.message || "Upsert failed" } }; }
+      },
+      async update(body) {
+        try { return { data: await sb.update(state.table, body, state.filters.join("&")), error: null }; }
+        catch (e) { return { data: null, error: { message: e.message || "Update failed" } }; }
+      },
+      async delete() {
+        try { return { data: await sb.delete(state.table, state.filters.join("&")), error: null }; }
+        catch (e) { return { data: null, error: { message: e.message || "Delete failed" } }; }
+      }
+    };
+    return chain;
+  }
+};
+
 // ══════════════════════════════════════════════════════════
 // STRIPE HELPER
 // ══════════════════════════════════════════════════════════
@@ -5066,7 +5129,10 @@ const handleSaveProfile=async(updated)=>{
 
 const handlePostTrip=async(form)=>{
   try{
-    // Free-plan limit RPC temporarily bypassed: direct insert keeps posting stable.
+    // Server-side limit check via Supabase RPC
+    const {data:canPost,error:rpcErr}=await sb.client.rpc('can_create_trip',{p_user_id:user.id});
+    if(rpcErr){console.error('RPC error:',rpcErr.message);}
+    if(canPost===false){goUpgrade('free_limit_reached');return;}
     await sb.insert('trips',{user_id:user.id,from_country:form.from,from_city:form.fc,to_country:form.to,to_city:form.tc,travel_date:form.date,airline:form.airline,kg_available:parseFloat(form.kg),price_per_kg:form.open?null:parseFloat(form.price),open_to_offers:form.open,categories:form.cats,notes:form.notes,status:form.status});
     showToast(t.toast_trip_posted);loadListings();go('profile');
   }catch(e){
@@ -5077,7 +5143,10 @@ const handlePostTrip=async(form)=>{
 
 const handlePostShip=async(form)=>{
   try{
-    // Free-plan limit RPC temporarily bypassed: direct insert keeps posting stable.
+    // Server-side limit check via Supabase RPC
+    const {data:canPost,error:rpcErr}=await sb.client.rpc('can_create_shipment',{p_user_id:user.id});
+    if(rpcErr){console.error('RPC error:',rpcErr.message);}
+    if(canPost===false){goUpgrade('free_limit_reached');return;}
     await sb.insert('shipments',{user_id:user.id,from_country:form.from,from_city:form.fc,to_country:form.to,to_city:form.tc,preferred_date:form.pref_date,category:form.category,weight_kg:parseFloat(form.kg),budget_per_kg:parseFloat(form.budget),description:form.desc,is_urgent:form.urgent,status:form.status});
     showToast(t.toast_ship_posted);loadListings();go('profile');
   }catch(e){
