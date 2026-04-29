@@ -1309,8 +1309,6 @@ window.addEventListener('appinstalled', function() {
   window.__pwaInstallEvent = null;
 });
 </script>
-
-</script>
 <script>
 if('serviceWorker' in navigator){
   window.addEventListener('load', function(){
@@ -5387,47 +5385,56 @@ case 'post-trip':return React.createElement('div', { className: "page",}, React.
       style:{background:'none',color:'rgba(255,255,255,.4)',border:'none',fontSize:12,cursor:'pointer',padding:'6px',fontFamily:"'Sora',sans-serif"}
     }, isEN?'Maybe later':isFR?'Plus tard':'Talvez mais tarde')
   );
-})():(!loggedIn||!isIdentityVerified(user))?(()=>{
-      if(!loggedIn){return React.createElement(PW,{t:t,type:'post',onSub:()=>go('auth')});}
-      // Logged in but not verified → show identity required screen inline
-      return React.createElement('div',{className:'page'},
-        React.createElement('div',{className:'phd'},
-          React.createElement('div',{className:'phd-icon'},'🪪'),
-          React.createElement('div',null,
-            React.createElement('div',{className:'phd-title'},t.identity_required_title||'Identity verification required'),
-            React.createElement('div',{className:'phd-sub'},'AfroRoute')
-          )
+})():(!isIdentityVerified(user))?(()=>{
+      // Logged in but not verified → show identity required screen inline (no extra div.page wrapper)
+      return React.createElement('div',{style:{padding:'24px 16px',maxWidth:440,margin:'0 auto'}},
+        React.createElement('div',{style:{background:'rgba(245,158,11,.06)',border:'1px solid rgba(245,158,11,.2)',borderRadius:14,padding:'18px',marginBottom:20,fontSize:14,color:'var(--text2)',lineHeight:1.7,textAlign:'center'}},
+          React.createElement('div',{style:{fontSize:36,marginBottom:10}},'🔐'),
+          React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:16,color:'var(--navy)',marginBottom:8}},t.identity_required_title||'Identity verification required'),
+          React.createElement('p',null,t.identity_required_body||tx('Para publicar, verifica primeiro a tua identidade.','To post, please verify your identity first.','Pour publier, veuillez d\'abord vérifier votre identité.'))
         ),
-        React.createElement('div',{style:{padding:'24px 16px',maxWidth:440,margin:'0 auto'}},
-          React.createElement('div',{style:{background:'rgba(245,158,11,.06)',border:'1px solid rgba(245,158,11,.2)',borderRadius:14,padding:'18px',marginBottom:20,fontSize:14,color:'var(--text2)',lineHeight:1.7,textAlign:'center'}},
-            React.createElement('div',{style:{fontSize:36,marginBottom:10}},'🔐'),
-            React.createElement('p',null,t.identity_required_body||tx('Para publicar, verifica primeiro a tua identidade.','To post, please verify your identity first.','Pour publier, veuillez d\'abord vérifier votre identité.'))
-          ),
-          React.createElement('button',{onClick:()=>startStripeVerification('both'),style:{width:'100%',background:'var(--green)',color:'#fff',border:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:15,cursor:'pointer',fontFamily:"'Sora',sans-serif",marginBottom:10}},'🪪 '+(t.verify_with_stripe||'Verify identity with Stripe')),
-          React.createElement('button',{onClick:()=>go('home'),style:{width:'100%',background:'none',border:'1.5px solid var(--bord)',color:'var(--text2)',padding:'12px',borderRadius:11,fontWeight:600,fontSize:14,cursor:'pointer'}},'← '+tx('Voltar','Back','Retour'))
-        )
+        React.createElement('button',{onClick:()=>startStripeVerification('both'),style:{width:'100%',background:'var(--green)',color:'#fff',border:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:15,cursor:'pointer',fontFamily:"'Sora',sans-serif",marginBottom:10}},'🪪 '+(t.verify_with_stripe||'Verify identity with Stripe')),
+        React.createElement('button',{onClick:()=>go('home'),style:{width:'100%',background:'none',border:'1.5px solid var(--bord)',color:'var(--text2)',padding:'12px',borderRadius:11,fontWeight:600,fontSize:14,cursor:'pointer'}},'← '+tx('Voltar','Back','Retour'))
       );
     })():React.createElement(PostTripForm, { t: t, onSubmit: handlePostTrip,})));
-case 'post-shipment':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "📦"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.post_ship_title), React.createElement('div', { className: "phd-sub",}, t.post_ship_sub))), React.createElement('div', { style: {padding:'0 16px 32px'},}, !loggedIn?React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),}):
+case 'post-shipment':return React.createElement('div', { className: "page",}, React.createElement('div', { className: "phd",}, React.createElement('div', { className: "phd-icon",}, "📦"), React.createElement('div', null, React.createElement('div', { className: "phd-title",}, t.post_ship_title), React.createElement('div', { className: "phd-sub",}, t.post_ship_sub))), React.createElement('div', { style: {padding:'0 16px 32px'},}, !loggedIn?React.createElement(PW, { t: t, type: "post", onSub: ()=>go('auth'),}):((!user||!['pro','business'].includes(user.subscription_plan))&&!(user&&user.subscription_status==='trialing')&&ships.filter(sh=>!sh.isDemo&&sh.user_id===(user&&user.id)).length>=1)?(function(){
+  const isEN=t&&t.lang==='English';
+  const isFR=t&&t.lang==='Français';
+  return React.createElement('div',{style:{background:'linear-gradient(145deg,#0A2540,#0c3060)',borderRadius:16,padding:24,textAlign:'center',margin:'0 16px'}},
+    React.createElement('div',{style:{fontSize:40,marginBottom:12}},'🔒'),
+    React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:18,color:'#fff',marginBottom:10}},
+      isEN?'Upgrade to continue':isFR?'Passez à un plan payant':'Upgrade para continuar'
+    ),
+    React.createElement('p',{style:{fontSize:13,color:'rgba(255,255,255,.65)',lineHeight:1.65,margin:'0 0 20px',maxWidth:300,marginLeft:'auto',marginRight:'auto'}},
+      isEN?'Your free plan includes 1 trip post and 1 package request. You\'ve used your free posting limit. Upgrade to AfroRoute Pro or Business to keep posting.':
+      isFR?'Votre plan gratuit inclut 1 voyage et 1 demande. Vous avez atteint la limite. Passez à Pro ou Business pour continuer.':
+      'O teu plano gratuito inclui 1 viagem e 1 pedido. Já usaste o teu limite. Faz upgrade para Pro ou Business para continuar.'
+    ),
+    React.createElement('button',{
+      onClick:()=>goUpgrade('free_limit_reached'),
+      style:{background:'var(--green)',color:'#fff',border:'none',padding:'13px 28px',borderRadius:12,fontWeight:700,fontSize:15,cursor:'pointer',fontFamily:"'Sora',sans-serif",display:'block',width:'100%',marginBottom:8}
+    }, isEN?'Upgrade to Pro — $9.99/mo':isFR?'Passer à Pro — 9,99 €/mois':'Upgrade para Pro — €9,99/mês'),
+    React.createElement('button',{
+      onClick:()=>goUpgrade('free_limit_reached'),
+      style:{background:'rgba(255,255,255,.1)',color:'#fff',border:'1px solid rgba(255,255,255,.2)',padding:'11px 28px',borderRadius:12,fontWeight:600,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif",display:'block',width:'100%',marginBottom:8}
+    }, isEN?'View Business — $29.99/mo':isFR?'Voir Business — 29,99 €/mois':'Ver Business — €29,99/mês'),
+    React.createElement('button',{
+      onClick:()=>go('home'),
+      style:{background:'none',color:'rgba(255,255,255,.4)',border:'none',fontSize:12,cursor:'pointer',padding:'6px',fontFamily:"'Sora',sans-serif"}
+    }, isEN?'Maybe later':isFR?'Plus tard':'Talvez mais tarde')
+  );
+})():
     // Sender verification gate - must be verified before posting shipment
-    (!loggedIn||!isIdentityVerified(user))?(()=>{
-      if(!loggedIn){return React.createElement(PW,{t:t,type:'post',onSub:()=>go('auth')});}
-      return React.createElement('div',{className:'page'},
-        React.createElement('div',{className:'phd'},
-          React.createElement('div',{className:'phd-icon'},'🪪'),
-          React.createElement('div',null,
-            React.createElement('div',{className:'phd-title'},t.identity_required_title||'Identity verification required'),
-            React.createElement('div',{className:'phd-sub'},'AfroRoute')
-          )
+    (!isIdentityVerified(user))?(()=>{
+      // Logged in but not verified → show identity required screen inline (no extra div.page wrapper)
+      return React.createElement('div',{style:{padding:'24px 16px',maxWidth:440,margin:'0 auto'}},
+        React.createElement('div',{style:{background:'rgba(245,158,11,.06)',border:'1px solid rgba(245,158,11,.2)',borderRadius:14,padding:'18px',marginBottom:20,fontSize:14,color:'var(--text2)',lineHeight:1.7,textAlign:'center'}},
+          React.createElement('div',{style:{fontSize:36,marginBottom:10}},'🔐'),
+          React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:16,color:'var(--navy)',marginBottom:8}},t.identity_required_title||'Identity verification required'),
+          React.createElement('p',null,t.identity_required_body||tx('Para publicar, verifica primeiro a tua identidade.','To post, please verify your identity first.','Pour publier, veuillez d\'abord vérifier votre identité.'))
         ),
-        React.createElement('div',{style:{padding:'24px 16px',maxWidth:440,margin:'0 auto'}},
-          React.createElement('div',{style:{background:'rgba(245,158,11,.06)',border:'1px solid rgba(245,158,11,.2)',borderRadius:14,padding:'18px',marginBottom:20,fontSize:14,color:'var(--text2)',lineHeight:1.7,textAlign:'center'}},
-            React.createElement('div',{style:{fontSize:36,marginBottom:10}},'🔐'),
-            React.createElement('p',null,t.identity_required_body||tx('Para publicar, verifica primeiro a tua identidade.','To post, please verify your identity first.','Pour publier, veuillez d\'abord vérifier votre identité.'))
-          ),
-          React.createElement('button',{onClick:()=>startStripeVerification('both'),style:{width:'100%',background:'var(--green)',color:'#fff',border:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:15,cursor:'pointer',fontFamily:"'Sora',sans-serif",marginBottom:10}},'🪪 '+(t.verify_with_stripe||'Verify identity with Stripe')),
-          React.createElement('button',{onClick:()=>go('home'),style:{width:'100%',background:'none',border:'1.5px solid var(--bord)',color:'var(--text2)',padding:'12px',borderRadius:11,fontWeight:600,fontSize:14,cursor:'pointer'}},'← '+tx('Voltar','Back','Retour'))
-        )
+        React.createElement('button',{onClick:()=>startStripeVerification('both'),style:{width:'100%',background:'var(--green)',color:'#fff',border:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:15,cursor:'pointer',fontFamily:"'Sora',sans-serif",marginBottom:10}},'🪪 '+(t.verify_with_stripe||'Verify identity with Stripe')),
+        React.createElement('button',{onClick:()=>go('home'),style:{width:'100%',background:'none',border:'1.5px solid var(--bord)',color:'var(--text2)',padding:'12px',borderRadius:11,fontWeight:600,fontSize:14,cursor:'pointer'}},'← '+tx('Voltar','Back','Retour'))
       );
     })():React.createElement(PostShipForm, { t: t, onSubmit: handlePostShip,})));
 case 'delivery-confirm':return deliveryFlow
