@@ -1,7 +1,4 @@
 // api/send-confirmation-email.js
-// Uses Supabase Admin generateLink to get official confirmation token
-// then delivers it via Resend — no fake/static links
-
 const { createClient } = require('@supabase/supabase-js');
 const { Resend } = require('resend');
 
@@ -21,18 +18,16 @@ module.exports = async (req, res) => {
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_KEY
   );
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const resend  = new Resend(process.env.RESEND_API_KEY);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.afroroute.com';
-  const fromEmail = process.env.RESEND_FROM || 'noreply@afroroute.com';
+  const from    = process.env.RESEND_FROM    || 'AfroRoute <noreply@afroroute.com>';
+  const replyTo = process.env.RESEND_REPLY_TO || 'support@afroroute.com';
 
   try {
-    // Generate official Supabase confirmation link
     const { data, error } = await supabase.auth.admin.generateLink({
       type: 'signup',
       email: email.trim().toLowerCase(),
-      options: {
-        redirectTo: siteUrl,
-      },
+      options: { redirectTo: siteUrl },
     });
 
     if (error || !data?.properties?.action_link) {
@@ -43,9 +38,9 @@ module.exports = async (req, res) => {
     const confirmationLink = data.properties.action_link;
     console.log('Confirmation link generated for:', email, '| host:', new URL(confirmationLink).host);
 
-    // Send via Resend
     const { error: sendError } = await resend.emails.send({
-      from: `AfroRoute <${fromEmail}>`,
+      from,
+      replyTo,
       to: email.trim().toLowerCase(),
       subject: 'Confirm your AfroRoute account',
       html: `
@@ -70,6 +65,7 @@ module.exports = async (req, res) => {
           </p>
           <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
           <p style="color:#94a3b8;font-size:12px;text-align:center;">
+            Need help? Contact <a href="mailto:support@afroroute.com" style="color:#1ABC9C;">support@afroroute.com</a><br>
             AfroRoute · <a href="https://www.afroroute.com" style="color:#1ABC9C;">afroroute.com</a>
           </p>
         </div>
