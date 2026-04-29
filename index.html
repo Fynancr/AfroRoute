@@ -2813,12 +2813,24 @@ const SUPABASE_URL = "https://fzokrhosmthdiymdewuw.supabase.co";
 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6b2tyaG9zbXRoZGl5bWRld3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTY2MTgsImV4cCI6MjA5MTY5MjYxOH0.ee5OBNh6Om0mLTSjmFOqH0JVGu4cbjcLL9Ekawem4YE";
 
+// Safe auth callback URL for signup confirmation and password recovery.
+// Fixes: "Can't find variable: AUTH_CALLBACK_URL" on the confirmation screen.
+function getAfroRouteOrigin(){
+  try{
+    return (window.location && window.location.origin) ? window.location.origin : 'https://www.afroroute.com';
+  }catch(_e){
+    return 'https://www.afroroute.com';
+  }
+}
+const AUTH_CALLBACK_URL = `${getAfroRouteOrigin()}/auth/callback`;
+
+
 const sb = {
   _headers:()=>({'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':`Bearer ${sb._token||SUPABASE_ANON_KEY}`}),
   _token:null,_user:null,
   async signUp(_rawEmail,password,name,country,wa){
     const email=(_rawEmail||'').trim().toLowerCase();
-    const r=await fetch(`${SUPABASE_URL}/auth/v1/signup`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email,password,data:{name,country,wa},options:{emailRedirectTo:'https://www.afroroute.com/auth/callback'}})});
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/signup`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email,password,data:{name,country,wa},options:{emailRedirectTo:AUTH_CALLBACK_URL}})});
     const d=await r.json();if(d.error)throw new Error(d.error.message||d.msg||'Signup failed');
     if(d.access_token){sb._token=d.access_token;sb._user=d.user;}
     // Always send confirmation email via Resend regardless of Supabase SMTP settings. Non-fatal.
@@ -2866,7 +2878,7 @@ const sb = {
     if(!result.success){throw new Error(dd.error||nativeError||`Could not send confirmation email (API ${rr.status})`);}
     return result;},
   async resetPassword(email){
-    const redirectTo='https://www.afroroute.com/auth/callback?type=recovery';
+    const redirectTo=`${AUTH_CALLBACK_URL}?type=recovery`;
     const r=await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,{method:'POST',headers:sb._headers(),body:JSON.stringify({email:(email||'').trim().toLowerCase()})});
     const d=await r.json().catch(()=>({}));
     if(!r.ok||d.error)throw new Error(d.error?.message||d.msg||d.error_description||'Could not send reset password email');
