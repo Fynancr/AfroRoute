@@ -1,23 +1,29 @@
-// api/create-verification-session.js
 const Stripe = require('stripe');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
   if (req.method === 'OPTIONS') return res.status(200).end();
+
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
+
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return res.status(500).json({ success: false, error: 'Stripe secret key is not configured' });
   }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  const { userId, email, role = 'both' } = req.body;
+  const { userId, email, role = 'both' } = req.body || {};
 
   if (!userId || !email) {
-    return res.status(400).json({ error: 'Missing userId or email' });
+    return res.status(400).json({ success: false, error: 'Missing userId or email' });
   }
 
-  const return_url = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.afroroute.com'}/?verification=complete&signup_step=3`;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://www.afroroute.com';
+  const return_url = `${siteUrl}/?verification=complete`;
 
   try {
     const session = await stripe.identity.verificationSessions.create({
@@ -25,7 +31,7 @@ module.exports = async (req, res) => {
       client_reference_id: userId,
       metadata: {
         user_id: userId,
-        userId:  userId,
+        userId,
         email,
         role,
         platform: 'afroroute',
@@ -61,9 +67,8 @@ module.exports = async (req, res) => {
       url_host: urlHost,
       has_url: !!session.url,
     });
-
   } catch (err) {
-    console.error('Stripe Identity error:', err.message);
-    return res.status(500).json({ success: false, error: err.message || 'Failed to create verification session' });
+    console.error('Stripe Identity error:', { message: err.message });
+    return res.status(500).json({ success: false, error: 'Failed to create verification session' });
   }
 };
