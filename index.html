@@ -1356,6 +1356,28 @@ outline:none!important;
 .prof-hero *{position:relative;z-index:1;}
 
 .btn-auth:disabled,.btn-submit:disabled{background:var(–green)!important;color:#fff!important;opacity:.45!important;box-shadow:none!important;}
+
+/* ── Auth form spacing ── */
+.auth-form .ff{margin-bottom:16px;}
+.auth-form .fl{margin-bottom:6px;display:block;}
+
+/* ── Auth card bottom padding ── */
+.auth-card{padding-bottom:calc(28px + env(safe-area-inset-bottom))!important;}
+
+/* ── Auth divider polished ── */
+.auth-div{display:flex;align-items:center;gap:12px;margin:14px 0;color:var(–text3);font-size:13px;font-weight:600;}
+.auth-div::before,.auth-div::after{content:’’;flex:1;height:1px;background:#e2e8f0;}
+.auth-div-text{white-space:nowrap;color:#64748b;font-weight:600;}
+
+/* ── Bottom nav: auth tab not highlighted like account ── */
+.bnav-btn.auth-tab{opacity:.75;}
+
+/* ── Form helper text ── */
+.form-helper{text-align:center;font-size:12px;color:var(–text3);margin:6px 0 0;line-height:1.5;}
+
+/* ── Primary CTA always green ── */
+.btn-auth{background:var(–green)!important;color:#fff!important;}
+.btn-auth:disabled{background:var(–green)!important;color:#fff!important;opacity:.45!important;box-shadow:none!important;cursor:not-allowed!important;}
 </style>
 
 <script>
@@ -2383,9 +2405,22 @@ function AuthPage({t,onLogin,go,initialMode}){
             otpError&&React.createElement('div',{className:'ferr',style:{marginTop:6}},'⚠ ',otpError),
             React.createElement('button',{onClick:verifyLoginOtp,disabled:loading||otpCode.length<6,style:{width:'100%',marginTop:10,background:'var(--green)',color:'#fff',border:'none',padding:13,borderRadius:10,fontWeight:700,fontSize:14,cursor:'pointer',opacity:(loading||otpCode.length<6)?.6:1}},loading?'…':tx('Verificar Código','Verify Code','Vérifier le code'))
           ),
-          !otpSent&&React.createElement('button',{className:'btn-auth',onClick:submitLogin,disabled:loading},loading?'…':tx('Entrar','Sign In','Se connecter')),
+          !otpSent&&(()=>{
+            const canLogin=f.email.trim().length>0&&f.pass.length>0;
+            return React.createElement(React.Fragment,null,
+              React.createElement('button',{className:'btn-auth',onClick:submitLogin,
+                disabled:loading||!canLogin,
+                style:{opacity:(loading||!canLogin)?.45:1}
+              },loading?'…':tx('Entrar','Sign In','Se connecter')),
+              !canLogin&&!loading&&React.createElement('p',{
+                style:{textAlign:'center',fontSize:12,color:'var(--text3)',margin:'6px 0 0',lineHeight:1.5}
+              },tx('Insira o seu email e palavra-passe para continuar.',
+                   'Enter your email and password to continue.',
+                   'Entrez votre email et votre mot de passe pour continuer.'))
+            );
+          })(),
           !otpSent&&React.createElement(React.Fragment,null,
-            React.createElement('div',{className:'auth-div'},t.or||tx('ou','or','ou')),
+            React.createElement('div',{className:'auth-div'},React.createElement('span',{className:'auth-div-text'},t.or||tx('ou','or','ou'))),
             React.createElement('button',{onClick:sendLoginOtp,style:{width:'100%',background:'var(--surf2)',border:'1.5px solid var(--bord)',borderRadius:11,padding:13,fontWeight:600,fontSize:14,cursor:'pointer',color:'var(--text2)',display:'flex',alignItems:'center',justifyContent:'center',gap:8}},'✉️ ',tx('Entrar com código por email','Sign in with email code','Se connecter avec un code email')),
             otpError&&React.createElement('div',{className:'ferr'},'⚠ ',otpError)
           ),
@@ -5419,12 +5454,12 @@ const NavBar=({loggedIn,user,go,t,lang,setPage,setLang,totalUnread})=>React.crea
             : ini(_optionalChain([user,'optionalAccess',_103=>_103.name])||'You')
         )
       : React.createElement('div',{className:'nav-auth-btns'},
-          React.createElement('button',{className:'btn-ng',onClick:()=>setPage('auth')},t.nav_login),
-          React.createElement('button',{className:'btn-ns',onClick:()=>setPage('signup')},t.nav_signup)
+          page!=='auth'&&React.createElement('button',{className:'btn-ng',onClick:()=>setPage('auth')},t.nav_login),
+          page!=='signup'&&React.createElement('button',{className:'btn-ns',onClick:()=>setPage('signup')},t.nav_signup)
         )
   )
 );
-const BotNav=({loggedIn,page,go,t,totalUnread})=>React.createElement('nav', { className: "bottom-nav",}, [{icon:React.createElement('svg', { viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",}, React.createElement('path', { d: "m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"             ,}), React.createElement('polyline', { points: "9 22 9 12 15 12 15 22"       ,})),lbl:t.nav_home,p:'home'},{icon:React.createElement('svg', { viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",}, React.createElement('path', { d: "M22 2L11 13"  ,}), React.createElement('polygon', { points: "22 2 15 22 11 13 2 9 22 2"         ,})),lbl:t.nav_trips,p:'browse-trips'},{icon:React.createElement('svg', { viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",}, React.createElement('path', { d: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"          ,}), React.createElement('circle', { cx: "12", cy: "10", r: "3",})),lbl:t.nav_ships,p:'browse-ships'},{icon:React.createElement('svg', { viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",}, React.createElement('path', { d: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"                  ,})),lbl:t.nav_msgs,p:'messages',badge:totalUnread},{icon:React.createElement('svg', { viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",}, React.createElement('path', { d: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"          ,}), React.createElement('circle', { cx: "12", cy: "7", r: "4",})),lbl:t.nav_profile,p:loggedIn?'profile':'auth'}].map(item=>React.createElement('button', { key: item.p, className: `bnav-btn ${page===item.p?'active':''}`, onClick: ()=>go(item.p),}, item.icon, React.createElement('span', { className: "bnav-lbl",}, item.lbl), item.badge>0&&React.createElement('span', { className: "bnav-badge",}, item.badge))));
+const BotNav=({loggedIn,page,go,t,totalUnread})=>React.createElement('nav', { className: "bottom-nav",}, [{icon:React.createElement('svg', { viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",}, React.createElement('path', { d: "m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"             ,}), React.createElement('polyline', { points: "9 22 9 12 15 12 15 22"       ,})),lbl:t.nav_home,p:'home'},{icon:React.createElement('svg', { viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",}, React.createElement('path', { d: "M22 2L11 13"  ,}), React.createElement('polygon', { points: "22 2 15 22 11 13 2 9 22 2"         ,})),lbl:t.nav_trips,p:'browse-trips'},{icon:React.createElement('svg', { viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",}, React.createElement('path', { d: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"          ,}), React.createElement('circle', { cx: "12", cy: "10", r: "3",})),lbl:t.nav_ships,p:'browse-ships'},{icon:React.createElement('svg', { viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",}, React.createElement('path', { d: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"                  ,})),lbl:t.nav_msgs,p:'messages',badge:totalUnread},{icon:React.createElement('svg', { viewBox: "0 0 24 24"   , fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",}, React.createElement('path', { d: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"          ,}), React.createElement('circle', { cx: "12", cy: "7", r: "4",})),lbl:t.nav_profile,p:loggedIn?'profile':'auth'}].map(item=>React.createElement('button', { key: item.p, className: `bnav-btn ${(item.p==='auth'?(page==='auth'):page===item.p)?'active':''}`, onClick: ()=>go(item.p),}, item.icon, React.createElement('span', { className: "bnav-lbl",}, item.lbl), item.badge>0&&React.createElement('span', { className: "bnav-badge",}, item.badge))));
 const renderHome=()=>React.createElement('div', { className: "page",}, React.createElement('div', { className: "hero",}, React.createElement('div', { className: "hero-in",}, React.createElement('div', { className: "hero-pill",}, "🇵🇹 ↔ 🇦🇴 Portugal • Angola Launch"      ), React.createElement('h1', { dangerouslySetInnerHTML: {__html:t.hero_title},}), React.createElement('p', { className: "hero-sub",}, t.hero_sub), React.createElement('div', { className: "hero-ctas",}, React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,width:'100%'}},
             React.createElement('button',{className:"btn-h1",onClick:()=>go('browse-trips')},t.browse_trips),
             React.createElement('button',{className:"btn-h2",onClick:()=>loggedIn?go('post-trip'):setPage('auth')},t.post_trip),
