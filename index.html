@@ -1764,7 +1764,7 @@ function PostTripForm({t,onSubmit}){
       React.createElement('div',{style:{fontSize:13,color:'#991b1b',lineHeight:1.8}},missing.join(' · '))
     ),
     React.createElement('div',{style:{position:'sticky',bottom:'calc(70px + env(safe-area-inset-bottom))',zIndex:10,paddingBottom:8}},
-      React.createElement('button',{onClick:submit,disabled:loading,style:{width:'100%',background:loading?'var(--text3)':'var(--green)',color:'#fff',border:'none',padding:'16px',borderRadius:14,fontWeight:800,fontSize:16,cursor:loading?'not-allowed':'pointer',fontFamily:"'Sora',-apple-system,sans-serif",boxShadow:'0 4px 16px rgba(26,188,156,.35)',transition:'all .2s'}},
+      React.createElement('button',{onClick:submit,disabled:loading,style:{width:'100%',background:'var(--green)',color:'#fff',border:'none',padding:'16px',borderRadius:14,fontWeight:800,fontSize:16,cursor:loading?'not-allowed':'pointer',fontFamily:"'Sora',-apple-system,sans-serif",boxShadow:'0 4px 16px rgba(26,188,156,.35)',transition:'all .2s'}},
         loading?'⏳...':(t.post_trip_btn||t.submit_trip||'Post Trip')+' 🚀'
       )
     )
@@ -1846,7 +1846,7 @@ function PostShipForm({t,onSubmit}){
       React.createElement('div',{style:{fontSize:13,color:'#991b1b',lineHeight:1.8}},missing.join(' · '))
     ),
     React.createElement('div',{style:{position:'sticky',bottom:'calc(70px + env(safe-area-inset-bottom))',zIndex:10,paddingBottom:8}},
-      React.createElement('button',{onClick:submit,disabled:loading,style:{width:'100%',background:loading?'var(--text3)':'var(--green)',color:'#fff',border:'none',padding:'16px',borderRadius:14,fontWeight:800,fontSize:16,cursor:loading?'not-allowed':'pointer',fontFamily:"'Sora',-apple-system,sans-serif",boxShadow:'0 4px 16px rgba(26,188,156,.35)',transition:'all .2s'}},
+      React.createElement('button',{onClick:submit,disabled:loading,style:{width:'100%',background:'var(--green)',color:'#fff',border:'none',padding:'16px',borderRadius:14,fontWeight:800,fontSize:16,cursor:loading?'not-allowed':'pointer',fontFamily:"'Sora',-apple-system,sans-serif",boxShadow:'0 4px 16px rgba(26,188,156,.35)',transition:'all .2s'}},
         loading?'⏳...':(t.post_ship_btn||t.submit_ship||'Post Request')+' 🚀'
       )
     )
@@ -1931,7 +1931,7 @@ function OTPInput({ email, onSuccess, t }) {
           autoFocus: true,}
         )
         , React.createElement('button', { onClick: verify, disabled: loading||code.length<6,
-          style: {background:'var(--navy)',color:'#fff',border:'none',padding:'12px 18px',borderRadius:10,fontWeight:700,fontSize:14,cursor:'pointer',opacity:(loading||code.length<6)?.6:1,whiteSpace:'nowrap'},}
+          style: {background:'var(--green)',color:'#fff',border:'none',padding:'12px 18px',borderRadius:10,fontWeight:700,fontSize:14,cursor:'pointer',opacity:(loading||code.length<6)?.6:1,whiteSpace:'nowrap'},}
           , loading?'..':'Verify'
         )
       )
@@ -2314,7 +2314,7 @@ function AuthPage({t,onLogin,go,initialMode}){
           React.createElement('button',{
             onClick:handleResend,
             disabled:resendLoading,
-            style:{width:'100%',background:'var(--navy)',color:'#fff',border:'none',padding:'11px',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer',opacity:resendLoading?.7:1,fontFamily:"'Sora',sans-serif"}
+            style:{width:'100%',background:'var(--green)',color:'#fff',border:'none',padding:'11px',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer',opacity:resendLoading?.7:1,fontFamily:"'Sora',sans-serif"}
           },resendLoading?'…':(t.confirm_resend||tx('Reenviar email de confirmação','Resend confirmation email',"Renvoyer l'e-mail de confirmation")))
         ),
         // Not confirmed message
@@ -2604,7 +2604,7 @@ function AuthPage({t,onLogin,go,initialMode}){
                   :React.createElement('button',{
                       onClick:startStripeIdentity,
                       disabled:isLoad,
-                      style:{flex:2,padding:'12px',borderRadius:10,border:'none',background:isLoad?'#94a3b8':'var(--green)',color:'#fff',fontWeight:700,fontSize:14,cursor:isLoad?'default':'pointer',fontFamily:"'Sora',sans-serif"}
+                      style:{flex:2,padding:'12px',borderRadius:10,border:'none',background:'var(--green)',color:'#fff',fontWeight:700,fontSize:14,cursor:isLoad?'default':'pointer',fontFamily:"'Sora',sans-serif"}
                     },isLoad?'…':(isFail?(t.verif_try_again||tx('Tentar novamente','Try again','Réessayer')):(t.stripe_continue||tx('Continuar para a Stripe Identity','Continue to Stripe Identity','Continuer vers Stripe Identity'))))
               )
             );
