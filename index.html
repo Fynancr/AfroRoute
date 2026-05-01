@@ -5304,7 +5304,7 @@ case 'post-trip':return React.createElement('div',{className:'page'},
       ? React.createElement(PW,{t,type:'post',onSub:()=>go('auth')})
       : (()=>{
           const isPaid=['pro','business'].includes(user&&user.subscription_plan)||((user&&user.subscription_status)==='trialing');
-          const myTrips=trips.filter(tr=>!tr.isDemo&&tr.user_id===(user&&user.id));
+          const myTrips=(trips||[]).filter(tr=>!tr.isDemo&&tr.user_id===(user&&user.id));
           if(!isPaid && myTrips.length>=1){
             return React.createElement('div',{style:{background:'linear-gradient(145deg,#0A2540,#0c3060)',borderRadius:16,padding:24,textAlign:'center',margin:'0 16px'}},
               React.createElement('div',{style:{fontSize:40,marginBottom:12}},'🔒'),
@@ -5341,7 +5341,7 @@ case 'post-shipment':return React.createElement('div',{className:'page'},
       ? React.createElement(PW,{t,type:'post',onSub:()=>go('auth')})
       : (()=>{
           const isPaid=['pro','business'].includes(user&&user.subscription_plan)||((user&&user.subscription_status)==='trialing');
-          const myShips=shipments.filter(s=>!s.isDemo&&s.user_id===(user&&user.id));
+          const myShips=(ships||[]).filter(s=>!s.isDemo&&s.user_id===(user&&user.id));
           if(!isPaid && myShips.length>=1){
             return React.createElement('div',{style:{background:'linear-gradient(145deg,#0A2540,#0c3060)',borderRadius:16,padding:24,textAlign:'center',margin:'0 16px'}},
               React.createElement('div',{style:{fontSize:40,marginBottom:12}},'🔒'),
