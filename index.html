@@ -2406,7 +2406,7 @@ function AuthPage({t,onLogin,go,initialMode}){
             React.createElement('button',{onClick:verifyLoginOtp,disabled:loading||otpCode.length<6,style:{width:'100%',marginTop:10,background:'var(--green)',color:'#fff',border:'none',padding:13,borderRadius:10,fontWeight:700,fontSize:14,cursor:'pointer',opacity:(loading||otpCode.length<6)?.6:1}},loading?'…':tx('Verificar Código','Verify Code','Vérifier le code'))
           ),
           !otpSent&&(()=>{
-            const canLogin=f.email.trim().length>0&&f.pass.length>0;
+            const canLogin=f.email.trim().length>0&&f.password.length>0;
             return React.createElement(React.Fragment,null,
               React.createElement('button',{className:'btn-auth',onClick:submitLogin,
                 disabled:loading||!canLogin,
