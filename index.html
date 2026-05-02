@@ -2140,10 +2140,14 @@ function AuthPage({t,onLogin,go,initialMode}){
           url_host:verData.url_host,
           status:verData.status,
         });
-        // ── Redirect immediately ──
-        window.location.href = verData.url;
-        // Show fallback screen after 3s in case redirect didn't work
-        setTimeout(()=>{ setVerifyStatus('ready'); setVerifyLoading(false); }, 3000);
+        // Show ready screen first (renders anchor into DOM), then auto-click
+        setVerifyStatus('ready');
+        setVerifyLoading(false);
+        setTimeout(()=>{
+          const link=document.getElementById('stripe-identity-direct-link');
+          if(link){ link.click(); }
+          else { window.location.href=verData.url; }
+        },150);
         return;
       }
 
@@ -2201,21 +2205,15 @@ function AuthPage({t,onLogin,go,initialMode}){
 
   const submitSignup=async()=>{
     if(!f.agreed){setE({agreed:tx('Aceita os termos para continuar','Accept terms to continue','Accepte les conditions pour continuer')});return;}
-    // Account was already created in step 3 before Stripe Identity redirect.
     setL(true);setE({});
     try{
-      if(pendingUserId){
-        // Account exists — log in with credentials to get session, then go home
-        const result = await onLogin({...f,isNew:false,_onConfirmNeeded:()=>{setSignupEmail(f.email);setSignupDone(true);}});
-        if(result&&result.id){go('home');}
-        return;
-      }
-      // Edge case: account not yet created (user somehow skipped step 3 create)
       const result = await onLogin({
         ...f,isNew:true,phoneVerified,
         _onConfirmNeeded:()=>{setSignupEmail(f.email);setSignupDone(true);}
       });
-      if(result&&result.id){go('home');}
+      if(result&&result.id){
+        setMode('account-created');
+      }
     }catch(ex){
       const _m=ex.message||'';
       let _err=tx('Erro ao criar conta','Error creating account','Erreur de création de compte');
@@ -2257,9 +2255,35 @@ function AuthPage({t,onLogin,go,initialMode}){
   const stepLabels=[
     tx('Dados','Info','Infos'),
     tx('Telefone','Phone','Téléphone'),
-    tx('Documentos','Documents','Documents'),
     tx('Termos','Terms','Conditions'),
   ];
+
+  // ── Account created welcome screen ──
+  if(mode==='account-created'){
+    return React.createElement('div',{style:{width:'100%',maxWidth:460,margin:'0 auto',background:'#fff',borderRadius:20,overflow:'hidden',boxShadow:'0 4px 24px rgba(0,0,0,.10)',marginBottom:40}},
+      React.createElement('div',{style:{background:'linear-gradient(135deg,#0A2540,#0d6e5b)',padding:'28px 20px',textAlign:'center'}},
+        React.createElement('div',{style:{fontSize:52,marginBottom:12}},'🎉'),
+        React.createElement('div',{style:{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:20,color:'#fff',marginBottom:6}},
+          tx('Conta criada!','Account created!','Compte créé !')
+        ),
+        React.createElement('div',{style:{fontSize:13,color:'rgba(255,255,255,.7)',lineHeight:1.6}},
+          tx('Já pode explorar a AfroRoute. Para publicar ou combinar envios, verifique a sua identidade.',
+             'You can browse AfroRoute now. To post or arrange shipments, verify your identity.',
+             "Vous pouvez explorer AfroRoute. Pour publier ou organiser des envois, vérifiez votre identité.")
+        )
+      ),
+      React.createElement('div',{style:{padding:'20px 16px'}},
+        React.createElement('button',{onClick:()=>go('home'),className:'btn-auth'},
+          tx('Começar a explorar','Start exploring','Commencer à explorer')
+        ),
+        React.createElement('button',{
+          onClick:()=>startStripeVerification('both'),
+          style:{width:'100%',marginTop:10,background:'none',border:'1.5px solid var(--green)',color:'var(--green)',
+                 padding:'12px',borderRadius:11,fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:"'Sora',sans-serif"}
+        },tx('Verificar identidade agora','Verify identity now',"Vérifier l'identité maintenant"))
+      )
+    );
+  }
 
   // ── Email confirmation screen ──
   if(signupDone){
@@ -2375,13 +2399,13 @@ function AuthPage({t,onLogin,go,initialMode}){
               mode==='login'?tx('Entrar','Sign In','Se connecter'):tx('Criar Conta','Create Account','Créer un compte')
             ),
             mode==='signup'&&React.createElement('div',{style:{fontSize:12,color:'rgba(255,255,255,.6)',marginTop:1}},
-              tx('Passo','Step','Étape')+' '+step+' '+tx('de','of','sur')+' 4 — '+stepLabels[step-1]
+              tx('Passo','Step','Étape')+' '+step+' '+tx('de','of','sur')+' 3 — '+stepLabels[step-1]
             )
           )
         ),
         // Step progress bar for signup
         mode==='signup'&&React.createElement('div',{style:{display:'flex',gap:4,marginTop:12}},
-          [1,2,3,4].map(n=>React.createElement('div',{key:n,style:{flex:1,height:3,borderRadius:99,background:n<=step?'#1ABC9C':'rgba(255,255,255,.2)',transition:'background .3s'}}))
+          [1,2,3].map(n=>React.createElement('div',{key:n,style:{flex:1,height:3,borderRadius:99,background:n<=step?'#1ABC9C':'rgba(255,255,255,.2)',transition:'background .3s'}}))
         )
       ),
 
@@ -2541,11 +2565,14 @@ function AuthPage({t,onLogin,go,initialMode}){
                     )
                   ),
                   // Primary: Open Stripe
-                  React.createElement('button',{
-                    onClick:()=>{ window.location.href = stripeVerifyUrl; },
+                  React.createElement('a',{
+                    id:'stripe-identity-direct-link',
+                    href:stripeVerifyUrl,
+                    target:'_self',
+                    rel:'noopener noreferrer',
                     style:{display:'block',width:'100%',maxWidth:320,margin:'0 auto 10px',background:'var(--green)',color:'#fff',
-                           border:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:15,
-                           cursor:'pointer',fontFamily:"'Sora',sans-serif"}
+                           textAlign:'center',textDecoration:'none',padding:'14px',borderRadius:12,fontWeight:700,fontSize:15,
+                           fontFamily:"'Sora',sans-serif",boxSizing:'border-box'}
                   },'🔗 '+tx('Abrir Stripe Identity','Open Stripe Identity','Ouvrir Stripe Identity')),
                   // Secondary: Copy link
                   React.createElement('button',{
@@ -5130,6 +5157,17 @@ useEffect(()=>{
       setSub(false);
     }
     try{
+      // Handle email confirmation return (?verify=1)
+      try{
+        const _vfy = new URLSearchParams(window.location.search).get('verify');
+        if(_vfy==='1'){
+          window.history.replaceState({},document.title,window.location.pathname);
+          showToast(tx
+            ?tx('Email confirmado! Bem-vindo à AfroRoute.','Email confirmed! Welcome to AfroRoute.','E-mail confirmé ! Bienvenue sur AfroRoute.')
+            :'Email confirmed! Welcome to AfroRoute.','success');
+        }
+      }catch(_e){}
+
       // Handle direct URL navigation to legal pages (e.g. /terms → /?goto=terms)
       try{
         const _goto = new URLSearchParams(window.location.search).get('goto');
